@@ -31,9 +31,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: design-2026-11-15.
   Lanes: Build.
 
-- 📋 [DFR-0002] **Write the engine–window record protocol spec.**
-  `docs/specs/DFR-0002-engine-protocol.md`: record header, every
-  record and command, drive verdicts and reason codes, error codes,
+- ✅ [DFR-0002] **Write the engine–window record protocol spec.**
+  `docs/specs/DFR-0002-engine-protocol.md`: record header, the 0.1.0
+    records and the pause, resume and cancel commands (later records
+    come by amendment, user's choice 2026-11-15), drive verdicts and reason codes, error codes,
   versioning, and the `selftest-records` output. The one home of the
   layout (ADR-0001). A contract between two languages, so it gets
   `review-contract` before anyone builds from it. Serves S1, S3, S9.
@@ -50,6 +51,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   argument dispatch, the first and last records, exit codes, and
   `selftest-records`. Window side: `engine/Records` decoder and the
   conformance test that decodes the self-test output.
+  Replaces `engine_runs` in `tests/CMakeLists.txt` (it expects exit 0; a
+  bare run now exits 1, USAGE) with INV-11's conformance test (DFR-0002
+  spec § 11).
   **Layman:** Builds the engine's backbone and a test proving the window reads it correctly.
   Kind: implement.
   Source: design-2026-11-15.
@@ -107,6 +111,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   through `pkexec`. Stays on one filesystem, follows no symlinks.
   Image test: extent counts match `filefrag`, and the image is
   unchanged afterwards (S3).
+  Carries INV-12's image test: `report` on a path that is not a mount
+  point finishes NOT_A_MOUNT (DFR-0002 spec § 5).
   **Layman:** The engine measures how scattered each file is without changing anything.
   Kind: implement.
   Source: design-2026-11-15.
@@ -135,6 +141,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   `extents.asm`: `FS_IOC_GETFSMAP` for free space and metadata, and
   each file's extents flagged whole or fragmented, in blocks. Engine
   side of S4. Overlaps DFR-0008 in `extents.asm`.
+  Adds its drive map records to `docs/specs/DFR-0002-engine-protocol.md`
+  by amendment, bumping the minor version.
   **Layman:** The engine describes where everything sits on the drive, so the window can draw it.
   Kind: implement.
   Source: design-2026-11-15.
@@ -196,6 +204,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   `EXT4_IOC_MOVE_EXT` in chunks, CRC32C before and after, change
   records. Settles whether an `O_TMPFILE` donor works. Image test:
   extents fall, every SHA-256 matches, `e2fsck -fn` clean (S7).
+  Adds defrag's arguments and records to
+  `docs/specs/DFR-0002-engine-protocol.md` by amendment, and the § 4.7
+  check-order test that REFUSED makes reachable.
   **Layman:** The engine safely defrags the files in one folder, checking each file is unchanged.
   Kind: implement.
   Source: design-2026-11-15.
@@ -224,6 +235,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
 - 📋 [DFR-0020] **Engine whole-drive defrag with progress records.**
   `walk.asm` from the mount root, staying on one filesystem; progress
   records with blocks done and total. Overlaps DFR-0017 in `move.asm`.
+  Adds progress records to `docs/specs/DFR-0002-engine-protocol.md` by
+  amendment, bumping the minor version.
   **Layman:** The engine defrags a whole drive and reports how far it has got.
   Kind: implement.
   Source: design-2026-11-15.
