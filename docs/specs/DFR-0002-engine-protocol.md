@@ -333,8 +333,8 @@ value. An `Unknown` record may sit anywhere between `HELLO` and
 
 ## 5. Invariants
 
-No code exists yet, so no clause below can run; each names the test that
-DFR-0003 writes and the rule its fixture isolates.
+Each clause names the test that locks it and the rule its fixture
+isolates.
 
 - **INV-1** — The decoder reports malformed for type 0, for a `length`
   not a multiple of 8, and for a `length` above 65536; it accepts an
@@ -499,8 +499,8 @@ engine. Only the conformance test reads real engine output.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 to INV-9 | `tests/app/tst_records.cpp`, once DFR-0003 writes it |
-| INV-10, INV-11 | `tests/app/tst_records_conformance.cpp`, once DFR-0003 writes it |
+| INV-1 to INV-9 | `tests/app/tst_records.cpp` |
+| INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | DFR-0008's image test |
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | **nothing** until DFR-0004's probe tests exist |

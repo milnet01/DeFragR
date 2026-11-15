@@ -46,7 +46,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: design-2026-11-15.
   Lanes: Protocol.
 
-- 📋 [DFR-0003] **Engine core and protocol conformance test.**
+- ✅ [DFR-0003] **Engine core and protocol conformance test.**
   `kernel.inc`, `sys.asm`, `records.inc`, `records.asm`, `main.asm`:
   argument dispatch, the first and last records, exit codes, and
   `selftest-records`. Window side: `engine/Records` decoder and the
@@ -54,6 +54,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Replaces `engine_runs` in `tests/CMakeLists.txt` (it expects exit 0; a
   bare run now exits 1, USAGE) with INV-11's conformance test (DFR-0002
   spec § 11).
+  Done 2026-11-15. tst_records locks INV-1 to INV-9; each rule
+  was removed in turn and its test went red. tst_records_conformance
+  locks INV-10 and INV-11. Until DFR-0004 and DFR-0008, `probe` and a
+  root `report` finish INTERNAL: neither can finish OK yet.
   **Layman:** Builds the engine's backbone and a test proving the window reads it correctly.
   Kind: implement.
   Source: design-2026-11-15.
@@ -65,6 +69,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   `/sys/block/*/queue/rotational`; one record per drive with size,
   filesystem, SSD or spinning, and a verdict with reason code
   (ADR-0002). Engine side of S1 and S9. Unprivileged.
+  Replaces the INTERNAL result `probe` gives until then
+  (src/engine/main.asm).
   **Layman:** The engine lists every drive and says which can be defragged and why not.
   Kind: implement.
   Source: design-2026-11-15.
@@ -113,6 +119,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   unchanged afterwards (S3).
   Carries INV-12's image test: `report` on a path that is not a mount
   point finishes NOT_A_MOUNT (DFR-0002 spec § 5).
+  Replaces the INTERNAL result a root `report` gives until then
+  (src/engine/main.asm).
   **Layman:** The engine measures how scattered each file is without changing anything.
   Kind: implement.
   Source: design-2026-11-15.

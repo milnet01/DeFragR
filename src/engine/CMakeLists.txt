@@ -15,7 +15,16 @@ elseif(CMAKE_MATCH_1 VERSION_LESS DEFRAGR_NASM_MIN)
 endif()
 
 add_executable(defragr-engine
-    main.asm)
+    main.asm
+    records.asm
+    sys.asm)
+# kernel.inc and records.inc are included by name from this folder.
+target_include_directories(defragr-engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# Every NASM warning, as an error: the C++ side builds with warnings as
+# errors in the gate, and the engine is held to the same bar. Less one:
+# reloc-rel-dword fires on every `default rel` reference to another
+# section, which ld resolves in a static program; it is noise here.
+target_compile_options(defragr-engine PRIVATE -w+all -w-reloc-rel-dword -w+error)
 
 # Link with ld directly, so no C runtime, start files or default
 # library can be pulled in by a compiler driver.
