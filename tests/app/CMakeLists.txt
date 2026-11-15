@@ -16,3 +16,11 @@ add_dependencies(tst_records_conformance defragr-engine)
 add_test(NAME tst_records_conformance COMMAND tst_records_conformance)
 set_tests_properties(tst_records_conformance PROPERTIES
     ENVIRONMENT "DEFRAGR_ENGINE=$<TARGET_FILE:defragr-engine>")
+
+# Qt Test otherwise compiles both tests with their absolute source and
+# build folders (QT_TESTCASE_SOURCEDIR, QT_TESTCASE_BUILDDIR), for
+# QFINDTESTDATA, which no test here uses. Those paths change with every
+# pre-push worktree, so ccache missed on both tests every push. A Qt too
+# old to know the property keeps the paths, and only ccache is slower.
+set_target_properties(tst_records tst_records_conformance PROPERTIES
+    QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)
