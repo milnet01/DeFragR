@@ -14,6 +14,9 @@ endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+# No C++ modules here. CMake scans every C++23 source for them by default,
+# which costs time and stops ccache from caching any compile.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 # The oldest Qt the window is built against: 6.4 is what Ubuntu 24.04
 # LTS packages (6.4.2, checked 2026-11-15). CI builds against newer.
