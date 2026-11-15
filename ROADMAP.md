@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=37 -->
+<!-- ants-roadmap-id-high-water: DFR=38 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -160,6 +160,23 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Kind: perf.
   Source: user-request-2026-11-15.
   Lanes: Build.
+
+- ✅ [DFR-0038] **An opt-in local run of the gate inside an Ubuntu 26.04 container that matches GitHub's runner.**
+  `local-gate.md` § 9, the warm-containers row. This PC's compiler,
+  CMake and Qt differ from GitHub's, so a local green does not prove a
+  GitHub green. `scripts/ci-container.sh` builds an image from CI's own
+  package list and pins, and runs `scripts/local-ci.sh` in it as the
+  runner's user on the runner's core count. Opt-in: not part of the
+  push gate.
+  Done 2026-11-15. `warm` builds the image in about two and a half
+  minutes; a `run` on 09df3fb passed with the runner's CMake 4.4.5,
+  Ninja 1.13.2, GCC 15.2.0-16ubuntu1 and shellcheck 0.11.0, as uid 1001
+  on 4 cores, against Qt 6.10.2 (this PC: 6.12). A commit with a
+  deliberate warning failed it. The NASM build moved into
+  `scripts/build-nasm.sh`, which CI and the image both run.
+  **Layman:** A check you can run before pushing that copies GitHub's machine, so a change that passes here also passes there.
+  Kind: chore.
+  Source: user-request-2026-11-15.
 
 ## 0.2.0 — Drive map
 

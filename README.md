@@ -32,6 +32,9 @@ ctest --test-dir build
 ```
 
 `./scripts/local-ci.sh` runs every check CI runs.
+`./scripts/ci-container.sh run` runs the same checks in a Podman
+container with GitHub's Ubuntu toolchain, for a change that might build
+differently there.
 
 ## Documentation
 

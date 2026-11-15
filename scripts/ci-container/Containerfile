@@ -1,0 +1,41 @@
+# The GitHub runner's toolchain, for scripts/ci-container.sh. Build it through
+# that script, which passes every argument below and tags the image by them.
+#
+# Each argument copies one thing CI has:
+#   BASE             Ubuntu 26.04, as the workflow's `runs-on: ubuntu-26.04`.
+#   RUNNER_PACKAGES  tools the runner image preinstalls and the gate uses.
+#   CI_PACKAGES      what the workflow installs (local-ci.sh --ci-packages).
+#   CMAKE_*          the runner's CMake. It is Kitware's build, not Ubuntu's
+#                    package, so it is fetched the same way.
+#   NASM_*           the workflow's NASM, built by the workflow's own script.
+# No ccache: the runner has none, and finding one changes the build route.
+ARG BASE
+FROM ${BASE}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ARG RUNNER_PACKAGES
+ARG CI_PACKAGES
+# Word splitting of the package lists is intended.
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ${RUNNER_PACKAGES} ${CI_PACKAGES} \
+ && rm -rf /var/lib/apt/lists/*
+
+ARG CMAKE_VERSION
+ARG CMAKE_SHA256
+RUN curl -fsSL -o /tmp/cmake.tar.gz \
+        "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" \
+ && echo "${CMAKE_SHA256}  /tmp/cmake.tar.gz" | sha256sum --check --strict \
+ && tar -xzf /tmp/cmake.tar.gz -C /usr/local --strip-components=1 \
+ && rm /tmp/cmake.tar.gz
+
+ARG NASM_VERSION
+ARG NASM_SHA256
+COPY build-nasm.sh /tmp/build-nasm.sh
+RUN /tmp/build-nasm.sh /usr/local/bin "${NASM_VERSION}" "${NASM_SHA256}" \
+ && rm /tmp/build-nasm.sh
+
+# The runner's user and id. The script maps your own user onto it.
+RUN useradd --create-home --uid 1001 runner
+USER 1001

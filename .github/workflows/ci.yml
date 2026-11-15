@@ -88,20 +88,11 @@ jobs:
       - name: Build NASM from source
         id: nasm-build
         if: steps.nasm-cache.outputs.cache-hit != 'true'
+        # The same script builds the NASM in scripts/ci-container.sh's image.
         env:
           NASM_VERSION: ${{ steps.nasm-pin.outputs.version }}
           NASM_SHA256: ${{ steps.nasm-pin.outputs.sha256 }}
-        run: |
-          work=$(mktemp -d)
-          curl -fsSL -o "$work/nasm.tar.xz" \
-            "https://www.nasm.us/pub/nasm/releasebuilds/$NASM_VERSION/nasm-$NASM_VERSION.tar.xz"
-          echo "$NASM_SHA256  $work/nasm.tar.xz" | sha256sum --check --strict
-          tar -xJf "$work/nasm.tar.xz" -C "$work"
-          cd "$work/nasm-$NASM_VERSION"
-          ./configure --prefix=/usr/local
-          make -j"$(nproc)" nasm
-          mkdir -p ~/nasm-bin
-          install -m 0755 nasm ~/nasm-bin/nasm
+        run: ./scripts/build-nasm.sh ~/nasm-bin "$NASM_VERSION" "$NASM_SHA256"
 
       # Saved as soon as it is built, whatever the gate does later, so a red
       # or timed-out run still leaves the next one warm.

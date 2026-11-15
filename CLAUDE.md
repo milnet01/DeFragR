@@ -37,6 +37,11 @@ CMake build in `build/ci` with warnings as errors, then CTest.
 `src/engine/CMakeLists.txt`; the version CI builds is pinned in
 `scripts/local-ci.sh`.
 
+`./scripts/ci-container.sh run [COMMIT]` is an opt-in parity check, not
+part of the push gate: the same gate in a Podman image of GitHub's
+runner. Run it before pushing a toolchain-sensitive change. The runner's
+pins (base image, CMake, core count) live at the top of that script.
+
 ### Roadmap IDs
 
 `DFR-NNNN`, per `roadmap-format.md` § 3.5.1. Commit subjects
