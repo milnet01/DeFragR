@@ -3,71 +3,72 @@
 > **Purpose — so that later, anyone can tell whether the thing being
 > built is still the thing that was wanted.**
 
-Not a kick-off document. This is what everything is checked against for
-the life of the project, which is why the signs of success below have to
-be things you could actually observe.
-
-**This document is a gate.** Design does not start until it is agreed —
-`~/.claude/workflow.md` § 2. It passes when a stranger could read it and
-say whether a given feature serves it.
-
-**Status:** not started. When the gate passes: `agreed (YYYY-MM-DD)`.
-Replace each `>` guidance block with your own text as you fill it in.
+**Status:** agreed (2026-11-15).
 
 ## The problem
 
-> What hurt is this addressing? Specific, not aspirational. *"I lose
-> context between sessions and re-explain the project every time"* is the
-> right level; *"better productivity"* is not.
+Linux already has a defrag tool for ext4 drives (`e4defrag`). It works,
+but it runs in the terminal and prints plain lines of text. Watching it
+is boring, and it does not show the drive at all.
+
+It also does not say which drives are worth defragging. Defragging an
+SSD wears it and gains nothing. Defragging btrfs can bloat its snapshots.
 
 ## Who it is for
 
-> One to three, each written as "a person who…". Concrete, not a
-> category. Often that is you — say so, it is useful.
->
-> Then: what should this be when finished, and who else should it serve
-> then? A first version is not the whole aim.
+- **The owner first:** a person with two large spinning ext4 drives full
+  of games and ROMs (`/mnt/Games`, `/mnt/Emulators`). They want to pick a
+  drive, see how fragmented it is, and watch it being fixed in a window
+  that is pleasant, even hypnotic, to look at. They are partially
+  sighted, so the display must be readable without relying on colour.
+- **When finished (1.0):** any Linux desktop user who downloads it from
+  the public GitHub repository, and wants a clear, safe, good-looking
+  defrag for spinning drives.
 
 ## Signs it is working
 
-> Not *shipped* — working. Each written so that you could tell, by using
-> the thing, whether it is true yet. If you cannot imagine the moment you
-> would observe it, it is not one of these.
->
-> **Each gets a LABEL, because the roadmap gate points back at it** —
-> every sign must be claimed by at least one item before the queue is
-> agreed (`~/.claude/workflow.md` § 5). Without one there is nothing to
-> point at, and the gate becomes two lists a human matches by eye.
->
-> **The scheme is yours; `S<n>` below is a worked example, not a default.**
-> `check-queue` reads whatever label your roadmap actually cites its signs
-> by rather than choosing one for you. Keep `S1`, `S2` or replace them —
-> what matters is that the roadmap uses the same spelling. **Search the
-> roadmap for the label before choosing it**: a label that already names
-> something there, such as an `S1` section, makes coverage look better than
-> it is. **Whatever you
-> pick, pick one**: where the roadmap can name NO sign there is no scheme,
-> the coverage check cannot run, and it may make no claim in either
-> direction. One sign the roadmap cannot name is unlabelled on its own, and
-> the check still runs for the rest.
-> Swept 2026-09-07: this said `S<n>` was the DEFAULT, matching `workflow.md`
-> § 3 as it then read; § 3 now says the document proposes no scheme, so the
-> word went from both rather than from one.
->
-> **Ids are never reused and never renumbered.** Delete a sign and its id
-> retires with it — the next one still takes the next unused number.
-> Renumbering is the one way this can fail, because every citation
-> elsewhere keeps pointing at whatever now holds the old number, and
-> nothing announces it.
-
-- **S1** — <something you could observe, in one line>.
-- **S2** — <another>.
+- **S1** — Opening the app lists every mounted drive, with its size,
+  filesystem, and whether it is an SSD or a spinning drive.
+- **S2** — At the start you choose either "view report" or "defrag now".
+- **S3** — "View report" shows how fragmented the drive is and its
+  worst-affected files, and changes nothing on the drive.
+- **S4** — A window shows a map of the drive as blocks. During a defrag
+  the blocks visibly change from fragmented to whole, and it is
+  something you would happily sit and watch.
+- **S5** — A status bar names the file being worked on right now.
+- **S6** — A percentage and a progress bar climb to 100% as the defrag
+  runs.
+- **S7** — After defragging `/mnt/Games`, a new report shows fewer
+  fragmented files, and every file still opens and matches its
+  checksum from before.
+- **S8** — The PC stays usable while a defrag runs, and pause and
+  cancel take effect without damaging anything.
+- **S9** — Picking an SSD, a btrfs drive or an unsupported filesystem
+  gives a report only, with a plain reason why it will not defrag.
+- **S10** — The map and text are readable by a partially sighted user:
+  high contrast, symbols as well as colours, and large enough.
+- **S11** — Another Linux user can install it from a GitHub release and
+  run it without help.
+- **S12** — Every button and option responds to what is selected. Only
+  actions that apply are available. For example, selecting an SSD leaves
+  "View report" usable, and "Defrag" disabled or hidden.
 
 ## What it deliberately does not do
 
-> The only line that catches scope creep, which is the main way a project
-> stops being what was wanted. An empty section is a fair answer, but the
-> heading is worth answering rather than deleting. Mark each line **never**
-> or **not yet**: a *not yet* is a later item, a *never* is scope.
-> **Before this document is agreed, confirm each *never* line on its own**
-> (`~/.claude/workflow.md` § 3).
+**Never** (each confirmed by the owner, 2026-11-15):
+
+- **Defrag an SSD.** It reports on one only.
+- **Move file data itself.** It uses only the Linux kernel's own checked
+  move. No home-made block shuffling, and no unmounted drives.
+- **Defrag Windows drives** (NTFS, FAT).
+- **Pack all files to the front of the drive** to merge free space.
+  Linux has no safe way to do it.
+
+**Not yet:**
+
+- **Defrag btrfs on a spinning drive.** Report only until then. It must
+  first detect snapshots and shared copies, which a defrag would
+  un-share and so use more space.
+- **A terminal view** beside the window.
+- **A command-line mode** for scripts, and scheduled runs.
+- **XFS support.**
