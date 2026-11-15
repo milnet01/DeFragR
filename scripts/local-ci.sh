@@ -142,6 +142,20 @@ step 'lint'
 mapfile -t SHELL_FILES < <(git ls-files '*.sh' '.githooks/*')
 need shellcheck && run shellcheck shellcheck "${SHELL_FILES[@]}"
 
+# Locally the gate shares the machine with the desktop and other work, so
+# it builds at low CPU and disk priority on at most half the cores.
+# DEFRAGR_CI_JOBS overrides the count. CI gets the whole runner. Measured
+# 2026-11-15 on 12 cores: 6 jobs built as fast as 14.
+if [[ ${CI:-} == true ]]; then
+    JOBS=${DEFRAGR_CI_JOBS:-$(nproc)}
+    GENTLE=()
+else
+    cores=$(nproc)
+    JOBS=${DEFRAGR_CI_JOBS:-$(( cores > 1 ? cores / 2 : 1 ))}
+    GENTLE=(nice -n 10)
+    command -v ionice >/dev/null 2>&1 && GENTLE+=(ionice -c 2 -n 7)
+fi
+
 # A fresh tree each run, so a stale cache cannot hide a configure error.
 BUILD_DIR=build/ci
 step 'build'
@@ -158,10 +172,10 @@ if command -v ccache >/dev/null 2>&1; then
     export CCACHE_BASEDIR=$PWD
 fi
 run configure cmake -S . -B "$BUILD_DIR" -G Ninja "${CONFIGURE_ARGS[@]}"
-run build cmake --build "$BUILD_DIR"
+run build "${GENTLE[@]}" cmake --build "$BUILD_DIR" -j "$JOBS"
 
 step 'test'
-run test ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error
+run test "${GENTLE[@]}" ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error
 
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2
