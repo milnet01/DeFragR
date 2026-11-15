@@ -35,8 +35,9 @@ DOCS_GLOB='docs/*|*.md|LICENSE'
 # fail on GitHub. Measured case: ruff's default rule set changed between
 # releases, so an unpinned run enforces a different set on each machine.
 #
-# NASM: the version CI builds from source, because Ubuntu's package is older
-# than the 3.02 floor src/engine/CMakeLists.txt enforces. nasm.us publishes
+# NASM: the version CI builds from source, because the runner's Ubuntu 26.04
+# package (3.01) is older than the 3.02 floor src/engine/CMakeLists.txt
+# enforces. nasm.us publishes
 # no checksums; this hash is of the tarball fetched over HTTPS on 2026-11-15.
 NASM_VERSION='3.02'
 NASM_SHA256='87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d'

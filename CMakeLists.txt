@@ -15,8 +15,8 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# The oldest Qt the window is built against. 6.4 is what Ubuntu 24.04,
-# the CI runner, packages.
+# The oldest Qt the window is built against: 6.4 is what Ubuntu 24.04
+# LTS packages (6.4.2, checked 2026-11-15). CI builds against newer.
 set(DEFRAGR_QT_MIN 6.4)
 
 include(CTest)
