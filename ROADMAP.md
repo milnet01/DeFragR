@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=39 -->
+<!-- ants-roadmap-id-high-water: DFR=40 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -444,3 +444,22 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0035.
+
+## 1.1.0 — 3D drive viewer
+
+- 📋 [DFR-0040] **A 3D viewer of a spinning hard drive that comes apart into its parts, step by step.**
+  The user's request, after 1.0.0:
+  - The model is made by Blender run headless from a script. The script
+    goes in `/mnt/Games/3D Engine Assets/Blender Scripts/`, the model in
+    `/mnt/Games/3D Engine Assets/Models/`, each in a fitting category
+    folder (`ASSET_CATEGORIES.md` there), new if none fits.
+  - Buttons show the drive at stages of assembly and disassembly.
+  - Match a real drive in this machine if possible, else its platter
+    count. Installed HDDs, `lsblk` 2026-11-15: Seagate ST10000VX0004
+    (10 TB) and ST6000DM004 (6 TB). Their platter counts are not yet
+    checked.
+  Open before building: Blender is not installed here; which Qt module
+  draws 3D in the window is a design change (`docs/design.md`).
+  **Layman:** A 3D picture of a real hard drive that spins, and buttons that take it apart and put it back together.
+  Kind: feature.
+  Source: user-request-2026-11-15.
