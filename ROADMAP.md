@@ -458,8 +458,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
     count. Installed HDDs, `lsblk` 2026-11-15: Seagate ST10000VX0004
     (10 TB) and ST6000DM004 (6 TB). Their platter counts are not yet
     checked.
-  Open before building: Blender is not installed here; which Qt module
-  draws 3D in the window is a design change (`docs/design.md`).
+  Blender is `blender-5.2` (5.2.3 LTS), run headless as that folder's
+  README shows. Open before building: which Qt module draws 3D in the
+  window is a design change (`docs/design.md`).
   **Layman:** A 3D picture of a real hard drive that spins, and buttons that take it apart and put it back together.
   Kind: feature.
   Source: user-request-2026-11-15.
