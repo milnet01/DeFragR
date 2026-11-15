@@ -143,12 +143,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Build.
   Blocked-by: DFR-0001, DFR-0002, DFR-0003, DFR-0004, DFR-0005, DFR-0006, DFR-0007, DFR-0008, DFR-0009.
 
-- 🚧 [DFR-0037] **Faster local and GitHub CI, with less drift between them.**
+- ✅ [DFR-0037] **Faster local and GitHub CI, with less drift between them.**
   `local-gate.md` § 9's levers, one per commit, each measured before
   and after: a pinned runner image and one package list (alignment),
   no C++ module scan, ccache, gentler local builds, and a NASM cache
   on GitHub. Nothing that can flake: every cache falls back to a full
   build on a miss.
+  Done 2026-11-15. Local push gate: about 7 s before, 1.7 s after
+  with a warm ccache (the hook's own timing record). Cold builds are
+  unchanged, now at low priority on half the cores. GitHub: 57 s before;
+  25 s and 42 s on cache hits, since runner speed varies. NASM's 19-21 s
+  build is gone on a hit. Package install (12-22 s) is the largest step
+  left; skipping `apt-get update` was rejected as a flake risk. Declined
+  for now: ccache on GitHub, test parallelism (3 tests, 0.04 s).
   **Layman:** The checks before each push and on GitHub run faster, go easier on this PC, and agree with each other more.
   Kind: perf.
   Source: user-request-2026-11-15.
