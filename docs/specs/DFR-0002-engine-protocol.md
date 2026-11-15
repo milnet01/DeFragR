@@ -1,7 +1,7 @@
 <!-- ants-spec-format: 1 -->
 # DFR-0002 — Define the engine–window record protocol
 
-**Status:** spec draft (2026-11-15).
+**Status:** accepted (2026-11-15).
 **Kind:** doc.
 **Source:** ROADMAP DFR-0002 (design-2026-11-15; ADR-0001 names this spec
 as the one home of the record layout).
@@ -147,7 +147,7 @@ All positions and lengths in later records are in blocks of
 ```
 offset  size  field
 0       4     result   signed; a result code (§ 4.7)
-4       4     errno    signed; the failing call's errno, else 0
+4       4     errno    signed, positive; the failing call's errno, else 0
 ```
 
 ### 4.5 Probe records
@@ -172,7 +172,8 @@ offset  size  field
 ```
 
 The probe stream is `HELLO`, zero or more `DRIVE`, `FINISHED`. No two
-`DRIVE` records share a `mount_point`. Which mounts count as drives, and
+`DRIVE` records share a `mount_point`. The window enables defrag only
+on verdict 2 (ADR-0002); DFR-0005 tests that. Which mounts count as drives, and
 which rule yields which reason, is DFR-0004's to decide inside this
 layout.
 
@@ -308,12 +309,15 @@ these 24 bytes:
 
 ```cpp
 namespace defragr::engine {
+enum class StreamError { Malformed, VersionMismatch };
 class RecordDecoder {
 public:
     // Appends bytes; decodes every complete record they finish.
     void feed(QByteArrayView bytes);
     // Decoded records not yet taken, in stream order.
     QList<Record> takeRecords();
+    // Input has ended; runs the end-of-stream checks.
+    void finish();
     // Set once the stream is malformed or a version mismatch; sticky.
     std::optional<StreamError> error() const;
 };
@@ -322,9 +326,10 @@ public:
 
 `Record` is a `std::variant` of the record structs plus an `Unknown`
 type that keeps the type number. The decoder checks stream-order rules
-too, at `FINISHED` or at end of input. `HELLO.command` picks them:
+too, at `FINISHED` or at `finish()`. `HELLO.command` picks them:
 § 4.5's for 1, § 4.6's and INV-8 for 2, and only § 4.3's for any other
-value.
+value. An `Unknown` record may sit anywhere between `HELLO` and
+`FINISHED`, and no order or count rule counts it.
 
 ## 5. Invariants
 
@@ -342,8 +347,8 @@ DFR-0003 writes and the rule its fixture isolates.
   `Unknown` carrying its type number, and the record after it decodes
   correctly.
   *Test:* `tests/app/tst_records.cpp::unknownTypeSkipped` — a valid
-  stream with a type `0x00FF` record of length 16 between `HELLO` and
-  `FINISHED`.
+  report stream (`HELLO.command` 2) with a type `0x00FF` record of
+  length 16 between `HELLO` and `FINISHED`.
   *Breaks when:* the decoder ends the stream on a type it does not know,
   or skips the wrong number of bytes.
 
@@ -396,14 +401,13 @@ DFR-0003 writes and the rule its fixture isolates.
   that disagrees with its own list.
 
 - **INV-9** — Unknown values of `command`, `media`, `verdict`, `reason`,
-  `stage`, `result` and `state` decode without error. A `verdict` other
-  than 2 never enables defrag. A `DRIVE` with verdict 2 and a non-zero
-  reason, or verdict 1 and reason 0, is malformed; an unknown verdict
-  may carry any reason.
+  `stage`, `result` and `state` decode without error. A `DRIVE` with
+  verdict 2 and a non-zero reason, or verdict 1 and reason 0, is
+  malformed; an unknown verdict may carry any reason.
   *Test:* `tests/app/tst_records.cpp::enumerations` — `DRIVE` records
   with reason 200, verdict 3 with reason 0, and the two mismatched pairs.
-  *Breaks when:* the window offers defrag on a verdict it does not
-  recognise (S12), or rejects a reason added by a later minor.
+  *Breaks when:* the decoder rejects a verdict or reason added by a
+  later minor, or accepts a mismatched pair.
 
 - **INV-10** — The `selftest-records` stream decodes, with no error, to
   exactly the records and values in § 4.9, and the engine exits 0.
@@ -498,7 +502,7 @@ engine. Only the conformance test reads real engine output.
 | INV-1 to INV-9 | `tests/app/tst_records.cpp`, once DFR-0003 writes it |
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp`, once DFR-0003 writes it |
 | INV-12 | DFR-0008's image test |
-| § 4.7 check order | INV-11 up to the mount point; mount point before drive rules needs root and has **nothing** yet — tracked by DFR-0008 |
+| § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | **nothing** until DFR-0004's probe tests exist |
 | § 4.8 commands | **nothing** until DFR-0023 |
 
@@ -506,7 +510,9 @@ engine. Only the conformance test reads real engine output.
 
 - `ROADMAP.md`: DFR-0002's body says "every record and command"; it
   changes to name § 3's split. DFR-0011, DFR-0017 and DFR-0020 each gain
-  a line: amend this spec with their records.
+  a line: amend this spec with their records. DFR-0008 gains INV-12's
+  image test, and DFR-0017 the § 4.7 check-order test that `REFUSED`
+  makes reachable.
 - `tests/CMakeLists.txt`: `engine_runs` runs the bare engine and passes
   only on exit 0. Under § 4.3 that run exits 1 (`USAGE`), so DFR-0003
   replaces it with INV-11's conformance test.

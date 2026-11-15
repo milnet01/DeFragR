@@ -37,6 +37,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   versioning, and the `selftest-records` output. The one home of the
   layout (ADR-0001). A contract between two languages, so it gets
   `review-contract` before anyone builds from it. Serves S1, S3, S9.
+  review-contract 2026-11-15: 2 loops of 2 (cap), 13 findings fixed,
+  none deferred; spec accepted. Log:
+  docs/reviews/DFR-0002-engine-protocol-loop-log.md.
   **Layman:** Writes down exactly how the engine and the window talk, before either is built.
   Kind: doc.
   Source: design-2026-11-15.
