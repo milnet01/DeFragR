@@ -53,10 +53,6 @@ jobs:
           # a job that actually pushes.
           persist-credentials: false
 
-      # Cache dependencies and compiler output, keyed on the lockfile or the
-      # toolchain (local-gate.md § 9). For example, setup-python's
-      # `cache: pip`, setup-node's `cache: npm`, or ccache for C/C++.
-
       # Install the toolchain the script expects. Versions are pinned in the
       # SCRIPT and read from it, so one commit cannot use two versions.
       - name: Install build tools and Qt 6
@@ -65,20 +61,65 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
-      # Ubuntu's nasm package is older than the engine's 3.02 floor.
-      - name: Build NASM from source
+      # Ubuntu's nasm package is older than the engine's 3.02 floor, so NASM
+      # is built from source once per pin and runner image, then cached
+      # (local-gate.md § 9). The key holds the version, the tarball's hash
+      # and the image, so a new pin or image misses and builds afresh.
+      # No other cache: ccache is declined here for now, since the gate's
+      # whole build is a few seconds of the run and per-commit keys would
+      # need pruning.
+      - name: Read the NASM pin
+        id: nasm-pin
         run: |
           read -r version sha256 < <(./scripts/local-ci.sh --nasm-pin)
+          {
+            echo "version=$version"
+            echo "sha256=$sha256"
+            echo "key=nasm-${ImageOS:?}-$version-$sha256"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore NASM
+        id: nasm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/nasm-bin
+          key: ${{ steps.nasm-pin.outputs.key }}
+
+      - name: Build NASM from source
+        id: nasm-build
+        if: steps.nasm-cache.outputs.cache-hit != 'true'
+        env:
+          NASM_VERSION: ${{ steps.nasm-pin.outputs.version }}
+          NASM_SHA256: ${{ steps.nasm-pin.outputs.sha256 }}
+        run: |
           work=$(mktemp -d)
           curl -fsSL -o "$work/nasm.tar.xz" \
-            "https://www.nasm.us/pub/nasm/releasebuilds/$version/nasm-$version.tar.xz"
-          echo "$sha256  $work/nasm.tar.xz" | sha256sum --check --strict
+            "https://www.nasm.us/pub/nasm/releasebuilds/$NASM_VERSION/nasm-$NASM_VERSION.tar.xz"
+          echo "$NASM_SHA256  $work/nasm.tar.xz" | sha256sum --check --strict
           tar -xJf "$work/nasm.tar.xz" -C "$work"
-          cd "$work/nasm-$version"
+          cd "$work/nasm-$NASM_VERSION"
           ./configure --prefix=/usr/local
           make -j"$(nproc)" nasm
-          sudo install -m 0755 nasm /usr/local/bin/nasm
+          mkdir -p ~/nasm-bin
+          install -m 0755 nasm ~/nasm-bin/nasm
+
+      # Saved as soon as it is built, whatever the gate does later, so a red
+      # or timed-out run still leaves the next one warm.
+      - name: Save NASM
+        if: steps.nasm-build.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/nasm-bin
+          key: ${{ steps.nasm-pin.outputs.key }}
+
+      # A cached binary is checked like a fresh one: it must report the pin.
+      - name: Install NASM
+        env:
+          NASM_VERSION: ${{ steps.nasm-pin.outputs.version }}
+        run: |
+          sudo install -m 0755 ~/nasm-bin/nasm /usr/local/bin/nasm
           nasm -v
+          nasm -v | grep -q "^NASM version $NASM_VERSION "
 
       - name: Run the gate
         run: ./scripts/local-ci.sh
