@@ -135,7 +135,7 @@ offset  size  field
 0       2     major        1
 2       2     minor        0
 4       4     command      0 unknown, 1 probe, 2 report, 255 selftest-records
-8       4     block_size   the drive's block size in bytes; 0 for probe, or when not known
+8       4     block_size   the drive's block size in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
 ```
 
@@ -163,7 +163,7 @@ offset  size  field
 24      4     dev_minor
 28      1     media          0 unknown, 1 SSD, 2 spinning
 29      1     verdict        1 report only, 2 report and defrag
-30      2     reason         § 4.7; 0 exactly when verdict is 2
+30      2     reason         § 4.7; 0 when verdict is 2, non-zero when it is 1
 32      4     mount_flags    bit 0: mounted read-only
 36      4     reserved       0
 40      str   mount_point    absolute
@@ -276,17 +276,18 @@ between files. DFR-0023 builds the engine's half.
 ### 4.9 `selftest-records`
 
 Emits, in this order, one record of every engine type with these values,
-then exits 0. Each multi-byte value has distinct bytes, so a swapped or
-misplaced field shows.
+then exits 0. Each multi-byte value has distinct bytes, so a swapped,
+misplaced or mis-sized field shows. The exceptions are fixed by meaning:
+`HELLO`'s major, minor and command, and `FINISHED`'s result and errno.
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 0, command 255, block_size 4096 |
-| `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason 4, mount_flags 1, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
+| `HELLO` | major 1, minor 0, command 255, block_size `0x01020304` |
+| `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
-| `FILE_SKIPPED` | errno 13, stage 3, path `c` |
+| `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
 | `REPORT_SUMMARY` | files `0x8182838485868788`, fragmented_files `0x9192939495969798`, extents `0xA1A2A3A4A5A6A7A8`, file_blocks `0xB1B2B3B4B5B6B7B8`, skipped `0xC1C2C3C4C5C6C7C8` |
-| `RUN_STATE` | state 2 |
+| `RUN_STATE` | state `0xF1F2F3F4` |
 | `FINISHED` | result 0, errno 0 |
 
 All reserved fields, flags and padding are 0. The `HELLO` record is
@@ -295,7 +296,7 @@ these 24 bytes:
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
 01 00 00 00 ff 00 00 00   major 1, minor 0, command 255
-00 10 00 00 00 00 00 00   block_size 4096, reserved 0
+04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
 ### 4.10 Where each half lives
@@ -320,8 +321,10 @@ public:
 ```
 
 `Record` is a `std::variant` of the record structs plus an `Unknown`
-type that keeps the type number. Stream-order rules (§ 4.3, § 4.6) are
-checked by the decoder too, at `FINISHED` or at end of input.
+type that keeps the type number. The decoder checks stream-order rules
+too, at `FINISHED` or at end of input. `HELLO.command` picks them:
+§ 4.5's for 1, § 4.6's and INV-8 for 2, and only § 4.3's for any other
+value.
 
 ## 5. Invariants
 
@@ -382,21 +385,23 @@ DFR-0003 writes and the rule its fixture isolates.
   *Breaks when:* a newer minor is refused, or a new major is decoded as
   if it were 1.
 
-- **INV-8** — A report stream with result `OK` holds exactly one
-  `REPORT_SUMMARY`, immediately before `FINISHED`, and its
-  `fragmented_files` and `skipped` equal the counts of `FRAGMENTED_FILE`
-  and `FILE_SKIPPED` records; otherwise the stream is malformed.
+- **INV-8** — A report stream (`HELLO.command` 2) with result `OK` has a
+  non-zero `HELLO.block_size` and holds exactly one `REPORT_SUMMARY`,
+  immediately before `FINISHED`, whose `fragmented_files` and `skipped`
+  equal the counts of `FRAGMENTED_FILE` and `FILE_SKIPPED` records;
+  otherwise the stream is malformed.
   *Test:* `tests/app/tst_records.cpp::summaryCounts` — a stream with two
   `FRAGMENTED_FILE` records and a summary claiming three, otherwise valid.
   *Breaks when:* the engine loses count, and the window shows a summary
   that disagrees with its own list.
 
-- **INV-9** — Unknown values of `command`, `media`, `reason`, `stage`,
-  `result` and `state` decode without error. A `verdict` other than 2
-  never enables defrag. A `DRIVE` with verdict 2 and a non-zero reason,
-  or verdict 1 and reason 0, is malformed.
+- **INV-9** — Unknown values of `command`, `media`, `verdict`, `reason`,
+  `stage`, `result` and `state` decode without error. A `verdict` other
+  than 2 never enables defrag. A `DRIVE` with verdict 2 and a non-zero
+  reason, or verdict 1 and reason 0, is malformed; an unknown verdict
+  may carry any reason.
   *Test:* `tests/app/tst_records.cpp::enumerations` — `DRIVE` records
-  with reason 200, verdict 3, and the two mismatched pairs.
+  with reason 200, verdict 3 with reason 0, and the two mismatched pairs.
   *Breaks when:* the window offers defrag on a verdict it does not
   recognise (S12), or rejects a reason added by a later minor.
 
@@ -406,13 +411,17 @@ DFR-0003 writes and the rule its fixture isolates.
   and compares every field. The values are distinct per field, so only a
   layout disagreement between the two halves fails it.
   *Breaks when:* `records.inc` and `Records.h` disagree on any type,
-  offset, size or padding.
+  offset, size or padding, outside the fields § 4.9 names as fixed by
+  meaning.
 
 - **INV-11** — Every engine run writes a stream that decodes with no
   error and no trailing bytes, and exits with `FINISHED.result`.
-  *Test:* `tests/app/tst_records_conformance.cpp` — runs
-  `defragr-engine`, `defragr-engine bogus` (expects result 1) and
-  `selftest-records`, and checks each exit status against `result`.
+  *Test:* `tests/app/tst_records_conformance.cpp`, run without root —
+  runs `defragr-engine` and `defragr-engine bogus` (each expects result
+  1), `report` with no mount point (expects 1, so arguments come before
+  admin rights), `report /nonexistent` (expects 2, so admin rights come
+  before the mount point) and `selftest-records`, and checks each exit
+  status against `result`.
   *Breaks when:* the engine prints text, writes a record after
   `FINISHED`, or exits with a different code.
 
@@ -489,7 +498,7 @@ engine. Only the conformance test reads real engine output.
 | INV-1 to INV-9 | `tests/app/tst_records.cpp`, once DFR-0003 writes it |
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp`, once DFR-0003 writes it |
 | INV-12 | DFR-0008's image test |
-| § 4.3 check order | **nothing** — only `NOT_ROOT` before `NOT_A_MOUNT` is reachable without root; tracked by DFR-0008 |
+| § 4.7 check order | INV-11 up to the mount point; mount point before drive rules needs root and has **nothing** yet — tracked by DFR-0008 |
 | § 4.7 reason order | **nothing** until DFR-0004's probe tests exist |
 | § 4.8 commands | **nothing** until DFR-0023 |
 
@@ -498,6 +507,9 @@ engine. Only the conformance test reads real engine output.
 - `ROADMAP.md`: DFR-0002's body says "every record and command"; it
   changes to name § 3's split. DFR-0011, DFR-0017 and DFR-0020 each gain
   a line: amend this spec with their records.
+- `tests/CMakeLists.txt`: `engine_runs` runs the bare engine and passes
+  only on exit 0. Under § 4.3 that run exits 1 (`USAGE`), so DFR-0003
+  replaces it with INV-11's conformance test.
 - `docs/design.md` § Units: unchanged. `HELLO.block_size` is how "its
   first record states the block size" holds; it is 0 for `probe`, whose
   `DRIVE` records state their own.
