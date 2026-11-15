@@ -148,7 +148,16 @@ step 'build'
 rm -rf "$BUILD_DIR"
 # Without these there is no build, so a missing one stops the gate.
 need cmake; need nasm; need ninja
-run configure cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+# ccache, where installed, makes the fresh tree cheap to rebuild. It only
+# saves time: a miss compiles as normal, so a run without it checks the
+# same. CCACHE_BASEDIR lets the pre-push hook's worktree, at another
+# path, reuse this checkout's results. GitHub does not install it.
+CONFIGURE_ARGS=(-DCMAKE_COMPILE_WARNING_AS_ERROR=ON)
+if command -v ccache >/dev/null 2>&1; then
+    CONFIGURE_ARGS+=(-DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+    export CCACHE_BASEDIR=$PWD
+fi
+run configure cmake -S . -B "$BUILD_DIR" -G Ninja "${CONFIGURE_ARGS[@]}"
 run build cmake --build "$BUILD_DIR"
 
 step 'test'
