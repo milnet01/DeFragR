@@ -1,0 +1,507 @@
+<!-- ants-spec-format: 1 -->
+# DFR-0002 — Define the engine–window record protocol
+
+**Status:** spec draft (2026-11-15).
+**Kind:** doc.
+**Source:** ROADMAP DFR-0002 (design-2026-11-15; ADR-0001 names this spec
+as the one home of the record layout).
+**Blocker for:** DFR-0003.
+**Layman:** No user-visible change; this fixes how the engine and the
+window talk, so both halves can be built to it.
+
+## 1. Goal
+
+One document says, byte by byte, what the engine writes, what the window
+accepts, and what each code means. `src/engine/records.inc` and
+`src/app/engine/Records.h` are both written from it, and the
+`selftest-records` conformance test proves they agree.
+
+## 2. Problem
+
+ADR-0001 decides that the engine and the window talk in binary records
+over pipes, and that the layout's one home is a spec in `docs/specs/`.
+There is no such spec. Without it:
+
+1. The engine (assembly) and the window (C++) would each invent a layout,
+   and the two would drift (ADR-0001, *Consequences*).
+2. ADR-0002 makes the engine's verdict and reason code the only source of
+   which actions a drive allows (S9, S12). With no fixed codes, the window
+   cannot map them to plain words (`model/Messages`, `docs/design.md`).
+3. `docs/design.md` § Errors says a malformed record is a broken engine
+   and an unknown record type is skippable. Neither is decidable until
+   "malformed" and "type" are defined.
+
+## 3. Scope decisions (agreed with the user)
+
+- **This spec fixes the framing, versioning, codes, the 0.1.0 records and
+  the pause, resume and cancel commands. Later items add their records to
+  it by amendment** — the drive map (DFR-0011), moving files (DFR-0017)
+  and progress (DFR-0020). The user chose this on 2026-11-15, over fixing
+  every record now: those records depend on kernel behaviour no one has
+  tested yet (`docs/design.md` § Safety marks the `O_TMPFILE` donor
+  unverified).
+- **The engine sends every fragmented file; the window ranks the worst.**
+  Claude's choice. It keeps sorting out of the assembly.
+- **Paths are sent relative to the mount point.** Claude's choice. They
+  are shorter, and the window already knows the mount point.
+- **One reason per drive, chosen by a fixed order** (§ 4.7). Claude's
+  choice. The window shows one sentence, so the engine must pick which.
+
+## 4. Design
+
+### 4.1 Framing
+
+Every record, in both directions, is an 8-byte header and a payload. All
+integers are little-endian and unsigned unless marked signed.
+
+```
+offset  size  field
+0       2     type     record type (§ 4.4, § 4.8). 0 is invalid.
+2       2     flags    0. Writers send 0; readers ignore it.
+4       4     length   payload bytes. A multiple of 8, at most 65536.
+8       len   payload
+```
+
+Each record therefore starts at a multiple of 8 bytes from the start of
+the stream.
+
+**A payload** is a fixed part, then zero or more strings, then optional
+trailing bytes. The fixed part's fields sit at the offsets each record's
+table gives.
+
+**A string** is a `u32` byte count, then that many raw bytes, then zero
+bytes up to the next multiple of 8 from the payload's start. Bytes are
+not NUL-terminated and need not be UTF-8; a path is the kernel's bytes.
+A string carries at most 4096 bytes.
+
+**Trailing bytes** after the last field a reader knows are ignored. This
+is how a minor version appends a field (§ 4.2).
+
+A reader treats as **malformed**:
+
+- type 0;
+- a `length` not a multiple of 8, or above 65536;
+- a payload shorter than its type's fixed part;
+- a string whose count exceeds 4096 or runs past the payload's end.
+
+Padding bytes and `flags` are not checked.
+
+### 4.2 Versioning
+
+The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
+defines **1.0**.
+
+- **Minor** changes add, and never change: a new record or command type,
+  a field appended to a payload, a new value of an enumerated field. An
+  amendment adding one bumps the minor.
+- **Major** changes anything an existing reader relies on. A window
+  supports major 1 only. Any other major ends the run as a **version
+  mismatch**, which is not a malformed stream: the window says the
+  engine and window come from different releases.
+
+A reader handles a value it does not know in an enumerated field as
+"unknown", never as malformed (INV-9).
+
+### 4.3 Running the engine
+
+```
+defragr-engine probe                  list drives; no root needed
+defragr-engine report <mount-point>   report on one drive; needs root
+defragr-engine selftest-records       fixed records (§ 4.9); hidden
+```
+
+Arguments are the only text the engine parses. Every run, including a
+bad one, writes a record stream to standard output and nothing else.
+Standard error is for a crash only.
+
+The stream is:
+
+```
+HELLO
+  (records for the command, in the order § 4.5 and § 4.6 give)
+FINISHED
+```
+
+`HELLO` comes first and `FINISHED` last, once each. The engine then exits
+with `FINISHED.result` as its exit status. Unknown arguments still get a
+stream: `HELLO` with command 0, then `FINISHED` with `USAGE`.
+
+### 4.4 Records every run sends
+
+**`HELLO`** — type `0x0001`, fixed part 16 bytes.
+
+```
+offset  size  field
+0       2     major        1
+2       2     minor        0
+4       4     command      0 unknown, 1 probe, 2 report, 255 selftest-records
+8       4     block_size   the drive's block size in bytes; 0 for probe, or when not known
+12      4     reserved     0
+```
+
+All positions and lengths in later records are in blocks of
+`block_size` (`docs/design.md` § Units). A `DRIVE` record states its own.
+
+**`FINISHED`** — type `0x0002`, fixed part 8 bytes.
+
+```
+offset  size  field
+0       4     result   signed; a result code (§ 4.7)
+4       4     errno    signed; the failing call's errno, else 0
+```
+
+### 4.5 Probe records
+
+**`DRIVE`** — type `0x0010`, fixed part 40 bytes, then three strings.
+
+```
+offset  size  field
+0       8     total_blocks   statfs f_blocks
+8       8     free_blocks    statfs f_bfree
+16      4     block_size     statfs f_bsize
+20      4     dev_major      the mounted device
+24      4     dev_minor
+28      1     media          0 unknown, 1 SSD, 2 spinning
+29      1     verdict        1 report only, 2 report and defrag
+30      2     reason         § 4.7; 0 exactly when verdict is 2
+32      4     mount_flags    bit 0: mounted read-only
+36      4     reserved       0
+40      str   mount_point    absolute
+..      str   source         the mount source, e.g. /dev/sda1
+..      str   fs_type        e.g. ext4, btrfs
+```
+
+The probe stream is `HELLO`, zero or more `DRIVE`, `FINISHED`. No two
+`DRIVE` records share a `mount_point`. Which mounts count as drives, and
+which rule yields which reason, is DFR-0004's to decide inside this
+layout.
+
+### 4.6 Report records
+
+The report stream is `HELLO`, then `FRAGMENTED_FILE`, `FILE_SKIPPED` and
+`RUN_STATE` in any order, then — only when the result is `OK` — one
+`REPORT_SUMMARY`, then `FINISHED`.
+
+**`FRAGMENTED_FILE`** — type `0x0020`, fixed part 16 bytes, then one
+string. Sent for each regular file with two or more extents.
+
+```
+offset  size  field
+0       4     extents       physically separate runs, counted as filefrag counts them
+4       4     reserved      0
+8       8     size_blocks   blocks the file occupies
+16      str   path          relative to the mount point, no leading /
+```
+
+**`FILE_SKIPPED`** — type `0x0021`, fixed part 8 bytes, then one string.
+Sent for each file or folder the engine could not read. The run goes on.
+
+```
+offset  size  field
+0       4     errno     signed, positive
+4       2     stage     1 open, 2 stat, 3 extents, 4 read folder, 5 path too long
+6       2     reserved  0
+8       str   path      relative to the mount point; its first 4096 bytes
+```
+
+A path longer than 4096 bytes is skipped with stage 5 and errno 36
+(`ENAMETOOLONG`).
+
+**`REPORT_SUMMARY`** — type `0x0022`, fixed part 40 bytes.
+
+```
+offset  size  field
+0       8     files              regular files visited
+8       8     fragmented_files   equals the FRAGMENTED_FILE records sent
+16      8     extents            over every visited file
+24      8     file_blocks        blocks occupied by visited files
+32      8     skipped            equals the FILE_SKIPPED records sent
+```
+
+**`RUN_STATE`** — type `0x0030`, fixed part 8 bytes. Sent when the engine
+acts on a pause or resume command (§ 4.8).
+
+```
+offset  size  field
+0       4     state      1 running, 2 paused
+4       4     reserved   0
+```
+
+### 4.7 Codes
+
+**Result codes** (`FINISHED.result`, and the exit status):
+
+| Code | Name | Meaning |
+|---|---|---|
+| 0 | `OK` | The command finished |
+| 1 | `USAGE` | Missing or unknown arguments |
+| 2 | `NOT_ROOT` | The command needs admin rights and has none |
+| 3 | `NOT_A_MOUNT` | The path given is not a mount point |
+| 4 | `MOUNTINFO` | `/proc/self/mountinfo` could not be read |
+| 5 | `DRIVE_ERROR` | A drive-level call failed; `errno` says which error |
+| 6 | `REFUSED` | The drive's verdict does not allow this command |
+| 7 | `CANCELLED` | Cancelled by command or by a closed standard input |
+| 8 | `BAD_COMMAND` | A malformed command arrived on standard input |
+| 9 | `INTERNAL` | The engine broke one of its own limits |
+
+The engine checks in this order, and reports the first that fails:
+arguments, admin rights, mount point, drive rules.
+
+**Reason codes** (`DRIVE.reason`), in the order the engine picks one:
+
+| Code | Name | Meaning |
+|---|---|---|
+| 0 | `NONE` | Defrag allowed |
+| 1 | `FS_NOT_EXT4` | Not ext4; `fs_type` names it |
+| 2 | `READ_ONLY` | Mounted read-only |
+| 3 | `SSD` | The drive is solid-state |
+| 4 | `MEDIA_UNKNOWN` | The engine cannot tell whether it is solid-state |
+
+### 4.8 Commands
+
+Commands go from the window to the engine's standard input, framed as
+§ 4.1. Each has an empty payload.
+
+| Type | Name | Effect |
+|---|---|---|
+| `0x0101` | `PAUSE` | Stop work at the next safe point; send `RUN_STATE` paused |
+| `0x0102` | `RESUME` | Carry on; send `RUN_STATE` running |
+| `0x0103` | `CANCEL` | Stop at the next safe point; finish with `CANCELLED` |
+
+A closed standard input is `CANCEL`. An unknown command type is skipped.
+A malformed command ends the run with `BAD_COMMAND`. A pause while paused,
+or a resume while running, sends nothing. In a report, the safe point is
+between files. DFR-0023 builds the engine's half.
+
+### 4.9 `selftest-records`
+
+Emits, in this order, one record of every engine type with these values,
+then exits 0. Each multi-byte value has distinct bytes, so a swapped or
+misplaced field shows.
+
+| Record | Field values |
+|---|---|
+| `HELLO` | major 1, minor 0, command 255, block_size 4096 |
+| `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason 4, mount_flags 1, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
+| `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
+| `FILE_SKIPPED` | errno 13, stage 3, path `c` |
+| `REPORT_SUMMARY` | files `0x8182838485868788`, fragmented_files `0x9192939495969798`, extents `0xA1A2A3A4A5A6A7A8`, file_blocks `0xB1B2B3B4B5B6B7B8`, skipped `0xC1C2C3C4C5C6C7C8` |
+| `RUN_STATE` | state 2 |
+| `FINISHED` | result 0, errno 0 |
+
+All reserved fields, flags and padding are 0. The `HELLO` record is
+these 24 bytes:
+
+```
+01 00 00 00 10 00 00 00   type 1, flags 0, length 16
+01 00 00 00 ff 00 00 00   major 1, minor 0, command 255
+00 10 00 00 00 00 00 00   block_size 4096, reserved 0
+```
+
+### 4.10 Where each half lives
+
+- **Engine:** `src/engine/records.inc` holds the type, code and offset
+  constants; `src/engine/records.asm` writes records and reads commands.
+- **Window:** `src/app/engine/Records.h` declares one struct per record
+  and a decoder fed bytes in any chunks:
+
+```cpp
+namespace defragr::engine {
+class RecordDecoder {
+public:
+    // Appends bytes; decodes every complete record they finish.
+    void feed(QByteArrayView bytes);
+    // Decoded records not yet taken, in stream order.
+    QList<Record> takeRecords();
+    // Set once the stream is malformed or a version mismatch; sticky.
+    std::optional<StreamError> error() const;
+};
+}
+```
+
+`Record` is a `std::variant` of the record structs plus an `Unknown`
+type that keeps the type number. Stream-order rules (§ 4.3, § 4.6) are
+checked by the decoder too, at `FINISHED` or at end of input.
+
+## 5. Invariants
+
+No code exists yet, so no clause below can run; each names the test that
+DFR-0003 writes and the rule its fixture isolates.
+
+- **INV-1** — The decoder reports malformed for type 0, for a `length`
+  not a multiple of 8, and for a `length` above 65536; it accepts an
+  unknown type with length 0 and with length 65536.
+  *Test:* `tests/app/tst_records.cpp::framing` — hand-built headers, each
+  differing from a valid one in one field only.
+  *Breaks when:* a decoder reads `length` 12 as 12 bytes and carries on.
+
+- **INV-2** — A record of an unknown type with a valid frame decodes as
+  `Unknown` carrying its type number, and the record after it decodes
+  correctly.
+  *Test:* `tests/app/tst_records.cpp::unknownTypeSkipped` — a valid
+  stream with a type `0x00FF` record of length 16 between `HELLO` and
+  `FINISHED`.
+  *Breaks when:* the decoder ends the stream on a type it does not know,
+  or skips the wrong number of bytes.
+
+- **INV-3** — A known record whose payload is shorter than its fixed part
+  is malformed; one longer than its fields is decoded and the extra bytes
+  are ignored.
+  *Test:* `tests/app/tst_records.cpp::payloadLength` — `FINISHED` with
+  length 0, and with length 16 and non-zero trailing bytes.
+  *Breaks when:* the decoder reads past a short payload, or rejects a
+  longer one from a newer minor.
+
+- **INV-4** — A string's bytes come through unchanged, including `0xFF`
+  and an empty string; a string count above 4096, or running past the
+  payload, is malformed.
+  *Test:* `tests/app/tst_records.cpp::strings` — `DRIVE` payloads whose
+  only fault is the string count. The fixed part is valid, so only the
+  string rule can reject them.
+  *Breaks when:* the decoder converts the bytes as UTF-8, or trusts the
+  count.
+
+- **INV-5** — Decoding a stream gives the same records and the same error
+  however its bytes are split into `feed()` calls.
+  *Test:* `tests/app/tst_records.cpp::chunking` — the self-test stream
+  fed whole, one byte at a time, and split at every offset in turn.
+  *Breaks when:* the decoder assumes a header or payload arrives in one
+  read.
+
+- **INV-6** — The stream is malformed when a record precedes `HELLO`,
+  when `HELLO` or `FINISHED` repeats, when a record follows `FINISHED`,
+  or when input ends with no `FINISHED`.
+  *Test:* `tests/app/tst_records.cpp::streamOrder` — one case per rule,
+  each otherwise a valid stream.
+  *Breaks when:* the window treats a crashed engine's cut-off stream as
+  a finished run.
+
+- **INV-7** — A `HELLO` with major other than 1 is a version mismatch,
+  not malformed; minor 7 with major 1 is accepted.
+  *Test:* `tests/app/tst_records.cpp::version`.
+  *Breaks when:* a newer minor is refused, or a new major is decoded as
+  if it were 1.
+
+- **INV-8** — A report stream with result `OK` holds exactly one
+  `REPORT_SUMMARY`, immediately before `FINISHED`, and its
+  `fragmented_files` and `skipped` equal the counts of `FRAGMENTED_FILE`
+  and `FILE_SKIPPED` records; otherwise the stream is malformed.
+  *Test:* `tests/app/tst_records.cpp::summaryCounts` — a stream with two
+  `FRAGMENTED_FILE` records and a summary claiming three, otherwise valid.
+  *Breaks when:* the engine loses count, and the window shows a summary
+  that disagrees with its own list.
+
+- **INV-9** — Unknown values of `command`, `media`, `reason`, `stage`,
+  `result` and `state` decode without error. A `verdict` other than 2
+  never enables defrag. A `DRIVE` with verdict 2 and a non-zero reason,
+  or verdict 1 and reason 0, is malformed.
+  *Test:* `tests/app/tst_records.cpp::enumerations` — `DRIVE` records
+  with reason 200, verdict 3, and the two mismatched pairs.
+  *Breaks when:* the window offers defrag on a verdict it does not
+  recognise (S12), or rejects a reason added by a later minor.
+
+- **INV-10** — The `selftest-records` stream decodes, with no error, to
+  exactly the records and values in § 4.9, and the engine exits 0.
+  *Test:* `tests/app/tst_records_conformance.cpp` — runs the built engine
+  and compares every field. The values are distinct per field, so only a
+  layout disagreement between the two halves fails it.
+  *Breaks when:* `records.inc` and `Records.h` disagree on any type,
+  offset, size or padding.
+
+- **INV-11** — Every engine run writes a stream that decodes with no
+  error and no trailing bytes, and exits with `FINISHED.result`.
+  *Test:* `tests/app/tst_records_conformance.cpp` — runs
+  `defragr-engine`, `defragr-engine bogus` (expects result 1) and
+  `selftest-records`, and checks each exit status against `result`.
+  *Breaks when:* the engine prints text, writes a record after
+  `FINISHED`, or exits with a different code.
+
+- **INV-12** — Trust boundary: the engine reports on a path only after
+  finding it as a mount point in `/proc/self/mountinfo`; a path that is
+  not one finishes `NOT_A_MOUNT` with no record naming a file.
+  *Test:* the image test of DFR-0008, run as root in the test machine:
+  `report /mnt/test/subdir` on a mounted image, where only the
+  mount-point rule can fail (the path exists and the caller is root).
+  *Breaks when:* the engine accepts any folder and walks it, so a
+  crafted path reaches files on another drive.
+
+## 6. Failure modes
+
+- **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
+  engine, and the window says so.
+- **`pkexec` is refused.** `pkexec` exits 126 or 127 before the engine
+  starts, so there is no `HELLO`. The window reads an empty stream with
+  that exit status as "admin rights refused", not as a broken engine.
+  That mapping is DFR-0005's.
+- **The window dies.** The engine's writes fail with `EPIPE`, because
+  `sys.asm` ignores `SIGPIPE`; the engine exits at once with
+  `CANCELLED`. Its reads see end of input, which is `CANCEL` too.
+- **A write is partial or interrupted.** The engine repeats `write`
+  until the whole record is out, retrying on `EINTR`.
+- **Engine and window from different releases.** A new major is a
+  version mismatch (INV-7); a new minor reads as unknown types and
+  values (INV-2, INV-9).
+- **A file name is not UTF-8.** It travels as bytes (INV-4); the window
+  decodes it with `QFile::decodeName` for display.
+
+## 7. Tests
+
+DFR-0003 writes all of these and sees each fail first, against a decoder
+missing the rule it locks.
+
+| Test | Locks | Needs root |
+|---|---|---|
+| `tests/app/tst_records.cpp` | INV-1 to INV-9 | No |
+| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11 | No |
+| DFR-0008 image test | INV-12 | Yes, inside the test machine |
+
+`tst_records.cpp` exercises the decoder only; it proves nothing about the
+engine. Only the conformance test reads real engine output.
+
+## 8. Alternatives considered (and rejected)
+
+- **Text lines** — ADR-0001 rejected them: assembly parses text badly.
+- **A type-length-value list per field** — self-describing, but the
+  assembly would write a tag per field, and fixed offsets already let
+  old readers skip new fields (§ 4.2).
+- **No padding to 8 bytes** — smaller, but every `u64` read in the
+  assembly would need care for alignment. Padding costs at most 7 bytes
+  per string.
+- **The engine ranks the worst files** — a sort in assembly, for a list
+  the window can rank in one line.
+- **A separate version handshake from the window** — one direction is
+  enough: the window can refuse the engine's major, and the engine reads
+  only fixed commands.
+
+## 9. Out of scope
+
+- Drive map records — tracked by DFR-0011.
+- Defrag's arguments and records: file moved, blocks changed, checksum
+  failure — tracked by DFR-0017.
+- Progress records — tracked by DFR-0020.
+- The engine reading commands — tracked by DFR-0023.
+- The window's session log format — deferred; not yet queued.
+
+## 10. What checks this
+
+| Rule | What catches a breach |
+|------|----------------------|
+| INV-1 to INV-9 | `tests/app/tst_records.cpp`, once DFR-0003 writes it |
+| INV-10, INV-11 | `tests/app/tst_records_conformance.cpp`, once DFR-0003 writes it |
+| INV-12 | DFR-0008's image test |
+| § 4.3 check order | **nothing** — only `NOT_ROOT` before `NOT_A_MOUNT` is reachable without root; tracked by DFR-0008 |
+| § 4.7 reason order | **nothing** until DFR-0004's probe tests exist |
+| § 4.8 commands | **nothing** until DFR-0023 |
+
+## 11. Cross-doc impact
+
+- `ROADMAP.md`: DFR-0002's body says "every record and command"; it
+  changes to name § 3's split. DFR-0011, DFR-0017 and DFR-0020 each gain
+  a line: amend this spec with their records.
+- `docs/design.md` § Units: unchanged. `HELLO.block_size` is how "its
+  first record states the block size" holds; it is 0 for `probe`, whose
+  `DRIVE` records state their own.
+
+## 12. Cold-eyes loop log
+
+Rows live in `../reviews/DFR-0002-engine-protocol-loop-log.md`.
