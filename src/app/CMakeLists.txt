@@ -1,5 +1,6 @@
 # The window: C++23, Qt 6 Widgets and Qt D-Bus.
 find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Widgets DBus)
+message(STATUS "Qt ${Qt6_VERSION} (floor ${DEFRAGR_QT_MIN})")
 qt_standard_project_setup()
 
 # Engine link: the record decoder. A library of its own, so the window

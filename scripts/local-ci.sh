@@ -42,8 +42,13 @@ DOCS_GLOB='docs/*|*.md|LICENSE'
 NASM_VERSION='3.02'
 NASM_SHA256='87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d'
 
+# The Ubuntu packages CI installs. The workflow reads this list with
+# --ci-packages, so the list has one home, as the pins above do.
+CI_PACKAGES='ninja-build qt6-base-dev libgl-dev shellcheck'
+
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
 if [[ ${1:-} == --nasm-pin ]]; then printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA256"; exit 0; fi
+if [[ ${1:-} == --ci-packages ]]; then printf '%s\n' "$CI_PACKAGES"; exit 0; fi
 
 DOCS_ONLY=0
 [[ ${1:-} == --docs ]] && DOCS_ONLY=1
@@ -116,6 +121,22 @@ if (( DOCS_ONLY )); then
 fi
 
 # ── Checks that need a build or a full environment ──────────────────────────
+
+# The tools this run uses, printed in both places, so a local green and a
+# red on GitHub can be told apart by version. The Qt version is in the
+# configure step's output.
+step 'toolchain'
+for tool in cmake ninja nasm c++ shellcheck; do
+    if command -v "$tool" >/dev/null 2>&1; then
+        case $tool in
+            ninja) printf 'ninja %s\n' "$(ninja --version)" ;;
+            shellcheck) printf 'shellcheck %s\n' "$(shellcheck --version | sed -n 's/^version: //p')" ;;
+            *) "$tool" --version 2>&1 | head -n 1 ;;
+        esac
+    else
+        printf '%s: not installed\n' "$tool"
+    fi
+done >&2
 
 step 'lint'
 mapfile -t SHELL_FILES < <(git ls-files '*.sh' '.githooks/*')

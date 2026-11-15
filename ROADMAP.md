@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=36 -->
+<!-- ants-roadmap-id-high-water: DFR=37 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -142,6 +142,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0001, DFR-0002, DFR-0003, DFR-0004, DFR-0005, DFR-0006, DFR-0007, DFR-0008, DFR-0009.
+
+- 🚧 [DFR-0037] **Faster local and GitHub CI, with less drift between them.**
+  `local-gate.md` § 9's levers, one per commit, each measured before
+  and after: a pinned runner image and one package list (alignment),
+  no C++ module scan, ccache, gentler local builds, and a NASM cache
+  on GitHub. Nothing that can flake: every cache falls back to a full
+  build on a miss.
+  **Layman:** The checks before each push and on GitHub run faster, go easier on this PC, and agree with each other more.
+  Kind: perf.
+  Source: user-request-2026-11-15.
+  Lanes: Build.
 
 ## 0.2.0 — Drive map
 

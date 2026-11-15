@@ -1,0 +1,6 @@
+# actionlint's built-in runner labels predate ubuntu-26.04, which GitHub
+# serves (the runner log's "Image: ubuntu-26.04"). Drop this entry once
+# actionlint knows the label.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

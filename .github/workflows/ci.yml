@@ -32,7 +32,9 @@ concurrency:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    # A versioned image, not ubuntu-latest: -latest moves to a new Ubuntu
+    # with no commit here, so the same tree could build differently.
+    runs-on: ubuntu-26.04
     # local-gate.md § 9. A hung job otherwise burns up to six hours. Size this
     # for a COLD build (no cache), or a cache miss reads as a hang.
     timeout-minutes: 30
@@ -59,9 +61,9 @@ jobs:
       # SCRIPT and read from it, so one commit cannot use two versions.
       - name: Install build tools and Qt 6
         run: |
+          read -ra packages < <(./scripts/local-ci.sh --ci-packages)
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            ninja-build qt6-base-dev libgl-dev shellcheck
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       # Ubuntu's nasm package is older than the engine's 3.02 floor.
       - name: Build NASM from source
