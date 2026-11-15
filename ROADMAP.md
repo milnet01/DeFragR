@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=38 -->
+<!-- ants-roadmap-id-high-water: DFR=39 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -177,6 +177,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   **Layman:** A check you can run before pushing that copies GitHub's machine, so a change that passes here also passes there.
   Kind: chore.
   Source: user-request-2026-11-15.
+
+- ✅ [DFR-0039] **The window shows the approved DeFragR icon.**
+  `packaging/defragr.svg` and `packaging/defragr.png`, as approved.
+  The PNG is built into the program as the window icon; Qt needs the
+  qt6-svg plugin to draw an SVG and gives a blank icon without it. The
+  desktop entry that uses the SVG is the packaging item's (0.9.0).
+  Done 2026-11-15: the window's `_NET_WM_ICON` reads 512 x 512 on a
+  private X display; before the change it was absent.
+  **Layman:** DeFragR's window now carries its own icon in the taskbar and title bar.
+  Kind: feature.
+  Source: user-approval-2026-11-15 (via ants-projects-hub-website).
 
 ## 0.2.0 — Drive map
 

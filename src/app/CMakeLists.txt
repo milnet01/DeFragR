@@ -14,5 +14,13 @@ target_link_libraries(defragr-records PUBLIC Qt6::Core)
 add_executable(defragr
     main.cpp)
 
+# The window icon. The PNG, because Qt draws an SVG icon only through the
+# qt6-svg plugin, and a missing plugin gives a blank icon with no error.
+# packaging/defragr.svg is the same icon, scalable, for the desktop entry.
+qt_add_resources(defragr icons
+    PREFIX /
+    BASE ${PROJECT_SOURCE_DIR}/packaging
+    FILES ${PROJECT_SOURCE_DIR}/packaging/defragr.png)
+
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr PRIVATE Qt6::Widgets Qt6::DBus)
