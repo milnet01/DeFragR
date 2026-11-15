@@ -22,7 +22,12 @@ ignore_action:
     iend
 
 section .text
+global sys_read
 global sys_write
+global sys_open
+global sys_close
+global sys_stat
+global sys_statfs
 global sys_geteuid
 global sys_exit
 global sys_ignore_sigpipe
@@ -31,6 +36,41 @@ global sys_ignore_sigpipe
 ; or -errno. May write fewer bytes than asked; the caller loops.
 sys_write:
     mov eax, SYS_write
+    syscall
+    ret
+
+; sys_read(rdi = fd, rsi = buffer, rdx = length) -> rax = bytes read,
+; 0 at end of file, or -errno.
+sys_read:
+    mov eax, SYS_read
+    syscall
+    ret
+
+; sys_open(rdi = NUL-terminated path, rsi = flags) -> rax = fd or -errno.
+; Opens an existing file only, so no mode is passed.
+sys_open:
+    mov eax, SYS_open
+    xor edx, edx
+    syscall
+    ret
+
+; sys_close(rdi = fd) -> rax = 0 or -errno.
+sys_close:
+    mov eax, SYS_close
+    syscall
+    ret
+
+; sys_stat(rdi = NUL-terminated path, rsi = kernel_stat buffer)
+;   -> rax = 0 or -errno. Follows symbolic links.
+sys_stat:
+    mov eax, SYS_stat
+    syscall
+    ret
+
+; sys_statfs(rdi = NUL-terminated path, rsi = kernel_statfs buffer)
+;   -> rax = 0 or -errno.
+sys_statfs:
+    mov eax, SYS_statfs
     syscall
     ret
 

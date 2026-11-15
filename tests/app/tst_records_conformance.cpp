@@ -96,6 +96,9 @@ private slots:
         QTest::addColumn<bool>("needsNonRoot");
         QTest::newRow("no arguments") << QStringList{} << int(ResultUsage) << false;
         QTest::newRow("unknown command") << QStringList{"bogus"} << int(ResultUsage) << false;
+        QTest::newRow("probe") << QStringList{"probe"} << int(ResultOk) << false;
+        QTest::newRow("probe, extra argument") << QStringList{"probe", "x"} << int(ResultUsage)
+                                               << false;
         // Arguments are checked before admin rights...
         QTest::newRow("report, no mount point") << QStringList{"report"} << int(ResultUsage) << false;
         // ...and admin rights before the mount point.

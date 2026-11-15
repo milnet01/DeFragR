@@ -174,8 +174,8 @@ offset  size  field
 The probe stream is `HELLO`, zero or more `DRIVE`, `FINISHED`. No two
 `DRIVE` records share a `mount_point`. The window enables defrag only
 on verdict 2 (ADR-0002); DFR-0005 tests that. Which mounts count as drives, and
-which rule yields which reason, is DFR-0004's to decide inside this
-layout.
+which rule yields which reason, are set inside this layout by
+`src/engine/probe.asm`'s header (DFR-0004).
 
 ### 4.6 Report records
 
@@ -503,7 +503,7 @@ engine. Only the conformance test reads real engine output.
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | DFR-0008's image test |
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
-| § 4.7 reason order | **nothing** until DFR-0004's probe tests exist |
+| § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |
 
 ## 11. Cross-doc impact

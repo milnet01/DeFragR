@@ -16,6 +16,7 @@ endif()
 
 add_executable(defragr-engine
     main.asm
+    probe.asm
     records.asm
     sys.asm)
 # kernel.inc and records.inc are included by name from this folder.

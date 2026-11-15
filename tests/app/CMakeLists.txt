@@ -17,10 +17,19 @@ add_test(NAME tst_records_conformance COMMAND tst_records_conformance)
 set_tests_properties(tst_records_conformance PROPERTIES
     ENVIRONMENT "DEFRAGR_ENGINE=$<TARGET_FILE:defragr-engine>")
 
-# Qt Test otherwise compiles both tests with their absolute source and
+# The built engine's probe against this machine: DFR-0004.
+add_executable(tst_probe tst_probe.cpp)
+target_compile_options(tst_probe PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_probe PRIVATE defragr-records Qt6::Test)
+add_dependencies(tst_probe defragr-engine)
+add_test(NAME tst_probe COMMAND tst_probe)
+set_tests_properties(tst_probe PROPERTIES
+    ENVIRONMENT "DEFRAGR_ENGINE=$<TARGET_FILE:defragr-engine>")
+
+# Qt Test otherwise compiles every test with their absolute source and
 # build folders (QT_TESTCASE_SOURCEDIR, QT_TESTCASE_BUILDDIR), for
 # QFINDTESTDATA, which no test here uses. Those paths change with every
-# pre-push worktree, so ccache missed on both tests every push. A Qt too
+# pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
-set_target_properties(tst_records tst_records_conformance PROPERTIES
+set_target_properties(tst_records tst_records_conformance tst_probe PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

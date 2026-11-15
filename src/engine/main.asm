@@ -17,6 +17,7 @@ extern sys_ignore_sigpipe
 extern rec_hello
 extern rec_finish
 extern rec_selftest
+extern probe_run
 
 section .rodata
 arg_probe:      db "probe", 0
@@ -74,9 +75,10 @@ _start:
     mov edi, RESULT_USAGE
     cmp r12, 2
     jne .finish
-    ; Listing drives is DFR-0004's; until then probe cannot finish OK.
-    mov edi, RESULT_INTERNAL
-    jmp .finish
+    call probe_run
+    mov edi, eax
+    mov esi, edx
+    call rec_finish
 
 .report:
     mov edi, CMD_REPORT

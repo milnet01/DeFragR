@@ -64,13 +64,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Kernel ABI, System calls, Records, Entry, Engine link.
   Blocked-by: DFR-0001, DFR-0002.
 
-- 📋 [DFR-0004] **Engine probe: list drives and judge each one.**
+- ✅ [DFR-0004] **Engine probe: list drives and judge each one.**
   `probe.asm`: read `/proc/self/mountinfo`, `statfs` and
   `/sys/block/*/queue/rotational`; one record per drive with size,
   filesystem, SSD or spinning, and a verdict with reason code
   (ADR-0002). Engine side of S1 and S9. Unprivileged.
-  Replaces the INTERNAL result `probe` gives until then
-  (src/engine/main.asm).
+  Done 2026-11-15. Which mounts are drives, and the reason order, are
+  in `probe.asm`'s header. A disk mounted in several places is listed
+  once (the user's choice). tst_probe checks each drive against
+  QStorageInfo, statvfs and sysfs, and the reason order; an engine
+  listing a disk twice, skipping a partition's disk, or checking SSD
+  before the filesystem type each turned it red.
   **Layman:** The engine lists every drive and says which can be defragged and why not.
   Kind: implement.
   Source: design-2026-11-15.

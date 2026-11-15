@@ -85,9 +85,20 @@ CMD_PROBE           equ 1
 CMD_REPORT          equ 2
 CMD_SELFTEST        equ 255
 
-; DRIVE.media and DRIVE.verdict (§ 4.5).
+; DRIVE.media, DRIVE.verdict and DRIVE.mount_flags (§ 4.5).
+MEDIA_UNKNOWN       equ 0
+MEDIA_SSD           equ 1
 MEDIA_SPINNING      equ 2
 VERDICT_REPORT_ONLY equ 1
+VERDICT_DEFRAG      equ 2
+MOUNT_READ_ONLY     equ 1
+
+; Reason codes: DRIVE.reason (§ 4.7).
+REASON_NONE         equ 0
+REASON_FS_NOT_EXT4  equ 1
+REASON_READ_ONLY    equ 2
+REASON_SSD          equ 3
+REASON_MEDIA_UNKNOWN equ 4
 
 ; Result codes: FINISHED.result and the exit status (§ 4.7).
 RESULT_OK           equ 0
