@@ -2,7 +2,8 @@
 
 ## Where this project is
 
-**State:** 2 — Unshaped. Discovery is agreed (`docs/discovery.md`); design is next.
+**State:** 4 — Between items. Discovery and design are agreed
+(`docs/discovery.md`, `docs/design.md`); the queue is in `ROADMAP.md`.
 **In flight:** nothing.
 
 > Keep these two lines true, and no `Next:` line. Why:
@@ -25,7 +26,8 @@ rather than in a standard.
 
 ### Stack
 
-(Decided in design — `docs/design.md`. Until then, undecided.)
+x86-64 NASM engine with no libc; C++23 and Qt 6 window; CMake and
+CTest. `docs/design.md` § The stack, and what it rules out, is the home.
 
 ### Build and test
 
