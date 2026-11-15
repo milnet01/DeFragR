@@ -72,3 +72,6 @@ screenshot*.png
 # True high-water mark is the highest ID across ROADMAP.md +
 # CHANGELOG.md + docs/roadmap/*.md (roadmap-format.md § 3.5.1).
 .roadmap-counter
+
+# Build trees
+build/

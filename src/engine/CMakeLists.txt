@@ -1,0 +1,24 @@
+# The engine: x86-64 NASM, no C library, statically linked.
+# It depends on the kernel and nothing else (docs/design.md).
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)
+
+# NASM 3.02 is the floor (the assembly standard, languages/asm.md).
+# main.asm refuses an older assembler too; this says so at configure time.
+set(DEFRAGR_NASM_MIN 3.02)
+execute_process(COMMAND ${CMAKE_ASM_NASM_COMPILER} -v
+    OUTPUT_VARIABLE _nasm_v RESULT_VARIABLE _nasm_rc)
+string(REGEX MATCH "version ([0-9]+\\.[0-9]+(\\.[0-9]+)?)" _ "${_nasm_v}")
+if(NOT _nasm_rc EQUAL 0 OR NOT CMAKE_MATCH_1)
+    message(FATAL_ERROR "Could not read the NASM version from ${CMAKE_ASM_NASM_COMPILER}")
+elseif(CMAKE_MATCH_1 VERSION_LESS DEFRAGR_NASM_MIN)
+    message(FATAL_ERROR "NASM ${DEFRAGR_NASM_MIN} or later required; found ${CMAKE_MATCH_1}")
+endif()
+
+add_executable(defragr-engine
+    main.asm)
+
+# Link with ld directly, so no C runtime, start files or default
+# library can be pulled in by a compiler driver.
+set_target_properties(defragr-engine PROPERTIES LINKER_LANGUAGE ASM_NASM)
+set(CMAKE_ASM_NASM_LINK_EXECUTABLE
+    "ld -static -nostdlib --fatal-warnings <LINK_FLAGS> <OBJECTS> -o <TARGET>")

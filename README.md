@@ -4,9 +4,9 @@
 
 ## Status
 
-Just scaffolded. Nothing has been built and nothing has been decided —
-the first step is discovery (`~/.claude/workflow.md` § 3), which answers
-what problem this addresses and how we would know it is working.
+Early development. The design is agreed and the build works, but the
+engine and the window do nothing useful yet. [ROADMAP.md](ROADMAP.md)
+holds the plan.
 
 ## Install
 
@@ -20,6 +20,18 @@ what problem this addresses and how we would know it is working.
 
 After cloning, run `./scripts/setup-hooks.sh` once. It turns on the
 commit and push checks, which git does not copy with a clone.
+
+Building needs an x86-64 Linux machine with CMake 3.28 or later, Ninja,
+NASM 3.02 or later, a C++23 compiler and Qt 6.4 or later (Widgets and
+D-Bus).
+
+```sh
+cmake -S . -B build -G Ninja
+cmake --build build
+ctest --test-dir build
+```
+
+`./scripts/local-ci.sh` runs every check CI runs.
 
 ## Documentation
 

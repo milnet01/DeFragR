@@ -55,9 +55,28 @@ jobs:
       # toolchain (local-gate.md § 9). For example, setup-python's
       # `cache: pip`, setup-node's `cache: npm`, or ccache for C/C++.
 
-      # Install the toolchain the script expects. Pin versions in the SCRIPT
-      # and read them from it, so one commit cannot use two different versions:
-      #   - run: pipx install ruff==$(./scripts/local-ci.sh --ruff-version)
+      # Install the toolchain the script expects. Versions are pinned in the
+      # SCRIPT and read from it, so one commit cannot use two versions.
+      - name: Install build tools and Qt 6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build qt6-base-dev libgl-dev shellcheck
+
+      # Ubuntu's nasm package is older than the engine's 3.02 floor.
+      - name: Build NASM from source
+        run: |
+          read -r version sha256 < <(./scripts/local-ci.sh --nasm-pin)
+          work=$(mktemp -d)
+          curl -fsSL -o "$work/nasm.tar.xz" \
+            "https://www.nasm.us/pub/nasm/releasebuilds/$version/nasm-$version.tar.xz"
+          echo "$sha256  $work/nasm.tar.xz" | sha256sum --check --strict
+          tar -xJf "$work/nasm.tar.xz" -C "$work"
+          cd "$work/nasm-$version"
+          ./configure --prefix=/usr/local
+          make -j"$(nproc)" nasm
+          sudo install -m 0755 nasm /usr/local/bin/nasm
+          nasm -v
 
       - name: Run the gate
         run: ./scripts/local-ci.sh

@@ -20,12 +20,12 @@
 
 Items are broken out of `docs/design.md`; each names the discovery signs (S1–S12) it delivers.
 
-- 📋 [DFR-0001] **Build both programs from one CMake tree.**
+- ✅ [DFR-0001] **Build both programs from one CMake tree.**
   Top-level `CMakeLists.txt` with `src/engine/` (NASM, static,
   `-nostdlib`) and `src/app/` (C++23, Qt 6 Widgets and D-Bus), plus
   `tests/CMakeLists.txt` under CTest. `scripts/local-ci.sh` builds and
-  runs the tests. Needs NASM installed first (not on this machine,
-  2026-11-15). Pins the C++ standard and Qt floor in the build.
+  runs the tests. Pins the C++ standard, the Qt floor and the NASM
+  3.02 floor in the build.
   **Layman:** Sets up the build so both halves of DeFragR compile with one command.
   Kind: chore.
   Source: design-2026-11-15.

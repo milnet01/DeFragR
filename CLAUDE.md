@@ -31,7 +31,11 @@ CTest. `docs/design.md` § The stack, and what it rules out, is the home.
 
 ### Build and test
 
-(Filled once the stack exists.)
+`./scripts/local-ci.sh` is the gate: link check, shellcheck, a fresh
+CMake build in `build/ci` with warnings as errors, then CTest.
+`--docs` runs the link check alone. NASM's floor is in
+`src/engine/CMakeLists.txt`; the version CI builds is pinned in
+`scripts/local-ci.sh`.
 
 ### Roadmap IDs
 

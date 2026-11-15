@@ -34,9 +34,15 @@ DOCS_GLOB='docs/*|*.md|LICENSE'
 # whatever happened to be on PATH, so the same commit could pass locally and
 # fail on GitHub. Measured case: ruff's default rule set changed between
 # releases, so an unpinned run enforces a different set on each machine.
-# RUFF_VERSION='0.16.8'
+#
+# NASM: the version CI builds from source, because Ubuntu's package is older
+# than the 3.02 floor src/engine/CMakeLists.txt enforces. nasm.us publishes
+# no checksums; this hash is of the tarball fetched over HTTPS on 2026-11-15.
+NASM_VERSION='3.02'
+NASM_SHA256='87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
+if [[ ${1:-} == --nasm-pin ]]; then printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA256"; exit 0; fi
 
 DOCS_ONLY=0
 [[ ${1:-} == --docs ]] && DOCS_ONLY=1
@@ -50,7 +56,7 @@ DOCS_ONLY=0
 # is worse than no gate — it spends the attention that would have caught the
 # defect, and the machine-wide pre-push hook reports its exit 0 as a pass.
 # Measured 2026-09-26 on a fresh scaffold.
-CONFIGURED=0
+CONFIGURED=1
 
 step() { printf '\n=== %s ===\n' "$1" >&2; }
 
@@ -89,12 +95,11 @@ run() {
 # Anything not needing a compiler or a full environment belongs here.
 
 step 'documentation'
-# e.g. need markdownlint && run markdownlint markdownlint .
-# e.g. check-doc-facts, link checking, spelling
+need python3 && run links python3 -I scripts/check-links.py
 # SET THIS TO 1 once the documentation step runs a real check. CONFIGURED
 # covers the script as a whole, so a project with lint and tests filled in
 # still had --docs report a pass that checked nothing (Deedbox, 2026-09-28).
-DOCS_CONFIGURED=0
+DOCS_CONFIGURED=1
 
 if (( DOCS_ONLY )); then
     if (( CONFIGURED && DOCS_CONFIGURED )); then
@@ -112,16 +117,20 @@ fi
 # ── Checks that need a build or a full environment ──────────────────────────
 
 step 'lint'
-# e.g. need ruff && run lint ruff check .
+mapfile -t SHELL_FILES < <(git ls-files '*.sh' '.githooks/*')
+need shellcheck && run shellcheck shellcheck "${SHELL_FILES[@]}"
 
-step 'types'
-# e.g. need mypy && run types mypy
-
+# A fresh tree each run, so a stale cache cannot hide a configure error.
+BUILD_DIR=build/ci
 step 'build'
-# e.g. run build cmake --build build
+rm -rf "$BUILD_DIR"
+# Without these there is no build, so a missing one stops the gate.
+need cmake; need nasm; need ninja
+run configure cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+run build cmake --build "$BUILD_DIR"
 
 step 'test'
-# e.g. need pytest && run test pytest -q     |     run test ctest --test-dir build --output-on-failure
+run test ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error
 
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2
