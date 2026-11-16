@@ -1,5 +1,6 @@
 #include "ui/MainWindow.h"
 
+#include "BuildId.h"
 #include "ui/ReportView.h"
 
 #include <QHBoxLayout>
@@ -16,7 +17,8 @@ namespace defragr::ui {
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("DeFragR"));
+    setWindowTitle(QStringLiteral("DeFragR %1 (build %2)")
+                       .arg(QLatin1String(DEFRAGR_VERSION), QLatin1String(DEFRAGR_BUILD)));
 
     auto *heading = new QLabel(QStringLiteral("Pick a drive, then choose what to do with it."));
 

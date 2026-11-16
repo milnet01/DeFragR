@@ -35,5 +35,16 @@ qt_add_resources(defragr icons
     BASE ${PROJECT_SOURCE_DIR}/packaging
     FILES ${PROJECT_SOURCE_DIR}/packaging/defragr.png)
 
+# The window title names the build, so a tester can tell which one runs.
+add_custom_target(defragr-build-id
+    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/generated/BuildId.h
+            -DVERSION=${PROJECT_VERSION}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/build-id.cmake
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/generated/BuildId.h
+    VERBATIM)
+add_dependencies(defragr defragr-build-id)
+target_include_directories(defragr PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr PRIVATE defragr-model Qt6::Widgets Qt6::DBus)
