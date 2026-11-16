@@ -90,6 +90,7 @@ void Report::run(const QByteArray &mountPoint)
 
 void Report::collect(const QList<Record> &records)
 {
+    const qsizetype before = m_incoming.size();
     for (const Record &record : records) {
         if (const auto *file = std::get_if<FragmentedFile>(&record))
             m_incoming.append(*file);
@@ -98,6 +99,8 @@ void Report::collect(const QList<Record> &records)
         else if (const auto *hello = std::get_if<Hello>(&record))
             m_incomingBlockSize = hello->blockSize;
     }
+    if (m_incoming.size() > before)
+        emit found(quint64(m_incoming.size()), m_incoming.last().path);
 }
 
 void Report::runEnded(const RunOutcome &outcome)

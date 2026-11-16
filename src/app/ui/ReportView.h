@@ -4,6 +4,8 @@
 
 #include "model/Report.h"
 
+#include <QElapsedTimer>
+#include <QTimer>
 #include <QWidget>
 
 class QLabel;
@@ -28,13 +30,20 @@ signals:
 private:
     void showReport();
     void showFailure(const model::Message &message);
+    void showFound(quint64 count, const QByteArray &latestPath);
+    void showElapsed();
     // Shows the run as going, or as over.
     void setRunning(bool running);
 
     model::Report m_report;
     QLabel *m_heading = nullptr;
     QLabel *m_figures = nullptr;
+    QLabel *m_found = nullptr;
+    QLabel *m_latest = nullptr;
+    QLabel *m_elapsed = nullptr;
     QProgressBar *m_busy = nullptr;
+    QElapsedTimer m_clock;
+    QTimer m_tick;
     QLabel *m_filesHeading = nullptr;
     QTableView *m_table = nullptr;
     QPushButton *m_back = nullptr;

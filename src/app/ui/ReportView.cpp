@@ -1,9 +1,11 @@
 #include "ui/ReportView.h"
 
 #include <QFile>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QLocale>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTableView>
@@ -22,8 +24,15 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
     m_figures = new QLabel;
     m_figures->setWordWrap(true);
 
-    // The engine sends no progress during a report, so the bar only
-    // shows that the run is going.
+    // The engine sends no progress during a report (real progress is
+    // DFR-0043), so the run shows what it has found, and for how long.
+    m_found = new QLabel;
+    m_latest = new QLabel;
+    // A long path must not widen the window; showFound elides it.
+    m_latest->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_elapsed = new QLabel;
+    m_tick.setInterval(1000);
+    connect(&m_tick, &QTimer::timeout, this, &ReportView::showElapsed);
     m_busy = new QProgressBar;
     m_busy->setRange(0, 0);
 
@@ -40,13 +49,20 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(top);
     layout->addWidget(m_figures);
+    layout->addWidget(m_found);
+    layout->addWidget(m_latest);
+    layout->addWidget(m_elapsed);
     layout->addWidget(m_busy);
     layout->addWidget(m_filesHeading);
     layout->addWidget(m_table, 1);
+    // Takes the space only while the table is hidden, so the text stays
+    // at the top.
+    layout->addStretch();
 
     connect(m_back, &QPushButton::clicked, this, &ReportView::backRequested);
     connect(&m_report, &model::Report::loaded, this, &ReportView::showReport);
     connect(&m_report, &model::Report::failed, this, &ReportView::showFailure);
+    connect(&m_report, &model::Report::found, this, &ReportView::showFound);
 }
 
 void ReportView::start(const QByteArray &mountPoint)
@@ -54,6 +70,10 @@ void ReportView::start(const QByteArray &mountPoint)
     m_heading->setText(QStringLiteral("Report on %1").arg(QFile::decodeName(mountPoint)));
     m_figures->setText(QStringLiteral("Checking every file on the drive. On a big drive this "
                                       "can take a few minutes. Nothing on the drive is changed."));
+    m_found->setText(QStringLiteral("No fragmented files found yet."));
+    m_latest->clear();
+    m_clock.start();
+    showElapsed();
     setRunning(true);
     m_report.run(mountPoint);
 }
@@ -72,12 +92,41 @@ void ReportView::showFailure(const model::Message &message)
     setRunning(false);
 }
 
+void ReportView::showFound(quint64 count, const QByteArray &latestPath)
+{
+    m_found->setText(QStringLiteral("Fragmented files found so far: %1")
+                         .arg(QLocale().toString(count)));
+    const QString latest = QStringLiteral("Latest: %1").arg(QFile::decodeName(latestPath));
+    m_latest->setText(fontMetrics().elidedText(latest, Qt::ElideMiddle, m_latest->width()));
+    m_latest->setToolTip(latest);
+}
+
+void ReportView::showElapsed()
+{
+    const qint64 seconds = m_clock.elapsed() / 1000;
+    QString text;
+    if (seconds >= 3600)
+        text = QStringLiteral("%1 h %2 min").arg(seconds / 3600).arg(seconds % 3600 / 60);
+    else if (seconds >= 60)
+        text = QStringLiteral("%1 min %2 s").arg(seconds / 60).arg(seconds % 60);
+    else
+        text = QStringLiteral("%1 s").arg(seconds);
+    m_elapsed->setText(QStringLiteral("Running for %1").arg(text));
+}
+
 void ReportView::setRunning(bool running)
 {
     // No cancel yet (DFR-0024), so going back mid-run would leave a
     // report running that no screen shows.
     m_back->setEnabled(!running);
     m_busy->setVisible(running);
+    m_found->setVisible(running);
+    m_latest->setVisible(running);
+    m_elapsed->setVisible(running);
+    if (running)
+        m_tick.start();
+    else
+        m_tick.stop();
     const bool anyFiles = !running && m_report.rowCount() > 0;
     m_filesHeading->setVisible(anyFiles);
     m_table->setVisible(anyFiles);

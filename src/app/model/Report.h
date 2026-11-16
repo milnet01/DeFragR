@@ -42,6 +42,9 @@ public:
                         int role = Qt::DisplayRole) const override;
 
 signals:
+    // While a run goes: the fragmented files found so far, and the path
+    // of the latest, relative to the mount point.
+    void found(quint64 count, const QByteArray &latestPath);
     void loaded();
     void failed(const defragr::model::Message &message);
 

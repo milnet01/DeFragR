@@ -64,6 +64,23 @@ private slots:
 
     void init() { useEngine("report.sh"); }
 
+    // While it runs, the report says how many it has found and which was
+    // last, in the order the engine sent them.
+    void foundWhileRunning()
+    {
+        // Declared first, so they outlive the report and its connection.
+        quint64 count = 0;
+        QByteArray latest;
+        Report report(fake("pass-through.sh"));
+        connect(&report, &Report::found, this, [&](quint64 found, const QByteArray &path) {
+            count = found;
+            latest = path;
+        });
+        run(report, "/mnt/fake");
+        QCOMPARE(count, quint64(3));
+        QCOMPARE(latest, QByteArray("games/tie.pak"));
+    }
+
     // S3: the worst file first; of two in as many pieces, the bigger.
     void worstFirst()
     {
