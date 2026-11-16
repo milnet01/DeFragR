@@ -131,7 +131,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Image tests.
   Blocked-by: DFR-0006.
 
-- 📋 [DFR-0008] **Engine report: fragmentation figures and worst files.**
+- ✅ [DFR-0008] **Engine report: fragmentation figures and worst files.**
   `walk.asm`, `extents.asm` (`FS_IOC_FIEMAP`), `report` command run
   through `pkexec`. Stays on one filesystem, follows no symlinks.
   Image test: extent counts match `filefrag`, and the image is
@@ -140,6 +140,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   point finishes NOT_A_MOUNT (DFR-0002 spec § 5).
   Replaces the INTERNAL result a root `report` gives until then
   (src/engine/main.asm).
+  Done 2026-11-16. walk.asm and extents.asm, with their rules in
+  their headers; probe_find_mount is the mount-point check. A drive is
+  known by its mount id, so the walk keeps to one mount. The
+  image_report test passes; it went red when the walk updated access
+  times, when the engine stopped merging extents that sit end to end,
+  and when the mount check accepted any folder under a mount.
   **Layman:** The engine measures how scattered each file is without changing anything.
   Kind: implement.
   Source: design-2026-11-15.
