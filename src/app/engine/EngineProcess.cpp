@@ -13,6 +13,8 @@ namespace {
 
 // pkexec's own exit codes, before any engine runs: 126 when the user
 // dismissed the password dialog, 127 when not authorised or on its error.
+// An error includes failing to run the engine once authorised, as when
+// SELinux denies it; the exit code alone cannot tell that from a refusal.
 constexpr int kPkexecDismissed = 126;
 constexpr int kPkexecRefused = 127;
 

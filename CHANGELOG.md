@@ -15,3 +15,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 ### Added
 - A running report shows how far it has got: files and folders checked,
   of about how many, with a percentage bar (DFR-0043).
+
+### Fixed
+- When the system blocks the engine after you enter your password, the
+  window no longer says admin rights were refused (DFR-0042).

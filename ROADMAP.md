@@ -237,7 +237,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: user-request-2026-11-16.
   Lanes: Image tests, Test machine.
 
-- 📋 [DFR-0042] **Say plainly when the engine cannot be started with admin rights.**
+- ✅ [DFR-0042] **Say plainly when the engine cannot be started with admin rights.**
   pkexec exits 127 both when it refuses and when it cannot execute
   the program after authorising. EngineProcess reads every 127 with no
   output as RunEnd::AdminRefused, so model/Messages says "Admin rights
@@ -246,6 +246,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   it, and pkexec printed "Error executing ...: Permission denied".
   The window should tell the two apart, or word the message to cover
   both.
+  Done 2026-11-16 by rewording, not by telling the two apart: pkexec(1)
+  gives 127 for "not authorized" and for "an error occurred", and its
+  error text is translated, so the window cannot split them reliably.
+  model/Messages now says "DeFragR could not start its engine with admin
+  rights", and names a security setting such as SELinux if it fails
+  after the password. Locked by tst_messages
+  adminRightsCoverABlockedEngine.
   **Layman:** After you type your password, if the system still blocks the engine, the window should say so instead of claiming the password was refused.
   Kind: fix.
   Source: user-test-2026-11-16.

@@ -112,8 +112,12 @@ Message forRun(const RunOutcome &outcome)
                 QStringLiteral("Reinstall DeFragR. Without its engine it cannot list or check "
                                "drives.")};
     case RunEnd::AdminRefused:
-        return {QStringLiteral("Admin rights were refused, or could not be asked for."),
-                QStringLiteral("Try again and enter your password when asked.")};
+        // pkexec's 127 also covers the system blocking the engine after
+        // the password, so the words blame neither (DFR-0042).
+        return {QStringLiteral("DeFragR could not start its engine with admin rights."),
+                QStringLiteral("Try again and enter your password when asked. If it still "
+                               "fails after you enter it, a security setting on this PC, such "
+                               "as SELinux, may be blocking the engine.")};
     case RunEnd::VersionMismatch:
         return {QStringLiteral("DeFragR's engine belongs to a different version of DeFragR."),
                 QStringLiteral("Reinstall DeFragR so both halves match.")};

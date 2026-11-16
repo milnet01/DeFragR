@@ -16,7 +16,7 @@ namespace defragr::engine {
 enum class RunEnd {
     Finished,         // FINISHED arrived; its result says how the command went
     EngineMissing,    // no engine program where the window looks for one
-    AdminRefused,     // pkexec refused or could not ask; the engine never ran
+    AdminRefused,     // pkexec did not run the engine: refused, could not ask, or blocked
     Broken,           // the engine crashed, or its stream broke a rule
     VersionMismatch,  // the engine speaks another protocol major (INV-7)
 };

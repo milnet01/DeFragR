@@ -67,6 +67,21 @@ private slots:
         }
     }
 
+    // pkexec exits 127 both when the user is refused and when the system
+    // stops it running the engine after the password (SELinux, seen
+    // 2026-11-16), so the words cover both and blame neither (DFR-0042).
+    void adminRightsCoverABlockedEngine()
+    {
+        RunOutcome outcome;
+        outcome.end = RunEnd::AdminRefused;
+        QCOMPARE(messages::forRun(outcome),
+                 (Message{QStringLiteral("DeFragR could not start its engine with admin rights."),
+                          QStringLiteral("Try again and enter your password when asked. If it "
+                                         "still fails after you enter it, a security setting "
+                                         "on this PC, such as SELinux, may be blocking the "
+                                         "engine.")}));
+    }
+
     // ADR-0002: the user is told where the missing engine should be.
     void missingEngineIsNamed()
     {
