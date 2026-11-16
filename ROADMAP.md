@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=43 -->
+<!-- ants-roadmap-id-high-water: DFR=65 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -236,6 +236,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   build_image, so the gap between the two local figures may point at
   the cause. Unconfirmed guess: each fsync in build_image reaches this
   PC's disk. Done when the cause is named, and fixed or recorded.
+  Review 2026-11-16 (review-code --performance lane 03):
+  tests/vm/run.sh:169 rebuilds the whole initramfs each boot, though
+  only /test differs (vm_smoke's whole run took 1.99 s, so at most about
+  6 s per push). Three cheap checks: whether KVM or the TCG fallback
+  runs (run.sh:173-176); the push gate's worktree sits on
+  /mnt/Emulators, a spinning drive; GENTLE wraps QEMU. Note
+  tst_engineprocess (30.85 s) is the slowest test, not an image test:
+  see its own item.
   **Layman:** Works out why the fake-drive tests take a minute or more here but seconds on GitHub.
   Kind: investigate.
   Source: user-request-2026-11-16.
@@ -314,6 +322,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   `ui/Theme`: palette, one symbol per map cell state, text and cell
   sizes, all asked of one place (S10). Readable without relying on
   colour.
+  Owner ruling 2026-11-16: discovery S10 (readable by a partially
+  sighted user) binds from 0.2.0, with this theme, not today's screens.
   **Layman:** Makes the map and text clear for a partially sighted user, using shapes as well as colours.
   Kind: accessibility.
   Source: design-2026-11-15.
@@ -336,6 +346,301 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0010, DFR-0011, DFR-0012, DFR-0013, DFR-0014.
+
+- 📋 [DFR-0044] **Report re-runs the drive rules before walking, as ADR-0002 says.**
+  src/engine/main.asm report_run calls probe_find_mount, which accepts any
+  line of /proc/self/mountinfo, then walks it as root. ADR-0002 says the
+  engine re-runs the same rules at the start of every report. So /proc,
+  /sys, tmpfs, NFS and FUSE mounts are accepted, and a FUSE or dead NFS
+  mount can hang the root engine where cancel cannot reach. Fix: apply
+  probe's is-a-drive test to the matched mount and finish with its reason.
+  The owner chose fixing the engine over amending the ADR (2026-11-16).
+  Found by review-code lanes 01 and 02 independently.
+  **Layman:** A report refuses anything that is not a real drive, such as system areas or a network drive, instead of walking it with admin rights.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Entry, Probe.
+
+- 📋 [DFR-0045] **Walk checks before it opens and bounds before it reads.**
+  - walk.asm:307-318 opens a folder, then checks its mount: opening a
+    nested automount triggers it, and a dead NFS mount can hang. Candidate:
+    openat2 RESOLVE_NO_XDEV; whether it acts before an automount fires is
+    unsettled and needs a test.
+  - walk.asm:281-296 opens a name, then checks S_IFREG: a device node
+    renamed over a listed name is opened by root (a tape rewinds on close).
+    Candidate: O_PATH|O_NOFOLLOW, fstatx, then reopen /proc/self/fd/N.
+  - walk.asm:210 reads reclen and type before bounding pos against len
+    (asm.md "Bound before you index"). A correct kernel never triggers it.
+  Found by review-code lane 02 (M3, L2, L3).
+  **Layman:** The engine checks what a name is before opening it, so it never opens a device or wakes a network drive by accident.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Walk.
+
+- 📋 [DFR-0046] **Probe survives stacked mounts, a failed statfs and odd sources.**
+  - probe.asm:400-408,432-434 stats by path, so a mount hidden under
+    another gets the top one's facts.
+  - probe.asm:434-436: one failed statfs ends the whole probe.
+  - probe.asm:465-466 stores the block size's low 32 bits unchecked;
+    walk.asm:119-124 rejects a value above 32 bits.
+  - probe.asm:371-381 trusts any major-0 mount's source as a device path:
+    a FUSE mount with fsname=/dev/sdb1 can hide the real ext4 drive from
+    the list. Follow the source only for btrfs.
+  Found by review-code lane 02 (M2, M4, L1) and review-readability lane 2.
+  **Layman:** The drive list stays complete and correct when one drive misbehaves or two are mounted on the same folder.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Probe.
+
+- 📋 [DFR-0047] **Window shows names from a drive as plain text, never rich text.**
+  QLabel guesses rich text. ReportView.cpp:72 and :104-106,
+  MainWindow.cpp:106-107 and DriveList.cpp:76-77 show names any local user
+  can choose. Qt::mightBeRichText is true for "Latest: dir/<img src=x>"
+  (PySide6 probe on this host, 2026-11-16). Fix: Qt::PlainText on every
+  label that shows drive or file names. Found by review-code lane 03.
+  **Layman:** A file whose name looks like web code is shown as its name, not drawn as a picture or link.
+  Kind: security.
+  Source: review-code-2026-11-16.
+  Lanes: Report view, Screens, Drives.
+
+- 📋 [DFR-0048] **Window keeps a mount point's non-UTF-8 bytes intact.**
+  Report.cpp:111 passes the mount point through QFile::decodeName, which
+  turns invalid UTF-8 into U+FFFD: /mnt/t\xff becomes /mnt/t\xef\xbf\xbd
+  (Qt probe, 2026-11-16). The engine is then asked about a path that does
+  not exist. Keep the raw bytes from the DRIVE record. Found by review-code
+  lane 03.
+  **Layman:** A drive whose folder name has unusual characters can still be reported on.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Report.
+
+- 📋 [DFR-0049] **True, plain messages when the engine cannot start or list drives.**
+  - EngineProcess.cpp:51: when pkexec itself is missing, the end is
+    AdminRefused, and the user is told to "enter your password when
+    asked", though no prompt can appear.
+  - MainWindow.cpp:84 advises trying again, but the drive list has no way
+    to refresh.
+  - MainWindow.cpp:34 shows no "listing drives" note while the probe runs.
+  Found by review-code lane 03 and review-readability lane 3.
+  **Layman:** When something stops the engine, the window says what really happened and offers a way to try again.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Engine link, Messages, Screens.
+
+- 📋 [DFR-0050] **All user-facing wording lives in model/Messages.**
+  docs/design.md says only model/Messages holds user-facing text about an
+  engine result. MainWindow.cpp:79-81 ("Defrag now" comes later), :100
+  (the drive's verdict reason) and :107 (no drives found) live elsewhere.
+  The owner chose to move all three (2026-11-16). Messages.h:2's "only
+  home" comment is then true. Found by review-readability lane 3 and
+  review-code lane 03.
+  **Layman:** Every sentence the window shows lives in one place, so it is easy to check and change. Nothing changes on screen.
+  Kind: refactor.
+  Source: review-code-2026-11-16.
+  Lanes: Messages, Screens.
+
+- 📋 [DFR-0051] **Window small fixes from the first full review.**
+  - DriveList.cpp:23-27: refresh() during a probe clears the list but the
+    new start is ignored; Report::run guards with isRunning(). No caller
+    reaches it today.
+  - EngineProcess.cpp:117-131 does not check HELLO.command.
+  - Messages.cpp:16: the strerror fallback.
+  - Report.cpp:120: m_incoming has no cap.
+  - Records.h:153 takeRecords() lacks [[nodiscard]].
+  - MainWindow.cpp:27-32 and ReportView.cpp:43-47 set up a read-only table
+    twice, and the copies differ.
+  - Records.cpp:129 fills Drive and the other records by position.
+  Found by review-code lane 03 and review-readability lane 3.
+  **Layman:** Small robustness fixes in the window that a user should never notice.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Drives, Engine link, Records, Report, Screens.
+
+- 📋 [DFR-0052] **Engine tidy-ups from the first full readability review.**
+  - The NASM version floor is copied into eight places (main.asm:5 and
+    others); give it one home.
+  - sys.asm:4 says only rcx and r11 are clobbered; two wrappers clobber
+    more.
+  - records.asm:28-36: the self-test data has no comment.
+  - walk.asm:45 WALK_DEPTH_MAX is typed in, though derived from STRING_MAX.
+  - walk.asm:12 "which may" hides O_NOATIME's EPERM rule.
+  - probe.asm:138 "as probe sends it" overstates what is accepted.
+  - walk.asm:418: statx_of's comment misses the empty-name use.
+  - probe.asm:443 compares fs_ext4 with one 4-byte load.
+  - kernel.inc:49 STDIN_FD is unused.
+  Found by review-readability lanes 1 and 2.
+  **Layman:** Small changes so the next person reading the engine is not misled.
+  Kind: refactor.
+  Source: review-code-2026-11-16.
+  Lanes: Entry, System calls, Records, Walk, Probe.
+
+- 📋 [DFR-0053] **Find whether the engine's output can be non-blocking.**
+  records.asm:119-128 ends the run as INTERNAL on EAGAIN. Whether stdout
+  can reach the engine non-blocking through QProcess and pkexec was not
+  settled: check fd 1's flags during a real run, or write a test.
+  Found by review-code lane 01 (LOW, unsettled).
+  **Layman:** Check one rare case where a report could stop with an internal error for no real reason.
+  Kind: investigate.
+  Source: review-code-2026-11-16.
+  Lanes: Records.
+
+- 📋 [DFR-0054] **The gate fails when a check's tool is missing.**
+  - local-ci.sh:106,145,166: `need X && run ...` under set -e drops a check
+    whose tool is missing, and the gate still prints "all checks passed".
+    A bash probe confirmed a failed left side of && does not stop it.
+  - local-ci.sh:186's pass line is matched exactly by ci-container.sh:131,
+    with no comment saying so.
+  - local-ci.sh:13-16 lists three modes; the parser takes five, and a typo
+    such as --doc is silently accepted.
+  - check-links.py:35 resolves a link starting with / from the filesystem
+    root; check-links.py:18,26 (two LOWs in message 1).
+  - ci-container.sh:146 prints its header as help; nothing says so.
+  Found by review-code lane 04 and review-readability lane 4.
+  **Layman:** The safety check before a push can no longer report a pass when it quietly skipped a check.
+  Kind: fix.
+  Source: review-code-2026-11-16.
+  Lanes: Build.
+
+- 📋 [DFR-0055] **Copy the fixed git hooks in from the project template.**
+  .githooks/commit-msg, pre-commit, pre-push and scripts/setup-hooks.sh are
+  byte-identical to ~/.claude/skeleton/files (diff -q, 2026-11-16).
+  local-ci.sh:27-29 and :58-67 and ci.yml:24 carry template text. Their
+  defects went to the claude-config session (owner's choice, 2026-11-16):
+  the pre-commit link checker drifted from check-links.py and checks the
+  working tree, a predictable /tmp name, advice to use --no-verify, word
+  splitting on spaces, a dated-line exemption matching any line, three
+  copies of one pipeline, and a wrong comment on how the push hook reads
+  DOCS_GLOB. Do this once claude-config reports the template fixed.
+  **Layman:** Once the shared template's hook defects are fixed, copy the fixed files here so the two stay identical.
+  Kind: chore.
+  Source: review-code-2026-11-16.
+  Lanes: Build.
+
+- 📋 [DFR-0056] **Settle the protocol spec's open questions in one amendment.**
+  In docs/specs/DFR-0002-engine-protocol.md:
+  (a) does a file whose FIEMAP failed count in REPORT_SUMMARY.files?
+  (b) which HELLO.command does a known command with extra arguments send?
+  (c) is an inline-data file one block or zero in size_blocks?
+  (d) total_blocks is statfs f_blocks, counted in f_frsize, but is paired
+      with f_bsize (§ 4.5); sizes go wrong where the two differ.
+  (e) a HELLO from another major version with a short payload: version
+      mismatch or malformed?
+  (f) should snap squashfs loop mounts be listed as drives?
+  design.md: § Safety says walk refuses a different device (code compares
+  mount ids); § What may depend on what says nothing outside the drive is
+  read (probe stats /dev sources). The code is deliberate in both.
+  Found by review-code lanes 01-03; each has a recommendation there.
+  **Layman:** Decide six small rules the engine-window protocol leaves open, and correct two stale lines in the design.
+  Kind: doc.
+  Source: review-code-2026-11-16.
+  Lanes: Records.
+
+- 📋 [DFR-0057] **Write DeFragR's trust boundaries into SECURITY.md.**
+  SECURITY.md's trust-boundary list is still empty. The review recommends
+  recording, as accepted by design: a root report sends the user's window
+  the paths inside folders that user cannot read; the short mount-id reuse
+  window between probe_find_mount and walk_start (reaching it already needs
+  admin authentication); and that names from a drive are untrusted input
+  (see the plain-text item). Confirm each with the owner while writing it.
+  Found by review-code lanes 01 and 02.
+  **Layman:** Write down what the admin-rights engine trusts and what it deliberately allows, so later changes keep to it.
+  Kind: doc.
+  Source: review-code-2026-11-16.
+  Lanes: Entry.
+
+- 📋 [DFR-0058] **tst_engineprocess stops waiting 30 s for its fake engine.**
+  tests/app/fakes/chatter.sh:15 ends in `sleep 30`, and ~QProcess waits
+  up to 30 s for a running engine (EngineProcess.cpp:58). So
+  destroyedMidRun waits out the fake: 30.85 s of the gate's 63.95 s test
+  step (.git/local-ci/test.log, 2026-11-16). Make the fake exit on its
+  closed pipe or SIGTERM, keeping what the test locks.
+  Found by review-code --performance (orchestrator, measured).
+  **Layman:** Cut about half a minute from every pre-push check.
+  Kind: test.
+  Source: review-code-perf-2026-11-16.
+  Lanes: Engine link.
+
+- 📋 [DFR-0059] **Run the gate's tests in parallel, if it measures faster.**
+  local-ci.sh:183 runs ctest with no -j, so the three test-machine tests
+  run one after another. Serial total 63.95 s, longest test 30.85 s
+  (2026-11-16), so -j saves at most about 33 s, less once the 30 s wait
+  above is fixed, and less if image tests contend on the spinning drive.
+  Measure ctest -j against serial, alternating, same nice/ionice. DFR-0037
+  declined -j before the VM tests existed. Do after the tst_engineprocess
+  item. Found by review-code --performance lane 03.
+  **Layman:** Try running the pre-push tests side by side, and keep it only if it is really quicker.
+  Kind: perf.
+  Source: review-code-perf-2026-11-16.
+  Lanes: Build.
+
+- 📋 [DFR-0060] **Measure a cold report's disk pattern before reordering the walk.**
+  Three candidates, none a win until measured:
+  - walk.asm:284 opens files in getdents64 order, which on an indexed
+    ext4 folder follows name hashes, not inode numbers: random seeks into
+    the inode table on a cold cache. Change: sort each batch by d_ino.
+  - main.asm:196: one thread, one blocking call at a time, so a spinning
+    disk has one request queued. Measure iostat -x aqu-sz.
+  - walk.asm:46 DENTS_SIZE 4096: about 100 names per getdents64; try 32 KiB.
+  Measure with GNU time -v on report /mnt/Games after dropping caches,
+  plus blktrace/btt, alternating old and new on a quiet machine. Retake
+  after DFR-0023 sets idle I/O priority. Found by review-code
+  --performance lane 01.
+  **Layman:** Measure where a report on a big spinning drive spends its time, before trying to make it faster.
+  Kind: investigate.
+  Source: review-code-perf-2026-11-16.
+  Lanes: Walk, Entry.
+
+- 📋 [DFR-0061] **Report view: cheaper live updates and column sizing.**
+  - ReportView.cpp:105 updates the "latest file" line once per fragmented
+    file (up to about 30,600 on /mnt/Games): elide, two labels, a tooltip,
+    a relayout. Paint it from the existing 1 s tick.
+  - ReportView.cpp:46 ResizeToContents sizes columns from rows, calling
+    Report::data per cell. Size once after load, or bound the precision.
+    Qt's resizeContentsPrecision default is unverified.
+  - Report.cpp:190 decodes a path each time a File cell is drawn.
+  Measure on a replayed 30k-row report first. Found by review-code
+  --performance lane 02.
+  **Layman:** Keep the window smooth while a report on a big drive streams in thousands of results.
+  Kind: perf.
+  Source: review-code-perf-2026-11-16.
+  Lanes: Report view, Report.
+
+- 📋 [DFR-0062] **Gate and container: smaller build costs.**
+  - local-ci.sh:164 builds a fresh tree every push; median 4.7 s against
+    DFR-0037's 1.7 s warm-ccache figure; NASM, moc and links are never
+    cached. Measure with ccache -z/-s and .ninja_log first.
+  - ci-container.sh:119 copies the whole kernel module tree; run.sh needs
+    the index and four modules.
+  - ci.yml:62: man-db's trigger could be turned off (from the lane's
+    memory of Ubuntu; check first).
+  Found by review-code --performance lane 03.
+  **Layman:** Small savings in how long the safety checks take to build.
+  Kind: perf.
+  Source: review-code-perf-2026-11-16.
+  Lanes: Build.
+
+- 📋 [DFR-0063] **A test that clicks the window's real buttons.**
+  No test drives MainWindow or ReportView; tests/app stops at the models.
+  The seams in the drive list, the report-or-defrag choice, the report
+  view, progress and the admin-rights message were exercised only by the
+  owner's manual run and verify-delivery's scratch harness (2026-11-16),
+  which compiled the project's own window sources with a scratch main(),
+  ran offscreen with a stand-in pkexec on PATH and a replayed engine
+  stream. Turn that pattern into a CTest test.
+  **Layman:** An automatic check that presses the window's own buttons, so a break between the screen and the engine is caught before release.
+  Kind: test.
+  Source: verify-delivery-2026-11-16.
+  Lanes: Screens, Report view.
+
+- 📋 [DFR-0064] **Fill in the README's summary, Install and Usage.**
+  README.md line 3 is still "> One line: what this does, for whom.",
+  § Install is "(Once there is something to install.)" and § Usage is
+  "(Once there is something to use.)". 0.1.0 can be built and used from
+  source, so say what it does and how to build and run it.
+  **Layman:** Replace the README's template placeholders with what DeFragR is and how to try it.
+  Kind: doc.
+  Source: verify-delivery-2026-11-16.
+  Lanes: Build.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 
@@ -415,6 +720,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   `sys.asm`: idle I/O class and lowest CPU priority; `poll` for
   commands between chunks; a closed input means cancel. Image test: a
   cancel mid-file leaves every SHA-256 matching (S8).
+  Review 2026-11-16 (review-code lane 02, L4): walk_next returns only
+  for a file, a skip, the end or an error, so a large tree of folders,
+  links or devices with no regular files is crossed in one call: no
+  REPORT_PROGRESS and cancel waits (walk.asm:180-325). Suggested fix:
+  return a WALK_FOLDER tick when a folder is entered. Also: report
+  timings taken before this item ran at normal priority.
   **Layman:** The engine stays out of the way of other programs and stops safely when asked.
   Kind: implement.
   Source: design-2026-11-15.
@@ -529,6 +840,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0032, DFR-0033, DFR-0034.
+
+- 📋 [DFR-0065] **Window refuses an engine that root does not own.**
+  EngineProcess.cpp:84-95 hands the engine's path to pkexec without
+  checking the file is owned by root and not writable by others. Not live
+  yet: there is no install layout or polkit policy. Decide with DFR-0033
+  where a release installs the engine and whether its polkit policy pins
+  the path; then refuse anything else. Found by review-code lane 03.
+  **Layman:** Before asking for your password, the window checks the engine file has not been swapped for something else.
+  Kind: security.
+  Source: review-code-2026-11-16.
+  Lanes: Engine link, Packaging.
 
 ## 1.0.0 — First public release
 
