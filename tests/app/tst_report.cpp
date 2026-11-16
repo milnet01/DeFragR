@@ -21,8 +21,11 @@ struct Load {
 Load run(Report &report, const QByteArray &mountPoint)
 {
     Load load;
-    QObject::connect(&report, &Report::loaded, [&] { ++load.loaded; });
-    QObject::connect(&report, &Report::failed,
+    // Dies with this call, and takes both connections with it: a later
+    // run must not reach this call's `load`.
+    QObject listening;
+    QObject::connect(&report, &Report::loaded, &listening, [&] { ++load.loaded; });
+    QObject::connect(&report, &Report::failed, &listening,
                      [&](const Message &message) { load.failures.append(message); });
     report.run(mountPoint);
     if (!QTest::qWaitFor([&] { return load.loaded + load.failures.size() > 0; }, 10000))
