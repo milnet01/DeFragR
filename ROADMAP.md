@@ -118,10 +118,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Test machine.
   Blocked-by: DFR-0001.
 
-- 📋 [DFR-0007] **Build fragmented ext4 test images.**
+- ✅ [DFR-0007] **Build fragmented ext4 test images.**
   `tests/image/`: make a small ext4 image, fragment files on purpose by
   interleaving appends with `fsync`, and record each file's SHA-256 and
   `filefrag` extent count as the reference.
+  Shipped 2026-11-16: tests/image/fragment.sh (build_image,
+  describe_files) and the image_build CTest. A spacer file between appends
+  puts nearly every append in its own extent.
   **Layman:** Makes small fake drives with deliberately scattered files to test on.
   Kind: test.
   Source: design-2026-11-15.
