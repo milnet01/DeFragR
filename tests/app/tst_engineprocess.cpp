@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QFile>
 #include <QTest>
+#include <QThread>
 
 using namespace defragr::engine;
 
@@ -141,6 +142,30 @@ private slots:
         QCOMPARE(probe.ends, 1);
         QCOMPARE(probe.outcome.end, RunEnd::EngineMissing);
         QCOMPARE(probe.outcome.enginePath, path);
+    }
+
+    // Closing the window mid-report destroys the EngineProcess with the
+    // engine still running and output still unread. Nothing may reach
+    // the half-destroyed object: once, it corrupted the heap.
+    void destroyedMidRun()
+    {
+        useEngine(fake("chatter.sh"));
+        auto *engine = new EngineProcess(fake("pass-through.sh"));
+        int batches = 0;
+        bool destroying = false;
+        int batchesWhileDestroying = 0;
+        connect(engine, &EngineProcess::recordsReceived, this, [&] {
+            ++batches;
+            if (destroying)
+                ++batchesWhileDestroying;
+        });
+        engine->start(CommandReport, {QStringLiteral("/")});
+        QVERIFY(QTest::qWaitFor([&] { return batches > 0; }, 10000));
+        // No event loop, so the fake's burst arrives and stays unread.
+        QThread::msleep(600);
+        destroying = true;
+        delete engine;
+        QCOMPARE(batchesWhileDestroying, 0);
     }
 };
 

@@ -51,6 +51,16 @@ EngineProcess::EngineProcess(QString launcher, QObject *parent)
     });
 }
 
+EngineProcess::~EngineProcess()
+{
+    // ~QProcess waits for a running engine, up to 30 s, since one running
+    // as root cannot be killed from here. It hands on output as it waits,
+    // by when this object's other members are gone, so stop listening
+    // first. Once ~QProcess closes the pipes, the engine's next write
+    // fails, and that ends it (docs/design.md § Errors).
+    disconnect(&m_process, nullptr, this, nullptr);
+}
+
 QString EngineProcess::enginePath()
 {
     const QString fromEnvironment = qEnvironmentVariable("DEFRAGR_ENGINE");

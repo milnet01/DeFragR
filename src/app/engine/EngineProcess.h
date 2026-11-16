@@ -34,6 +34,8 @@ public:
     // launcher is the program that gains admin rights; tests pass a fake.
     explicit EngineProcess(QString launcher = QStringLiteral("pkexec"),
                            QObject *parent = nullptr);
+    // Lets go of a running engine, which ends at its next write after.
+    ~EngineProcess() override;
 
     // DEFRAGR_ENGINE when set, otherwise defragr-engine beside the window.
     static QString enginePath();
