@@ -271,6 +271,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   folders (P%)" and a bar held at 99% until the report ends; with no
   inode count (btrfs, vfat) the bar keeps moving and the line gives the
   count alone.
+  Seen on screen by the owner on /mnt/Emulators, 2026-11-16 (build
+  cda670d): mid-run it showed 811,019 of about 2,645,884 files and
+  folders, with the bar at 30%; it finished at 2,563,555 files checked,
+  11,322
+  fragmented.
   **Layman:** While a report runs, the window shows how many files have been checked out of roughly how many, as a real percentage.
   Kind: feature.
   Source: user-request-2026-11-16.
