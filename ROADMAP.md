@@ -103,12 +103,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Engine link, Drives, Messages, Screens.
   Blocked-by: DFR-0004.
 
-- 📋 [DFR-0006] **Throwaway test machine for image tests.**
+- ✅ [DFR-0006] **Throwaway test machine for image tests.**
   `tests/vm/`: boot a small QEMU machine, attach image files as disks,
   run a test script as root inside, return its result (ADR-0003). The
   guard refuses any block device that is not one of its disks. Settles
   whether a disk can be presented as an SSD, and whether GitHub runners
   can boot it.
+  Shipped 2026-11-16: tests/vm/run.sh, guard.sh, the vm_smoke CTest. A
+  ",ssd" disk reads as rotational 0 inside, and GitHub's ubuntu-26.04
+  runner boots the machine.
   **Layman:** A disposable virtual PC where real defrag tests run, far from your real drives.
   Kind: test.
   Source: design-2026-11-15.

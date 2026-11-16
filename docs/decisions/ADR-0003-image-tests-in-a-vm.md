@@ -30,7 +30,8 @@ virtual disks.
 - More setup than loop devices with `sudo`: a kernel, an initial root
   filesystem, and boot time on every run.
 - Where virtualisation is unavailable, the image tests cannot run.
-  Whether GitHub's runners allow it is unverified.
+  GitHub's `ubuntu-26.04` runner boots the test machine (CI run of
+  2026-11-16).
 
 ## Rejected
 
