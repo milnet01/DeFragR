@@ -15,11 +15,13 @@ elseif(CMAKE_MATCH_1 VERSION_LESS DEFRAGR_NASM_MIN)
 endif()
 
 add_executable(defragr-engine
+    extents.asm
     main.asm
     probe.asm
     records.asm
-    sys.asm)
-# kernel.inc and records.inc are included by name from this folder.
+    sys.asm
+    walk.asm)
+# kernel.inc, records.inc and walk.inc are included by name from this folder.
 target_include_directories(defragr-engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # Every NASM warning, as an error: the C++ side builds with warnings as
 # errors in the gate, and the engine is held to the same bar. Less one:

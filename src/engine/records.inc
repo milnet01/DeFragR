@@ -93,6 +93,13 @@ VERDICT_REPORT_ONLY equ 1
 VERDICT_DEFRAG      equ 2
 MOUNT_READ_ONLY     equ 1
 
+; FILE_SKIPPED.stage (§ 4.6).
+STAGE_OPEN          equ 1
+STAGE_STAT          equ 2
+STAGE_EXTENTS       equ 3
+STAGE_READ_FOLDER   equ 4
+STAGE_PATH_TOO_LONG equ 5
+
 ; Reason codes: DRIVE.reason (§ 4.7).
 REASON_NONE         equ 0
 REASON_FS_NOT_EXT4  equ 1

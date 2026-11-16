@@ -5,7 +5,8 @@
 #   build_image NAME MOUNT REFERENCE
 #       Make an ext4 filesystem on test disk NAME, mount it at MOUNT and
 #       fill it with scattered files. Write REFERENCE, which must not be
-#       on the image. MOUNT stays mounted.
+#       on the image. MOUNT stays mounted, and once synced the kernel
+#       writes nothing more to the disk unless asked.
 #   describe_files MOUNT
 #       Print one line per regular file under MOUNT, sorted by path:
 #       EXTENTS SHA256 PATH, PATH relative to MOUNT. EXTENTS is filefrag's
@@ -37,7 +38,10 @@ _append_block() {
 build_image() {
     dev=$(test_disk "$1") && dev=$(require_test_disk "$dev") || return 1
     # 4 KiB blocks, as on a real drive; mkfs picks 1 KiB on a small disk.
-    mkfs.ext4 -q -F -b 4096 "$dev" || return 1
+    # Tables zeroed now, so the kernel writes nothing later on its own and
+    # a test can compare the whole disk before and after.
+    mkfs.ext4 -q -F -b 4096 -E lazy_itable_init=0,lazy_journal_init=0 "$dev" \
+        || return 1
     mkdir -p "$2" && mount -t ext4 "$dev" "$2" || return 1
     mkdir -p "$2/deep"
 

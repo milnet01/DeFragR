@@ -432,9 +432,10 @@ isolates.
 - **INV-12** — Trust boundary: the engine reports on a path only after
   finding it as a mount point in `/proc/self/mountinfo`; a path that is
   not one finishes `NOT_A_MOUNT` with no record naming a file.
-  *Test:* the image test of DFR-0008, run as root in the test machine:
-  `report /mnt/test/subdir` on a mounted image, where only the
-  mount-point rule can fail (the path exists and the caller is root).
+  *Test:* `tests/image/check-report.sh`, the `image_report` test, run as
+  root in the test machine: `report /mnt/img/deep` on a mounted image,
+  where only the mount-point rule can fail (the path exists and the
+  caller is root).
   *Breaks when:* the engine accepts any folder and walks it, so a
   crafted path reaches files on another drive.
 
@@ -459,17 +460,18 @@ isolates.
 
 ## 7. Tests
 
-DFR-0003 writes all of these and sees each fail first, against a decoder
-missing the rule it locks.
+DFR-0003 writes the first two and sees each fail first, against a
+decoder missing the rule it locks. DFR-0008 writes the third and sees it
+fail against an engine that accepts any folder under a mount point.
 
 | Test | Locks | Needs root |
 |---|---|---|
 | `tests/app/tst_records.cpp` | INV-1 to INV-9 | No |
 | `tests/app/tst_records_conformance.cpp` | INV-10, INV-11 | No |
-| DFR-0008 image test | INV-12 | Yes, inside the test machine |
+| `tests/image/check-report.sh` | INV-12 | Yes, inside the test machine |
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
-engine. Only the conformance test reads real engine output.
+engine. The conformance and image tests read real engine output.
 
 ## 8. Alternatives considered (and rejected)
 
@@ -501,7 +503,7 @@ engine. Only the conformance test reads real engine output.
 |------|----------------------|
 | INV-1 to INV-9 | `tests/app/tst_records.cpp` |
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
-| INV-12 | DFR-0008's image test |
+| INV-12 | `tests/image/check-report.sh` (`image_report`) |
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |

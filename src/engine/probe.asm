@@ -70,6 +70,7 @@ devices_count:  resq 1
 stat_buf:       resb kernel_stat_size
 statfs_buf:     resb kernel_statfs_size
 ; The line being judged: each field as a pointer, then a length.
+fld_id:         resq 2
 fld_dev:        resq 2
 fld_mount:      resq 2
 fld_fs:         resq 2
@@ -85,9 +86,12 @@ sys_path:       resb SYS_PATH_MAX
 rot_bytes:      resb 8
 dev_major:      resd 1
 dev_minor:      resd 1
+found_id:       resq 1              ; probe_find_mount's latest match
+found:          resb 1
 
 section .text
 global probe_run
+global probe_find_mount
 
 ; probe_run() -> eax = result code, edx = errno or 0.
 ; Sends one DRIVE record per drive. On OK the caller sends FINISHED. Fails
@@ -108,15 +112,9 @@ probe_run:
     cmp r12, r13
     jae .done
     mov rdi, r12
-    mov rcx, r13
-    sub rcx, r12
-    mov al, 10
-    repne scasb                     ; rdi = past the newline, or the end
-    mov rbx, rdi                    ; rbx = next line
-    mov rsi, rdi
-    jne .last_line                  ; no newline: the line runs to the end
-    dec rsi                         ; the line ends before its newline
-.last_line:
+    mov rsi, r13
+    call split_line
+    mov rbx, rax                    ; rbx = next line
     mov rdi, r12
     call probe_line
     test eax, eax
@@ -130,6 +128,117 @@ probe_run:
     pop r13
     pop r12
     pop rbx
+    ret
+
+; probe_find_mount(rdi = NUL-terminated path)
+;   -> eax = OK, NOT_A_MOUNT, MOUNTINFO or INTERNAL; edx = errno or 0;
+;   on OK, rcx = the mount's id, mountinfo's first field, which statx
+;   gives as stx_mnt_id.
+; The trust boundary of report (DFR-0002 INV-12): the path must be, byte
+; for byte, a mount point in /proc/self/mountinfo, as probe sends it.
+; Where several mounts share it, the last is the one on top. MOUNTINFO
+; as probe_run, and for a matching line whose id is not a number.
+; Clobbers as probe_run.
+probe_find_mount:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r14, rdi                    ; r14 = path
+    xor r15d, r15d                  ; r15 = its length
+.length:
+    cmp byte [r14 + r15], 0
+    je .measured
+    inc r15
+    cmp r15, STRING_MAX
+    ja .not_a_mount                 ; longer than any mount probe sends
+    jmp .length
+.measured:
+    test r15, r15
+    jz .not_a_mount
+    mov byte [found], 0
+    call read_mountinfo
+    test eax, eax
+    jnz .return
+    lea r12, [mi_buf]               ; r12 = this line
+    mov r13, r12
+    add r13, [mi_len]               ; r13 = end of the text
+.line:
+    cmp r12, r13
+    jae .done
+    mov rdi, r12
+    mov rsi, r13
+    call split_line
+    mov rbx, rax                    ; rbx = next line
+    mov rdi, r12
+    call next_field
+    mov [fld_id], rax
+    mov [fld_id + 8], rdx
+    call next_field                 ; parent id
+    call next_field                 ; major:minor
+    call next_field                 ; root
+    call next_field                 ; mount point
+    mov rdi, rax
+    mov rsi, rdx
+    lea rdx, [mount_buf]
+    call unescape
+    cmp rax, r15                    ; -1, too long, never equals r15
+    jne .next_line
+    lea rsi, [mount_buf]
+    mov rdi, r14
+    mov rcx, r15                    ; non-zero, so repe compares
+    repe cmpsb
+    jne .next_line
+    mov rdi, [fld_id]
+    mov rsi, rdi
+    add rsi, [fld_id + 8]           ; rsi = end of the id
+    call parse_decimal
+    test rax, rax
+    js .malformed
+    cmp rdi, rsi
+    jne .malformed                  ; more than digits
+    mov [found_id], rax
+    mov byte [found], 1
+.next_line:
+    mov r12, rbx
+    jmp .line
+.done:
+    cmp byte [found], 0
+    je .not_a_mount
+    xor eax, eax
+    xor edx, edx
+    mov rcx, [found_id]
+    jmp .return
+.not_a_mount:
+    mov eax, RESULT_NOT_A_MOUNT
+    xor edx, edx
+    jmp .return
+.malformed:
+    mov eax, RESULT_MOUNTINFO
+    xor edx, edx
+.return:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; split_line(rdi = line start, rsi = end of the text, beyond rdi)
+;   -> rax = the next line's start, rsi = this line's end, before its
+;   newline. A last line with no newline runs to the end of the text.
+; Clobbers rcx, rdi.
+split_line:
+    mov rcx, rsi
+    sub rcx, rdi
+    mov al, 10
+    repne scasb                     ; rdi = past the newline, or the end
+    mov rax, rdi
+    mov rsi, rdi
+    jne .last_line
+    dec rsi                         ; the line ends before its newline
+.last_line:
     ret
 
 ; read_mountinfo() -> eax = OK, MOUNTINFO or INTERNAL; edx = errno or 0.

@@ -11,18 +11,33 @@ default rel
 
 %include "kernel.inc"
 %include "records.inc"
+%include "walk.inc"
 
 extern sys_geteuid
+extern sys_close
 extern sys_ignore_sigpipe
+extern rec_start
+extern rec_string
+extern rec_send
 extern rec_hello
 extern rec_finish
 extern rec_selftest
 extern probe_run
+extern probe_find_mount
+extern walk_start
+extern walk_next
+extern walk_path
+extern walk_path_len
+extern extents_count
 
 section .rodata
 arg_probe:      db "probe", 0
 arg_report:     db "report", 0
 arg_selftest:   db "selftest-records", 0
+
+section .bss
+alignb 8
+summary:        resb report_summary_size   ; report's running totals
 
 section .text
 global _start
@@ -81,19 +96,22 @@ _start:
     call rec_finish
 
 .report:
-    mov edi, CMD_REPORT
-    xor esi, esi
-    call rec_hello
+    ; HELLO waits for the block size, so each failure here sends it.
     mov edi, RESULT_USAGE
     cmp r12, 3
-    jne .finish
+    jne .report_failed
     call sys_geteuid
     mov edi, RESULT_NOT_ROOT
     test eax, eax
-    jnz .finish
-    ; The mount-point check and the walk are DFR-0008's; until then a
-    ; report cannot finish OK.
-    mov edi, RESULT_INTERNAL
+    jnz .report_failed
+    mov rdi, [r13 + 16]             ; argv[2], the mount point
+    call report_run
+.report_failed:                     ; edi = result
+    mov ebx, edi
+    mov edi, CMD_REPORT
+    xor esi, esi
+    call rec_hello
+    mov edi, ebx
     jmp .finish
 
 .selftest:
@@ -118,6 +136,121 @@ _start:
     call rec_finish
 
 .finish:                            ; edi = result
+    xor esi, esi
+    call rec_finish
+
+; report_run(rdi = NUL-terminated mount point) -> does not return.
+; The rest of a report stream (DFR-0002 § 4.6), from the mount-point
+; check on: HELLO with the block size, a FRAGMENTED_FILE for each file in
+; two or more pieces, a FILE_SKIPPED for each it could not measure, then
+; REPORT_SUMMARY and FINISHED. A failure before the walk starts sends
+; HELLO with block size 0 and FINISHED with its result.
+report_run:
+    sub rsp, 8
+    mov r14, rdi                    ; r14 = the mount point
+    call probe_find_mount
+    test eax, eax
+    jnz .failed
+    mov rdi, r14
+    mov rsi, rcx                    ; its mount id
+    call walk_start
+    test eax, eax
+    jnz .failed
+    mov r15d, edx                   ; r15 = the block size
+    mov edi, CMD_REPORT
+    mov esi, r15d
+    call rec_hello
+
+.next:
+    call walk_next
+    cmp eax, WALK_FILE
+    je .file
+    cmp eax, WALK_SKIPPED
+    je .skipped
+    cmp eax, WALK_END
+    je .end
+    mov edi, RESULT_DRIVE_ERROR     ; WALK_ERROR: the top folder failed
+    mov esi, edx
+    call rec_finish
+
+.file:
+    mov ebx, edx                    ; ebx = the file
+    mov edi, ebx
+    mov esi, r15d
+    call extents_count
+    mov r12, rax                    ; r12 = pieces, or -errno
+    mov r13, rdx                    ; r13 = blocks
+    mov edi, ebx
+    call sys_close                  ; read-only; a failed close loses nothing
+    cmp r12, -MAX_ERRNO
+    jae .unmeasured
+    inc qword [summary + report_summary.files]
+    add [summary + report_summary.extents], r12
+    add [summary + report_summary.file_blocks], r13
+    cmp r12, 2
+    jb .next
+    inc qword [summary + report_summary.fragmented_files]
+    mov edi, REC_FRAGMENTED_FILE
+    mov esi, fragmented_file_size
+    call rec_start
+    mov ecx, 0xFFFFFFFF
+    cmp r12, rcx
+    cmova r12, rcx                  ; the field is 32 bits
+    mov [rax + fragmented_file.extents], r12d
+    mov [rax + fragmented_file.size_blocks], r13
+    lea rdi, [walk_path]
+    mov rsi, [walk_path_len]
+    call rec_string
+    test rax, rax
+    jnz .internal
+    call rec_send
+    jmp .next
+
+.unmeasured:
+    neg r12
+    mov edx, r12d
+    mov ecx, STAGE_EXTENTS
+.skipped:                           ; edx = errno, ecx = stage
+    mov ebx, edx
+    mov r12d, ecx
+    inc qword [summary + report_summary.skipped]
+    mov edi, REC_FILE_SKIPPED
+    mov esi, file_skipped_size
+    call rec_start
+    mov [rax + file_skipped.errno], ebx
+    mov [rax + file_skipped.stage], r12w
+    lea rdi, [walk_path]
+    mov rsi, [walk_path_len]
+    call rec_string
+    test rax, rax
+    jnz .internal
+    call rec_send
+    jmp .next
+
+.end:
+    mov edi, REC_REPORT_SUMMARY
+    mov esi, report_summary_size
+    call rec_start
+    mov rdi, rax
+    lea rsi, [summary]
+    mov ecx, report_summary_size
+    rep movsb
+    call rec_send
+    mov edi, RESULT_OK
+    xor esi, esi
+    call rec_finish
+
+.failed:                            ; eax = result, edx = errno; no HELLO yet
+    mov ebx, eax
+    mov r12d, edx
+    mov edi, CMD_REPORT
+    xor esi, esi
+    call rec_hello
+    mov edi, ebx
+    mov esi, r12d
+    call rec_finish
+.internal:                          ; a path did not fit its record
+    mov edi, RESULT_INTERNAL
     xor esi, esi
     call rec_finish
 

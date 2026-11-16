@@ -28,6 +28,11 @@ global sys_open
 global sys_close
 global sys_stat
 global sys_statfs
+global sys_openat
+global sys_statx
+global sys_fstatfs
+global sys_getdents64
+global sys_ioctl
 global sys_geteuid
 global sys_exit
 global sys_ignore_sigpipe
@@ -71,6 +76,45 @@ sys_stat:
 ;   -> rax = 0 or -errno.
 sys_statfs:
     mov eax, SYS_statfs
+    syscall
+    ret
+
+; sys_openat(rdi = folder fd, rsi = NUL-terminated name, rdx = flags)
+;   -> rax = fd or -errno. Opens an existing file only, so no mode is
+;   passed. Clobbers r10 too.
+sys_openat:
+    mov eax, SYS_openat
+    xor r10d, r10d
+    syscall
+    ret
+
+; sys_statx(rdi = folder fd, rsi = NUL-terminated name, rdx = flags,
+;   rcx = mask, r8 = kernel_statx buffer) -> rax = 0 or -errno.
+; Clobbers r10 too.
+sys_statx:
+    mov eax, SYS_statx
+    mov r10, rcx
+    syscall
+    ret
+
+; sys_fstatfs(rdi = fd, rsi = kernel_statfs buffer) -> rax = 0 or -errno.
+sys_fstatfs:
+    mov eax, SYS_fstatfs
+    syscall
+    ret
+
+; sys_getdents64(rdi = folder fd, rsi = buffer, rdx = its size)
+;   -> rax = bytes of linux_dirent64 entries, 0 at the folder's end, or
+;   -errno.
+sys_getdents64:
+    mov eax, SYS_getdents64
+    syscall
+    ret
+
+; sys_ioctl(rdi = fd, rsi = request, rdx = argument) -> rax as the
+; request defines it, or -errno.
+sys_ioctl:
+    mov eax, SYS_ioctl
     syscall
     ret
 

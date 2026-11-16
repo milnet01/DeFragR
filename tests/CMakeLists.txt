@@ -20,4 +20,16 @@ add_test(NAME image_build
             ${CMAKE_CURRENT_BINARY_DIR}/image)
 set_tests_properties(image_build PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
 
+# The engine's report on a fragmented image, against filefrag: DFR-0008.
+# report-check decodes the engine's output on the host.
+find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Core)
+add_executable(report-check image/report-check.cpp)
+target_compile_options(report-check PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(report-check PRIVATE defragr-engine-link)
+add_test(NAME image_report
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/image/test-report.sh
+            ${CMAKE_CURRENT_BINARY_DIR}/image-report
+            $<TARGET_FILE:defragr-engine> $<TARGET_FILE:report-check>)
+set_tests_properties(image_report PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+
 add_subdirectory(app)
