@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=40 -->
+<!-- ants-roadmap-id-high-water: DFR=41 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -213,6 +213,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   **Layman:** DeFragR's window now carries its own icon in the taskbar and title bar.
   Kind: feature.
   Source: user-approval-2026-11-15 (via ants-projects-hub-website).
+
+- 📋 [DFR-0041] **Find why the image tests are slow on this PC.**
+  Measured 2026-11-16: image_build took 86 s in one local gate run
+  and 50 s in an earlier one; image_report took 25 to 36 s. On GitHub's
+  runner each took about 2 s. Both build the same image with
+  build_image, so the gap between the two local figures may point at
+  the cause. Unconfirmed guess: each fsync in build_image reaches this
+  PC's disk. Done when the cause is named, and fixed or recorded.
+  **Layman:** Works out why the fake-drive tests take a minute or more here but seconds on GitHub.
+  Kind: investigate.
+  Source: user-request-2026-11-16.
+  Lanes: Image tests, Test machine.
 
 ## 0.2.0 — Drive map
 
