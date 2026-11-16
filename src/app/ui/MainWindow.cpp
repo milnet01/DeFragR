@@ -1,11 +1,14 @@
 #include "ui/MainWindow.h"
 
+#include "ui/ReportView.h"
+
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QItemSelectionModel>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStackedWidget>
 #include <QTableView>
 #include <QVBoxLayout>
 
@@ -38,13 +41,18 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     buttons->addWidget(m_report);
     buttons->addWidget(m_defrag);
 
-    auto *central = new QWidget;
-    auto *layout = new QVBoxLayout(central);
+    m_drivePage = new QWidget;
+    auto *layout = new QVBoxLayout(m_drivePage);
     layout->addWidget(heading);
     layout->addWidget(m_table);
     layout->addWidget(m_note);
     layout->addLayout(buttons);
-    setCentralWidget(central);
+
+    m_reportView = new ReportView;
+    m_pages = new QStackedWidget;
+    m_pages->addWidget(m_drivePage);
+    m_pages->addWidget(m_reportView);
+    setCentralWidget(m_pages);
     resize(800, 450);
 
     connect(m_table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
@@ -52,13 +60,18 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(&m_drives, &model::DriveList::loaded, this, &MainWindow::updateActions);
     connect(&m_drives, &model::DriveList::failed, this, &MainWindow::showFailure);
 
-    // Neither action is built yet: the report view is DFR-0009, and
-    // defragging comes with 0.3.0. Each button still follows the verdict.
     connect(m_report, &QPushButton::clicked, this, [this] {
-        QMessageBox::information(this, QStringLiteral("View report"),
-                                 QStringLiteral("Reports are not built yet. They come in a "
-                                                "later version of DeFragR."));
+        const int row = selectedRow();
+        if (row < 0)
+            return;
+        m_reportView->start(m_drives.drive(row).mountPoint);
+        m_pages->setCurrentWidget(m_reportView);
     });
+    connect(m_reportView, &ReportView::backRequested, this,
+            [this] { m_pages->setCurrentWidget(m_drivePage); });
+
+    // Defragging is not built yet; it comes with 0.3.0. The button still
+    // follows the verdict.
     connect(m_defrag, &QPushButton::clicked, this, [this] {
         QMessageBox::information(this, QStringLiteral("Defrag now"),
                                  QStringLiteral("Defragging comes in a later version of DeFragR. "

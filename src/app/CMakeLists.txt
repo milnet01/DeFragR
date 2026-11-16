@@ -14,13 +14,15 @@ target_link_libraries(defragr-engine-link PUBLIC Qt6::Core)
 
 add_library(defragr-model STATIC
     model/DriveList.cpp
-    model/Messages.cpp)
+    model/Messages.cpp
+    model/Report.cpp)
 target_compile_options(defragr-model PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr-model PUBLIC defragr-engine-link)
 
 add_executable(defragr
     main.cpp
-    ui/MainWindow.cpp)
+    ui/MainWindow.cpp
+    ui/ReportView.cpp)
 # Beside the engine, where EngineProcess looks for it when
 # DEFRAGR_ENGINE is unset; src/engine/CMakeLists.txt does the same.
 set_target_properties(defragr PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)

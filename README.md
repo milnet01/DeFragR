@@ -5,8 +5,9 @@
 ## Status
 
 Early development. The window lists your drives and says which it
-could defrag, and why not for the rest. Reports and defragging are not
-built yet. [ROADMAP.md](ROADMAP.md) holds the plan.
+could defrag, and why not for the rest. It can report how fragmented a
+drive is and list its worst files. Defragging is not built yet.
+[ROADMAP.md](ROADMAP.md) holds the plan.
 
 ## Install
 

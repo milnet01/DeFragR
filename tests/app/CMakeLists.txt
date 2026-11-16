@@ -51,11 +51,19 @@ target_compile_options(tst_messages PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(tst_messages PRIVATE defragr-model Qt6::Test)
 add_test(NAME tst_messages COMMAND tst_messages)
 
+# The report and its wording, from a fake engine: DFR-0009.
+add_executable(tst_report tst_report.cpp)
+target_compile_options(tst_report PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_report PRIVATE defragr-model Qt6::Test)
+add_test(NAME tst_report COMMAND tst_report)
+set_tests_properties(tst_report PROPERTIES
+    ENVIRONMENT "DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
+
 # Qt Test otherwise compiles every test with their absolute source and
 # build folders (QT_TESTCASE_SOURCEDIR, QT_TESTCASE_BUILDDIR), for
 # QFINDTESTDATA, which no test here uses. Those paths change with every
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_messages PROPERTIES
+    tst_drivelist tst_messages tst_report PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)
