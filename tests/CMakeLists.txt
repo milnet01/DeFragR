@@ -13,4 +13,11 @@ add_test(NAME vm_smoke
             ${CMAKE_CURRENT_BINARY_DIR}/vm)
 set_tests_properties(vm_smoke PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
 
+# Image tests, in the test machine. image_build checks the fragmented
+# images the others are built on.
+add_test(NAME image_build
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/image/test-build.sh
+            ${CMAKE_CURRENT_BINARY_DIR}/image)
+set_tests_properties(image_build PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+
 add_subdirectory(app)
