@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=41 -->
+<!-- ants-roadmap-id-high-water: DFR=43 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -166,7 +166,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Kind: release.
   Source: design-2026-11-15.
   Lanes: Build.
-  Blocked-by: DFR-0001, DFR-0002, DFR-0003, DFR-0004, DFR-0005, DFR-0006, DFR-0007, DFR-0008, DFR-0009.
+  Blocked-by: DFR-0001, DFR-0002, DFR-0003, DFR-0004, DFR-0005, DFR-0006, DFR-0007, DFR-0008, DFR-0009, DFR-0043.
 
 - ✅ [DFR-0037] **Faster local and GitHub CI, with less drift between them.**
   `local-gate.md` § 9's levers, one per commit, each measured before
@@ -225,6 +225,33 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Kind: investigate.
   Source: user-request-2026-11-16.
   Lanes: Image tests, Test machine.
+
+- 📋 [DFR-0042] **Say plainly when the engine cannot be started with admin rights.**
+  pkexec exits 127 both when it refuses and when it cannot execute
+  the program after authorising. EngineProcess reads every 127 with no
+  output as RunEnd::AdminRefused, so model/Messages says "Admin rights
+  were refused". Seen 2026-11-16: the dev build on /mnt/Games is
+  labelled samba_share_t, SELinux (enforcing) blocked root from running
+  it, and pkexec printed "Error executing ...: Permission denied".
+  The window should tell the two apart, or word the message to cover
+  both.
+  **Layman:** After you type your password, if the system still blocks the engine, the window should say so instead of claiming the password was refused.
+  Kind: fix.
+  Source: user-test-2026-11-16.
+  Lanes: Engine link, Messages.
+
+- 📋 [DFR-0043] **Report progress: files checked of about how many.**
+  A report sends nothing while it walks, so ui/ReportView shows only
+  the fragmented files found so far and the time taken (DFR-0009). The
+  owner asked for how far it has got. Needs a new report record
+  (an amendment to docs/specs/DFR-0002-engine-protocol.md, new minor):
+  files visited so far, and an estimate of the total, e.g. the drive's
+  used inodes from statfs. walk.asm sends it every so often; the window
+  turns it into a percentage bar.
+  **Layman:** While a report runs, the window shows how many files have been checked out of roughly how many, as a real percentage.
+  Kind: feature.
+  Source: user-request-2026-11-16.
+  Lanes: Walk, Records, Report, Report view.
 
 ## 0.2.0 — Drive map
 
