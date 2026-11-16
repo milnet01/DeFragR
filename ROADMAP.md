@@ -152,9 +152,20 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Walk, Extents, Entry.
   Blocked-by: DFR-0003, DFR-0004, DFR-0007.
 
-- 📋 [DFR-0009] **Window report view.**
+- ✅ [DFR-0009] **Window report view.**
   `model/Report`, `ui/ReportView`: how fragmented the drive is and its
   worst files (S3). Overlaps DFR-0005 in `ui/MainWindow`.
+  Done 2026-11-16. "View report" swaps the drive list for the report
+  in the same window (the owner's choice): the share of files
+  fragmented, average pieces, files not read, then every fragmented file
+  worst first (most pieces, then biggest). While it runs: found so far,
+  the latest file, time taken; real progress is DFR-0043. The title
+  names the build. tst_report locks order, figures and wording;
+  tst_engineprocess destroyedMidRun locks closing mid-run, which crashed
+  the window once. Seen on screen by the owner on /mnt/Games: 30,608 of
+  3,188,798 files fragmented; the top entries' pieces match filefrag.
+  The dev build needs SELinux's bin_t label to run through pkexec
+  (DFR-0042).
   **Layman:** Shows the report in the window: how fragmented the drive is and which files are worst.
   Kind: feature.
   Source: design-2026-11-15.
