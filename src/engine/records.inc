@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 0
+PROTOCOL_MINOR      equ 1
 
 ; § 4.1 framing.
 struc rec_header
@@ -25,6 +25,7 @@ REC_DRIVE           equ 0x0010
 REC_FRAGMENTED_FILE equ 0x0020
 REC_FILE_SKIPPED    equ 0x0021
 REC_REPORT_SUMMARY  equ 0x0022
+REC_REPORT_PROGRESS equ 0x0023
 REC_RUN_STATE       equ 0x0030
 
 ; Fixed parts. Each size is a multiple of 8, so strings start aligned.
@@ -72,6 +73,11 @@ struc report_summary
     .extents            resq 1
     .file_blocks        resq 1
     .skipped            resq 1
+endstruc
+
+struc report_progress
+    .names          resq 1
+    .estimate       resq 1
 endstruc
 
 struc run_state

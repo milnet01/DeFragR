@@ -1,6 +1,6 @@
 #!/bin/sh
 # An engine whose report on /mnt/fake or / finds three fragmented files
-# and one it could not read (docs/specs/DFR-0002-engine-protocol.md
+# and one it could not read, and says how far it has got (docs/specs/DFR-0002-engine-protocol.md
 # § 4.1, § 4.4 and § 4.6). Any other command line gets no stream, so a
 # wrong argument reads as a broken engine.
 case "$1 $2" in
@@ -36,13 +36,17 @@ fragmented() {
     le "$1" 4; zeros 4; le "$2" 8; string_part 16 "$3"
 }
 
-# HELLO: report, block size 4096.
-header 1 16; le 1 2; zeros 2; le 2 4; le 4096 4; zeros 4
+# HELLO: version 1.1, report, block size 4096.
+header 1 16; le 1 2; le 1 2; le 2 4; le 4096 4; zeros 4
+# REPORT_PROGRESS: names 0 of an estimated 300.
+header 35 16; le 0 8; le 300 8
 fragmented 3 10 music/song.flac
 fragmented 40 1000 games/big.iso
 fragmented 3 50 games/tie.pak
 # FILE_SKIPPED: errno 13, stage 4 (read folder).
 header 33 "$(padded 8 lost+found)"; le 13 4; le 4 2; zeros 2; string_part 8 lost+found
+# REPORT_PROGRESS: names 260 of an estimated 300.
+header 35 16; le 260 8; le 300 8
 # REPORT_SUMMARY: files 200, fragmented 3, extents 250, file_blocks 5000,
 # skipped 1.
 header 34 40; le 200 8; le 3 8; le 250 8; le 5000 8; le 1 8

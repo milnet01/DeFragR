@@ -12,5 +12,6 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
-(Nothing yet. Scaffolding is not a release — the first dated section
-appears once something has actually shipped.)
+### Added
+- A running report shows how far it has got: files and folders checked,
+  of about how many, with a percentage bar (DFR-0043).

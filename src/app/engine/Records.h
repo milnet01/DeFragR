@@ -30,6 +30,7 @@ enum RecordType : quint16 {
     TypeFragmentedFile = 0x0020,
     TypeFileSkipped = 0x0021,
     TypeReportSummary = 0x0022,
+    TypeReportProgress = 0x0023,
     TypeRunState = 0x0030,
 };
 
@@ -122,6 +123,12 @@ struct ReportSummary {
     bool operator==(const ReportSummary &) const = default;
 };
 
+struct ReportProgress {
+    quint64 names = 0;     // names the walk has read so far
+    quint64 estimate = 0;  // the drive's used inodes; 0 when it has no count
+    bool operator==(const ReportProgress &) const = default;
+};
+
 struct RunState {
     quint32 state = 0;
     bool operator==(const RunState &) const = default;
@@ -134,7 +141,7 @@ struct Unknown {
 };
 
 using Record = std::variant<Hello, Finished, Drive, FragmentedFile, FileSkipped,
-                            ReportSummary, RunState, Unknown>;
+                            ReportSummary, ReportProgress, RunState, Unknown>;
 
 enum class StreamError { Malformed, VersionMismatch };
 

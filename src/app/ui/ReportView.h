@@ -31,6 +31,7 @@ private:
     void showReport();
     void showFailure(const model::Message &message);
     void showFound(quint64 count, const QByteArray &latestPath);
+    void showProgress(quint64 names, quint64 estimate);
     void showElapsed();
     // Shows the run as going, or as over.
     void setRunning(bool running);
@@ -38,10 +39,11 @@ private:
     model::Report m_report;
     QLabel *m_heading = nullptr;
     QLabel *m_figures = nullptr;
+    QLabel *m_checked = nullptr;
     QLabel *m_found = nullptr;
     QLabel *m_latest = nullptr;
     QLabel *m_elapsed = nullptr;
-    QProgressBar *m_busy = nullptr;
+    QProgressBar *m_progress = nullptr;
     QElapsedTimer m_clock;
     QTimer m_tick;
     QLabel *m_filesHeading = nullptr;

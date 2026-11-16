@@ -81,6 +81,22 @@ private slots:
         QCOMPARE(latest, QByteArray("games/tie.pak"));
     }
 
+    // While it runs, the report passes on how far the engine has got: the
+    // last REPORT_PROGRESS the fake sends.
+    void progressWhileRunning()
+    {
+        quint64 names = 0;
+        quint64 estimate = 0;
+        Report report(fake("pass-through.sh"));
+        connect(&report, &Report::progressed, this, [&](quint64 n, quint64 e) {
+            names = n;
+            estimate = e;
+        });
+        run(report, "/mnt/fake");
+        QCOMPARE(names, quint64(260));
+        QCOMPARE(estimate, quint64(300));
+    }
+
     // S3: the worst file first; of two in as many pieces, the bigger.
     void worstFirst()
     {
@@ -194,6 +210,42 @@ private slots:
         QFETCH(ReportSummary, summary);
         QFETCH(QStringList, lines);
         QCOMPARE(summaryLines(summary), lines);
+    }
+
+    void progressWording_data()
+    {
+        QTest::addColumn<quint64>("names");
+        QTest::addColumn<quint64>("estimate");
+        QTest::addColumn<int>("percent");
+        QTest::addColumn<QString>("line");
+
+        QTest::newRow("start") << quint64(0) << quint64(3200000) << 0
+                               << QStringLiteral("Checked 0 of about 3,200,000 files and "
+                                                 "folders (0%).");
+        QTest::newRow("halfway") << quint64(1600000) << quint64(3200000) << 50
+                                 << QStringLiteral("Checked 1,600,000 of about 3,200,000 "
+                                                   "files and folders (50%).");
+        // The estimate is not exact, so the bar never claims done early.
+        QTest::newRow("at the estimate") << quint64(300) << quint64(300) << 99
+                                         << QStringLiteral("Checked 300 of about 300 files "
+                                                           "and folders (99%).");
+        QTest::newRow("past the estimate") << quint64(310) << quint64(300) << 99
+                                           << QStringLiteral("Checked 310 of about 300 files "
+                                                             "and folders (99%).");
+        // btrfs and vfat give no count to estimate from.
+        QTest::newRow("no estimate") << quint64(1234) << quint64(0) << -1
+                                     << QStringLiteral("Files and folders checked so far: "
+                                                       "1,234.");
+    }
+
+    void progressWording()
+    {
+        QFETCH(quint64, names);
+        QFETCH(quint64, estimate);
+        QFETCH(int, percent);
+        QFETCH(QString, line);
+        QCOMPARE(percentChecked(names, estimate), percent);
+        QCOMPARE(progressLine(names, estimate), line);
     }
 };
 

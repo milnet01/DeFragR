@@ -245,6 +245,15 @@ rec_selftest:
     mov [rbx + report_summary.skipped], rax
     call rec_send
 
+    mov edi, REC_REPORT_PROGRESS
+    mov esi, report_progress_size
+    call rec_start
+    mov rcx, 0xE1E2E3E4E5E6E7E8
+    mov [rax + report_progress.names], rcx
+    mov rcx, 0xF1F2F3F4F5F6F7F8
+    mov [rax + report_progress.estimate], rcx
+    call rec_send
+
     mov edi, REC_RUN_STATE
     mov esi, run_state_size
     call rec_start

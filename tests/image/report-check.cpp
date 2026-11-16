@@ -2,13 +2,16 @@
 // engine's report on the fragmented image with the window's decoder and
 // compares it with filefrag's reference, the named one for extent counts
 // (docs/design.md § How it is tested). Also checks INV-12's stream: a
-// report on a sub-folder ends NOT_A_MOUNT and names no file.
+// report on a sub-folder ends NOT_A_MOUNT and names no file; and INV-14's
+// first and last REPORT_PROGRESS.
 //
-// Usage: report-check REFERENCE BLOCKS REPORT SUBDIR
+// Usage: report-check REFERENCE BLOCKS REPORT SUBDIR INODES
 //   REFERENCE  describe_files lines: EXTENTS SHA256 PATH
 //   BLOCKS     lines: BLOCKS PATH, each file's size in 4 KiB blocks
 //   REPORT     the engine's output for `report MOUNT`
 //   SUBDIR     the engine's output for `report MOUNT/deep`
+//   INODES     one line: ESTIMATE NAMES, the drive's used inodes before
+//              the report and every name below MOUNT
 // Prints one "ok" or "FAIL" line per check; exits 1 on any failure.
 #include "engine/Records.h"
 
@@ -138,6 +141,39 @@ void checkReport(const QByteArray &referenceText, const QByteArray &blocksText,
     }
 }
 
+// INV-14: REPORT_PROGRESS straight after HELLO with names 0, and straight
+// before REPORT_SUMMARY with every name; both carry the used inodes.
+void checkProgress(const QByteArray &inodesText, const QByteArray &stream)
+{
+    const QList<QByteArray> fields = inodesText.trimmed().split(' ');
+    check(fields.size() == 2, QStringLiteral("INODES is two numbers"));
+    if (fields.size() != 2)
+        return;
+    const quint64 estimate = fields[0].toULongLong();
+    const quint64 names = fields[1].toULongLong();
+    check(estimate > 0 && names > 0, QStringLiteral("the image has used inodes and names"));
+
+    const QList<Record> records = decode(stream).records;
+    const auto progressAt = [&](qsizetype i) -> std::optional<ReportProgress> {
+        if (i < 0 || i >= records.size())
+            return std::nullopt;
+        if (const auto *progress = std::get_if<ReportProgress>(&records[i]))
+            return *progress;
+        return std::nullopt;
+    };
+    const std::optional<ReportProgress> first = progressAt(1);
+    check(first && *first == (ReportProgress{0, estimate}),
+          QStringLiteral("REPORT_PROGRESS after HELLO: names 0, estimate %1, got %2 %3")
+              .arg(estimate).arg(first ? first->names : 0).arg(first ? first->estimate : 0));
+    // REPORT_SUMMARY and FINISHED are the last two records (INV-8).
+    const std::optional<ReportProgress> last = progressAt(records.size() - 3);
+    check(last && *last == (ReportProgress{names, estimate}),
+          QStringLiteral("REPORT_PROGRESS before REPORT_SUMMARY: names %1, estimate %2, got "
+                         "%3 %4")
+              .arg(names).arg(estimate).arg(last ? last->names : 0)
+              .arg(last ? last->estimate : 0));
+}
+
 // INV-12: nothing but HELLO and FINISHED NOT_A_MOUNT.
 void checkSubdir(const QByteArray &stream)
 {
@@ -153,11 +189,12 @@ void checkSubdir(const QByteArray &stream)
 
 int main(int argc, char **argv)
 {
-    if (argc != 5) {
-        std::fprintf(stderr, "usage: report-check REFERENCE BLOCKS REPORT SUBDIR\n");
+    if (argc != 6) {
+        std::fprintf(stderr, "usage: report-check REFERENCE BLOCKS REPORT SUBDIR INODES\n");
         return 2;
     }
     checkReport(readFile(argv[1]), readFile(argv[2]), readFile(argv[3]));
     checkSubdir(readFile(argv[4]));
+    checkProgress(readFile(argv[5]), readFile(argv[3]));
     return failures == 0 ? 0 : 1;
 }

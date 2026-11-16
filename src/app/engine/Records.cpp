@@ -18,6 +18,7 @@ constexpr quint32 kDriveSize = 40;
 constexpr quint32 kFragmentedFileSize = 16;
 constexpr quint32 kFileSkippedSize = 8;
 constexpr quint32 kReportSummarySize = 40;
+constexpr quint32 kReportProgressSize = 16;
 constexpr quint32 kRunStateSize = 8;
 
 // Reads one payload: fixed fields by offset, then strings in order.
@@ -61,6 +62,7 @@ quint32 fixedSize(quint16 type)
     case TypeFragmentedFile: return kFragmentedFileSize;
     case TypeFileSkipped: return kFileSkippedSize;
     case TypeReportSummary: return kReportSummarySize;
+    case TypeReportProgress: return kReportProgressSize;
     case TypeRunState: return kRunStateSize;
     default: return 0;
     }
@@ -166,6 +168,9 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         record = ReportSummary{in.at<quint64>(0), in.at<quint64>(8), in.at<quint64>(16),
                                in.at<quint64>(24), in.at<quint64>(32)};
         break;
+    case TypeReportProgress:
+        record = ReportProgress{in.at<quint64>(0), in.at<quint64>(8)};
+        break;
     case TypeRunState:
         record = RunState{in.at<quint32>(0)};
         break;
@@ -225,7 +230,7 @@ bool RecordDecoder::orderAllows(const Record &record)
     }
 
     if (m_command == CommandReport) {
-        // § 4.6 and INV-8: files, skips and run states, then the summary
+        // § 4.6 and INV-8: files, skips, progress and run states, then the summary
         // only on OK, immediately before FINISHED, agreeing with the counts.
         if (finished) {
             if (finished->result != ResultOk)
@@ -249,7 +254,8 @@ bool RecordDecoder::orderAllows(const Record &record)
             ++m_skipped;
             return true;
         }
-        if (std::holds_alternative<RunState>(record))
+        if (std::holds_alternative<ReportProgress>(record)
+            || std::holds_alternative<RunState>(record))
             return true;
         return malformed();
     }

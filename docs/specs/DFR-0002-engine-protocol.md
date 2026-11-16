@@ -46,6 +46,10 @@ There is no such spec. Without it:
   are shorter, and the window already knows the mount point.
 - **One reason per drive, chosen by a fixed order** (§ 4.7). Claude's
   choice. The window shows one sentence, so the engine must pick which.
+- **A report sends how far it has got (1.1, DFR-0043).** The user asked
+  for it on 2026-11-16. Claude's choices: the engine counts names, not
+  files, and estimates the total from the drive's used inodes, which
+  `statfs` gives without a walk.
 
 ## 4. Design
 
@@ -89,7 +93,7 @@ Padding bytes and `flags` are not checked.
 ### 4.2 Versioning
 
 The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
-defines **1.0**.
+defines **1.1**: 1.0 plus `REPORT_PROGRESS` (§ 4.6).
 
 - **Minor** changes add, and never change: a new record or command type,
   a field appended to a payload, a new value of an enumerated field. An
@@ -133,7 +137,7 @@ stream: `HELLO` with command 0, then `FINISHED` with `USAGE`.
 ```
 offset  size  field
 0       2     major        1
-2       2     minor        0
+2       2     minor        1
 4       4     command      0 unknown, 1 probe, 2 report, 255 selftest-records
 8       4     block_size   the drive's block size in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
@@ -179,9 +183,9 @@ which rule yields which reason, are set inside this layout by
 
 ### 4.6 Report records
 
-The report stream is `HELLO`, then `FRAGMENTED_FILE`, `FILE_SKIPPED` and
-`RUN_STATE` in any order, then — only when the result is `OK` — one
-`REPORT_SUMMARY`, then `FINISHED`.
+The report stream is `HELLO`, then `FRAGMENTED_FILE`, `FILE_SKIPPED`,
+`REPORT_PROGRESS` and `RUN_STATE` in any order, then — only when the
+result is `OK` — one `REPORT_SUMMARY`, then `FINISHED`.
 
 **`FRAGMENTED_FILE`** — type `0x0020`, fixed part 16 bytes, then one
 string. Sent for each regular file with two or more extents.
@@ -218,6 +222,25 @@ offset  size  field
 24      8     file_blocks        blocks occupied by visited files
 32      8     skipped            equals the FILE_SKIPPED records sent
 ```
+
+**`REPORT_PROGRESS`** — type `0x0023`, fixed part 16 bytes. How far the
+walk has got. Added in 1.1.
+
+```
+offset  size  field
+0       8     names      names the walk has read in the drive's folders, of any type, not counting . and ..
+8       8     estimate   the drive's used inodes when the walk began, statfs f_files − f_ffree; 0 when f_files is 0 or below f_ffree
+```
+
+The engine sends one straight after `HELLO`, with `names` 0. When the
+result is `OK`, one more comes straight before `REPORT_SUMMARY`, counting
+every name. Between those it sends others between files; how often is
+the engine's choice (`src/engine/main.asm`), and a reader relies on no
+rate.
+
+`names` can end above or below `estimate`. A hard link adds a name but no
+inode; inodes the filesystem keeps for itself have no name. On
+2026-11-16, btrfs and vfat mounts gave `f_files` 0 (`stat -f -c %c`).
 
 **`RUN_STATE`** — type `0x0030`, fixed part 8 bytes. Sent when the engine
 acts on a pause or resume command (§ 4.8).
@@ -283,11 +306,12 @@ misplaced or mis-sized field shows. The exceptions are fixed by meaning:
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 0, command 255, block_size `0x01020304` |
+| `HELLO` | major 1, minor 1, command 255, block_size `0x01020304` |
 | `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
 | `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
 | `REPORT_SUMMARY` | files `0x8182838485868788`, fragmented_files `0x9192939495969798`, extents `0xA1A2A3A4A5A6A7A8`, file_blocks `0xB1B2B3B4B5B6B7B8`, skipped `0xC1C2C3C4C5C6C7C8` |
+| `REPORT_PROGRESS` | names `0xE1E2E3E4E5E6E7E8`, estimate `0xF1F2F3F4F5F6F7F8` |
 | `RUN_STATE` | state `0xF1F2F3F4` |
 | `FINISHED` | result 0, errno 0 |
 
@@ -296,7 +320,7 @@ these 24 bytes:
 
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
-01 00 00 00 ff 00 00 00   major 1, minor 0, command 255
+01 00 01 00 ff 00 00 00   major 1, minor 1, command 255
 04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
@@ -439,6 +463,26 @@ isolates.
   *Breaks when:* the engine accepts any folder and walks it, so a
   crafted path reaches files on another drive.
 
+- **INV-13** — A `REPORT_PROGRESS` in a report stream decodes with its
+  fields and counts toward neither of INV-8's counts. One after
+  `REPORT_SUMMARY` is malformed.
+  *Test:* `tests/app/tst_records.cpp::reportProgress` — a valid report
+  stream with two `REPORT_PROGRESS` records and a summary claiming no
+  files, so only a decoder that counts them as files or skips fails it.
+  *Breaks when:* the decoder reads type `0x0023` as `Unknown`, swaps its
+  fields, or counts it into the summary check.
+
+- **INV-14** — A report that finishes `OK` sends `REPORT_PROGRESS` first
+  after `HELLO`, with `names` 0 and `estimate` the drive's used inodes,
+  and last straight before `REPORT_SUMMARY`, with `names` equal to every
+  name below the mount point.
+  *Test:* `tests/image/report-check.cpp`, the `image_report` test. The
+  image holds a symbolic link, which the walk reads but never visits.
+  The used inodes come from `stat -f` before the run; the names from
+  `find -mindepth 1` after it.
+  *Breaks when:* the engine counts only what it visits, counts `.` and
+  `..`, or sends `f_ffree` as the estimate.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -466,9 +510,12 @@ fail against an engine that accepts any folder under a mount point.
 
 | Test | Locks | Needs root |
 |---|---|---|
-| `tests/app/tst_records.cpp` | INV-1 to INV-9 | No |
+| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13 | No |
 | `tests/app/tst_records_conformance.cpp` | INV-10, INV-11 | No |
 | `tests/image/check-report.sh` | INV-12 | Yes, inside the test machine |
+| `tests/image/report-check.cpp` | INV-14 | Yes, its input comes from the test machine |
+
+DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -493,7 +540,7 @@ engine. The conformance and image tests read real engine output.
 - Drive map records — tracked by DFR-0011.
 - Defrag's arguments and records: file moved, blocks changed, checksum
   failure — tracked by DFR-0017.
-- Progress records — tracked by DFR-0020.
+- Defrag's progress records — tracked by DFR-0020.
 - The engine reading commands — tracked by DFR-0023.
 - The window's session log format — deferred; not yet queued.
 
@@ -501,9 +548,10 @@ engine. The conformance and image tests read real engine output.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 to INV-9 | `tests/app/tst_records.cpp` |
+| INV-1 to INV-9, INV-13 | `tests/app/tst_records.cpp` |
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
+| INV-14 | `tests/image/report-check.cpp` (`image_report`) |
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <utility>
 
 namespace defragr::model {
@@ -69,6 +70,28 @@ QStringList summaryLines(const ReportSummary &summary)
     return lines;
 }
 
+int percentChecked(quint64 names, quint64 estimate)
+{
+    if (estimate == 0)
+        return -1;
+    if (names >= estimate)
+        return 99;
+    // Doubles, so a huge count cannot overflow; min, as a quotient near 1
+    // can round up to it.
+    return std::min(99, int(100.0 * double(names) / double(estimate)));
+}
+
+QString progressLine(quint64 names, quint64 estimate)
+{
+    const int percent = percentChecked(names, estimate);
+    if (percent < 0)
+        return QStringLiteral("Files and folders checked so far: %1.")
+            .arg(QLocale().toString(names));
+    return QStringLiteral("Checked %1 of about %2 files and folders (%3%).")
+        .arg(QLocale().toString(names), QLocale().toString(estimate))
+        .arg(percent);
+}
+
 Report::Report(QString launcher, QObject *parent)
     : QAbstractTableModel(parent), m_engine(std::move(launcher))
 {
@@ -91,9 +114,12 @@ void Report::run(const QByteArray &mountPoint)
 void Report::collect(const QList<Record> &records)
 {
     const qsizetype before = m_incoming.size();
+    std::optional<ReportProgress> progress;
     for (const Record &record : records) {
         if (const auto *file = std::get_if<FragmentedFile>(&record))
             m_incoming.append(*file);
+        else if (const auto *latest = std::get_if<ReportProgress>(&record))
+            progress = *latest;
         else if (const auto *summary = std::get_if<ReportSummary>(&record))
             m_incomingSummary = *summary;
         else if (const auto *hello = std::get_if<Hello>(&record))
@@ -101,6 +127,8 @@ void Report::collect(const QList<Record> &records)
     }
     if (m_incoming.size() > before)
         emit found(quint64(m_incoming.size()), m_incoming.last().path);
+    if (progress)
+        emit progressed(progress->names, progress->estimate);
 }
 
 void Report::runEnded(const RunOutcome &outcome)

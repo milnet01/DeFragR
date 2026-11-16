@@ -28,6 +28,8 @@ extern walk_start
 extern walk_next
 extern walk_path
 extern walk_path_len
+extern walk_names
+extern walk_estimate
 extern extents_count
 
 section .rodata
@@ -35,9 +37,16 @@ arg_probe:      db "probe", 0
 arg_report:     db "report", 0
 arg_selftest:   db "selftest-records", 0
 
+; A report sends REPORT_PROGRESS each time the walk has read this many
+; more names. A cold report on /mnt/Games (2026-11-16: about 3.2 million
+; used inodes, over ten minutes) reads a few thousand names a second, so
+; there this is at most about one a second.
+PROGRESS_EVERY  equ 4096
+
 section .bss
 alignb 8
 summary:        resb report_summary_size   ; report's running totals
+progress_due:   resq 1                  ; walk_names at the next REPORT_PROGRESS
 
 section .text
 global _start
@@ -143,8 +152,10 @@ _start:
 ; The rest of a report stream (DFR-0002 § 4.6), from the mount-point
 ; check on: HELLO with the block size, a FRAGMENTED_FILE for each file in
 ; two or more pieces, a FILE_SKIPPED for each it could not measure, then
-; REPORT_SUMMARY and FINISHED. A failure before the walk starts sends
-; HELLO with block size 0 and FINISHED with its result.
+; REPORT_SUMMARY and FINISHED. REPORT_PROGRESS comes straight after HELLO,
+; every PROGRESS_EVERY names, and straight before REPORT_SUMMARY. A
+; failure before the walk starts sends HELLO with block size 0 and
+; FINISHED with its result.
 report_run:
     sub rsp, 8
     mov r14, rdi                    ; r14 = the mount point
@@ -161,7 +172,12 @@ report_run:
     mov esi, r15d
     call rec_hello
 
-.next:
+.next:                              ; the first pass sends names 0
+    mov rax, [walk_names]
+    cmp rax, [progress_due]
+    jb .walk
+    call send_progress
+.walk:
     call walk_next
     cmp eax, WALK_FILE
     je .file
@@ -228,6 +244,7 @@ report_run:
     jmp .next
 
 .end:
+    call send_progress              ; every name, for the last time
     mov edi, REC_REPORT_SUMMARY
     mov esi, report_summary_size
     call rec_start
@@ -253,6 +270,24 @@ report_run:
     mov edi, RESULT_INTERNAL
     xor esi, esi
     call rec_finish
+
+; send_progress() -> rax = 0. Sends REPORT_PROGRESS with the walk's
+; counts, and makes the next due PROGRESS_EVERY names on. Clobbers as
+; rec_send.
+send_progress:
+    sub rsp, 8
+    mov edi, REC_REPORT_PROGRESS
+    mov esi, report_progress_size
+    call rec_start
+    mov rcx, [walk_names]
+    mov [rax + report_progress.names], rcx
+    add rcx, PROGRESS_EVERY
+    mov [progress_due], rcx
+    mov rcx, [walk_estimate]
+    mov [rax + report_progress.estimate], rcx
+    call rec_send
+    add rsp, 8
+    ret
 
 ; str_equal(rdi = NUL-terminated string, rsi = NUL-terminated string)
 ;   -> eax = 1 when equal, else 0. Clobbers rcx, rdx, rdi, rsi.

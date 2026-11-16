@@ -177,7 +177,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Kind: release.
   Source: design-2026-11-15.
   Lanes: Build.
-  Blocked-by: DFR-0001, DFR-0002, DFR-0003, DFR-0004, DFR-0005, DFR-0006, DFR-0007, DFR-0008, DFR-0009, DFR-0043.
+  Blocked-by: DFR-0001, DFR-0002, DFR-0003, DFR-0004, DFR-0005, DFR-0006, DFR-0007, DFR-0008, DFR-0009, DFR-0043, DFR-0042.
 
 - ✅ [DFR-0037] **Faster local and GitHub CI, with less drift between them.**
   `local-gate.md` § 9's levers, one per commit, each measured before
@@ -251,7 +251,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: user-test-2026-11-16.
   Lanes: Engine link, Messages.
 
-- 📋 [DFR-0043] **Report progress: files checked of about how many.**
+- ✅ [DFR-0043] **Report progress: files checked of about how many.**
   A report sends nothing while it walks, so ui/ReportView shows only
   the fragmented files found so far and the time taken (DFR-0009). The
   owner asked for how far it has got. Needs a new report record
@@ -259,6 +259,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   files visited so far, and an estimate of the total, e.g. the drive's
   used inodes from statfs. walk.asm sends it every so often; the window
   turns it into a percentage bar.
+  Done 2026-11-16: protocol 1.1 adds REPORT_PROGRESS (spec § 4.6,
+  INV-13, INV-14). The window shows "Checked N of about M files and
+  folders (P%)" and a bar held at 99% until the report ends; with no
+  inode count (btrfs, vfat) the bar keeps moving and the line gives the
+  count alone.
   **Layman:** While a report runs, the window shows how many files have been checked out of roughly how many, as a real percentage.
   Kind: feature.
   Source: user-request-2026-11-16.

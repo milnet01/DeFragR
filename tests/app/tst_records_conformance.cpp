@@ -59,9 +59,9 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-records")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.exitCode, 0);
-        QCOMPARE(run.records.size(), 7);
+        QCOMPARE(run.records.size(), 8);
 
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 0, 255, 0x01020304}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 1, 255, 0x01020304}));
 
         Drive drive;
         drive.totalBlocks = 0x1112131415161718;
@@ -84,8 +84,10 @@ private slots:
         QCOMPARE(std::get<ReportSummary>(run.records[4]),
                  (ReportSummary{0x8182838485868788, 0x9192939495969798, 0xA1A2A3A4A5A6A7A8,
                                 0xB1B2B3B4B5B6B7B8, 0xC1C2C3C4C5C6C7C8}));
-        QCOMPARE(std::get<RunState>(run.records[5]), (RunState{0xF1F2F3F4}));
-        QCOMPARE(std::get<Finished>(run.records[6]), (Finished{0, 0}));
+        QCOMPARE(std::get<ReportProgress>(run.records[5]),
+                 (ReportProgress{0xE1E2E3E4E5E6E7E8, 0xF1F2F3F4F5F6F7F8}));
+        QCOMPARE(std::get<RunState>(run.records[6]), (RunState{0xF1F2F3F4}));
+        QCOMPARE(std::get<Finished>(run.records[7]), (Finished{0, 0}));
     }
 
     // INV-11: every run is a clean stream whose result is the exit status.

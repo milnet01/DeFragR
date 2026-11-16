@@ -1,4 +1,5 @@
-// The record decoder alone, against hand-built streams: INV-1 to INV-9 of
+// The record decoder alone, against hand-built streams: INV-1 to INV-9 and
+// INV-13 of
 // docs/specs/DFR-0002-engine-protocol.md. Proves nothing about the engine;
 // tst_records_conformance.cpp reads real engine output.
 #include "engine/Records.h"
@@ -124,6 +125,13 @@ QByteArray summary(quint64 fragmentedFiles, quint64 skipped)
     put64(p, skipped);
     return record(TypeReportSummary, p);
 }
+QByteArray progress(quint64 names, quint64 estimate)
+{
+    QByteArray p;
+    put64(p, names);
+    put64(p, estimate);
+    return record(TypeReportProgress, p);
+}
 QByteArray runState(quint32 state)
 {
     QByteArray p;
@@ -173,9 +181,10 @@ QByteArray selftestStream()
     put64(sum, 0xB1B2B3B4B5B6B7B8);
     put64(sum, 0xC1C2C3C4C5C6C7C8);
 
-    return hello(CommandSelftest, 0x01020304) + record(TypeDrive, drivePart)
+    return hello(CommandSelftest, 0x01020304, 1, 1) + record(TypeDrive, drivePart)
          + record(TypeFragmentedFile, frag) + record(TypeFileSkipped, skip)
-         + record(TypeReportSummary, sum) + runState(0xF1F2F3F4) + finished();
+         + record(TypeReportSummary, sum) + progress(0xE1E2E3E4E5E6E7E8, 0xF1F2F3F4F5F6F7F8)
+         + runState(0xF1F2F3F4) + finished();
 }
 
 // ── Decoding ────────────────────────────────────────────────────────────
@@ -377,6 +386,20 @@ private slots:
         QCOMPARE(errorOf(h + summary(0, 0) + unknown(0x00FF, 8) + finished()), kNoError);
         QCOMPARE(errorOf(h + summary(0, 0) + finished(ResultCancelled)), kMalformed);
         QCOMPARE(errorOf(h + fragmented("a") + finished(ResultCancelled)), kNoError);
+    }
+
+    // INV-13: a summary claiming no files, so counting a progress record
+    // as a file or a skip breaks INV-8's check.
+    void reportProgress()
+    {
+        const Outcome run = decode(reportStream(progress(0, 300) + progress(250, 300)));
+        QCOMPARE(run.error, kNoError);
+        QCOMPARE(run.records.size(), 5);
+        QCOMPARE(std::get<ReportProgress>(run.records[1]), (ReportProgress{0, 300}));
+        QCOMPARE(std::get<ReportProgress>(run.records[2]), (ReportProgress{250, 300}));
+
+        const QByteArray h = hello(CommandReport);
+        QCOMPARE(errorOf(h + summary(0, 0) + progress(250, 300) + finished()), kMalformed);
     }
 
     // INV-9

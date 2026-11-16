@@ -18,6 +18,9 @@
 ;   - Paths are relative to the mount point (DFR-0002 § 4.6). One longer
 ;     than STRING_MAX is skipped, stage 5, and not descended into.
 ;   - The top folder failing to read is a drive-level error, WALK_ERROR.
+;   - It counts every name it reads, of any type, in walk_names, and
+;     walk_start sets walk_estimate: REPORT_PROGRESS's two fields
+;     (DFR-0002 § 4.6).
 %if __?NASM_VERSION_ID?__ < 0x03020000
 %error "NASM 3.02 or later required"
 %endif
@@ -71,20 +74,25 @@ statfs_buf:     resb kernel_statfs_size
 ; STRING_MAX bytes, a "/", and a name no longer than one entry.
 walk_path:      resb STRING_MAX + 1 + DENTS_SIZE
 walk_path_len:  resq 1                  ; at most STRING_MAX
+walk_names:     resq 1                  ; names read, not counting . and ..
+walk_estimate:  resq 1                  ; used inodes; 0 when unknown
 
 section .text
 global walk_start
 global walk_next
 global walk_path
 global walk_path_len
+global walk_names
+global walk_estimate
 
 ; walk_start(rdi = NUL-terminated mount point, rsi = its mount id)
 ;   -> eax = OK, NOT_A_MOUNT or DRIVE_ERROR; edx = errno on DRIVE_ERROR,
 ;   the drive's block size on OK, else 0.
 ; Opens the top folder and checks it is that mount: a path swapped for
 ; another folder since mountinfo was read is NOT_A_MOUNT. A block size of
-; 0 or above 32 bits is DRIVE_ERROR with EINVAL. Clobbers rax, rcx, rdx,
-; rsi, rdi, r8 to r11.
+; 0 or above 32 bits is DRIVE_ERROR with EINVAL. On OK, sets
+; walk_estimate and zeroes walk_names. Clobbers rax, rcx, rdx, rsi, rdi,
+; r8 to r11.
 walk_start:
     push rbx
     push r12
@@ -114,7 +122,14 @@ walk_start:
     jne .bad_block_size             ; above 32 bits
     test eax, eax
     jz .bad_block_size
+    mov rax, [statfs_buf + kernel_statfs.files]
+    sub rax, [statfs_buf + kernel_statfs.ffree]
+    jae .estimated                  ; no count gives 0 - 0
+    xor eax, eax                    ; more free than in all: no estimate
+.estimated:
+    mov [walk_estimate], rax
 
+    mov qword [walk_names], 0
     mov [mount_id], r12
     mov qword [depth], 0
     lea rax, [levels]
@@ -218,6 +233,7 @@ walk_next:
     cmp byte [rdx + 1], '.'
     je .next                        ; ".."
 .named:
+    inc qword [walk_names]
     mov r13, [rbx + walk_level.path_len]
     lea rdi, [walk_path]
     add rdi, r13
