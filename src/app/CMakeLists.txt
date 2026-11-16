@@ -3,16 +3,27 @@ find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Widgets DBus)
 message(STATUS "Qt ${Qt6_VERSION} (floor ${DEFRAGR_QT_MIN})")
 qt_standard_project_setup()
 
-# Engine link: the record decoder. A library of its own, so the window
-# tests link it without the window.
-add_library(defragr-records STATIC
+# Engine link and the model parts: Qt Core only, each a library of its
+# own, so the window tests link them without the window or a screen.
+add_library(defragr-engine-link STATIC
+    engine/EngineProcess.cpp
     engine/Records.cpp)
-target_include_directories(defragr-records PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_options(defragr-records PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr-records PUBLIC Qt6::Core)
+target_include_directories(defragr-engine-link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(defragr-engine-link PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-engine-link PUBLIC Qt6::Core)
+
+add_library(defragr-model STATIC
+    model/DriveList.cpp
+    model/Messages.cpp)
+target_compile_options(defragr-model PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-model PUBLIC defragr-engine-link)
 
 add_executable(defragr
-    main.cpp)
+    main.cpp
+    ui/MainWindow.cpp)
+# Beside the engine, where EngineProcess looks for it when
+# DEFRAGR_ENGINE is unset; src/engine/CMakeLists.txt does the same.
+set_target_properties(defragr PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 # The window icon. The PNG, because Qt draws an SVG icon only through the
 # qt6-svg plugin, and a missing plugin gives a blank icon with no error.
@@ -23,4 +34,4 @@ qt_add_resources(defragr icons
     FILES ${PROJECT_SOURCE_DIR}/packaging/defragr.png)
 
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr PRIVATE Qt6::Widgets Qt6::DBus)
+target_link_libraries(defragr PRIVATE defragr-model Qt6::Widgets Qt6::DBus)

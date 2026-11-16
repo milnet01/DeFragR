@@ -50,8 +50,20 @@ enum Result : qint32 {
     ResultInternal = 9,
 };
 
+// DRIVE.media (§ 4.5).
+enum Media : quint8 { MediaUnknown = 0, MediaSsd = 1, MediaSpinning = 2 };
+
 // DRIVE.verdict (§ 4.5).
 enum Verdict : quint8 { VerdictReportOnly = 1, VerdictReportAndDefrag = 2 };
+
+// DRIVE.reason (§ 4.7), in the order the engine picks one.
+enum Reason : quint16 {
+    ReasonNone = 0,
+    ReasonFsNotExt4 = 1,
+    ReasonReadOnly = 2,
+    ReasonSsd = 3,
+    ReasonMediaUnknown = 4,
+};
 
 // Enumerated fields stay plain integers: a value this window does not
 // know decodes as itself, never as an error (§ 4.2, INV-9).

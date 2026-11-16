@@ -1,7 +1,8 @@
-// Start-up. DFR-0005 replaces the bare window with ui/MainWindow.
+// Start-up: the application, its icon, and the main window.
+#include "ui/MainWindow.h"
+
 #include <QApplication>
 #include <QIcon>
-#include <QWidget>
 
 int main(int argc, char *argv[])
 {
@@ -9,8 +10,7 @@ int main(int argc, char *argv[])
     QApplication::setApplicationName(QStringLiteral("DeFragR"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/defragr.png")));
 
-    QWidget window;
-    window.setWindowTitle(QStringLiteral("DeFragR"));
+    defragr::ui::MainWindow window;
     window.show();
 
     return QApplication::exec();

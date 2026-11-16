@@ -21,10 +21,6 @@ using namespace defragr::engine;
 
 namespace {
 
-// § 4.7's reason codes, in the order the engine picks one.
-enum : quint16 { ReasonNone, ReasonFsNotExt4, ReasonReadOnly, ReasonSsd, ReasonMediaUnknown };
-enum : quint8 { MediaUnknown, MediaSsd, MediaSpinning };
-
 struct Probe {
     QList<Drive> drives;
     std::optional<StreamError> error;

@@ -69,6 +69,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   `/sys/block/*/queue/rotational`; one record per drive with size,
   filesystem, SSD or spinning, and a verdict with reason code
   (ADR-0002). Engine side of S1 and S9. Unprivileged.
+
   Done 2026-11-15. Which mounts are drives, and the reason order, are
   in `probe.asm`'s header. A disk mounted in several places is listed
   once (the user's choice). tst_probe checks each drive against
@@ -81,13 +82,21 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Probe.
   Blocked-by: DFR-0003.
 
-- 📋 [DFR-0005] **Window drive list and the report-or-defrag choice.**
+- ✅ [DFR-0005] **Window drive list and the report-or-defrag choice.**
   `engine/EngineProcess`, `model/DriveList`, `model/Messages`,
   `ui/MainWindow`, `main.cpp`. Shows the probe's drives (S1), offers
   "View report" or "Defrag now" (S2), and enables each action from the
   engine's verdict alone, with the plain reason when one is refused
   (S9, S12). Says plainly when the engine binary is missing.
   Overlaps DFR-0009, DFR-0021, DFR-0024 in `ui/MainWindow`.
+  Done 2026-11-16. Both buttons follow the verdict; clicking either
+  says the action comes later (the user's choice). DFR-0009 and DFR-0018
+  replace those two handlers in `ui/MainWindow.cpp`. The window and the
+  engine build side by side in `bin/`, where the window looks first
+  when `DEFRAGR_ENGINE` is unset. tst_engineprocess, tst_drivelist and
+  tst_messages lock the run endings, the actions and the wording; with
+  the launcher check removed, an engine exiting 126 read as refused
+  admin rights and tst_engineprocess went red.
   **Layman:** Opening the app lists your drives and lets you choose report or defrag, greying out what does not apply.
   Kind: feature.
   Source: design-2026-11-15.

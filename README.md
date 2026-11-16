@@ -4,9 +4,9 @@
 
 ## Status
 
-Early development. The design is agreed and the build works, but the
-engine and the window do nothing useful yet. [ROADMAP.md](ROADMAP.md)
-holds the plan.
+Early development. The window lists your drives and says which it
+could defrag, and why not for the rest. Reports and defragging are not
+built yet. [ROADMAP.md](ROADMAP.md) holds the plan.
 
 ## Install
 

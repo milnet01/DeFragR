@@ -30,5 +30,7 @@ target_compile_options(defragr-engine PRIVATE -w+all -w-reloc-rel-dword -w+error
 # Link with ld directly, so no C runtime, start files or default
 # library can be pulled in by a compiler driver.
 set_target_properties(defragr-engine PROPERTIES LINKER_LANGUAGE ASM_NASM)
+# Beside the window, which looks for its engine there.
+set_target_properties(defragr-engine PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 set(CMAKE_ASM_NASM_LINK_EXECUTABLE
     "ld -static -nostdlib --fatal-warnings <LINK_FLAGS> <OBJECTS> -o <TARGET>")
