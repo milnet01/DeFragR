@@ -112,12 +112,15 @@ run() {
     cores=$(nproc)
     (( cores > RUNNER_CORES )) && cores=$RUNNER_CORES
 
+    # The gate boots the test machine on the running kernel, so the
+    # container gets that kernel's modules, read-only, and KVM.
     say "running the gate on $(git rev-parse --short "$commit") in $IMAGE, $cores cores."
     local log=$tree/gate.log rc=0
     nice -n 10 podman run --rm --network=none \
         --userns=keep-id:uid=1001,gid=1001 \
         -e CI=true \
         -v "$tree/src:$WORKDIR:Z" -w "$WORKDIR" \
+        --device /dev/kvm -v /lib/modules:/lib/modules:ro \
         "$IMAGE" taskset -c "0-$(( cores - 1 ))" ./scripts/local-ci.sh 2>&1 \
         | tee "$log" || rc=$?
 

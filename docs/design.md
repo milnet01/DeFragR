@@ -226,8 +226,8 @@ second reader of the protocol, not engine changes.
    - an SSD-like test disk and a btrfs image get a report and a refusal
      (S9).
 
-   Whether the test machine can present a disk as an SSD is
-   **unverified**; the item that builds the test machine settles it.
+   The test machine presents a test disk as an SSD through its SCSI
+   rotation rate (`tests/vm/run.sh`).
 
 ## Build order
 

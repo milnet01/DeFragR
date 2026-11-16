@@ -25,9 +25,8 @@ virtual disks.
 
 - No password prompt for a test run, so the local gate can run them.
 - A test bug can damage only throwaway images.
-- The test machine can present a disk as rotating or not, which would
-  test the SSD refusal. This is unverified until the test machine item
-  is built.
+- The test machine presents a disk as rotating or not, so the SSD
+  refusal can be tested.
 - More setup than loop devices with `sudo`: a kernel, an initial root
   filesystem, and boot time on every run.
 - Where virtualisation is unavailable, the image tests cannot run.

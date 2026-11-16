@@ -112,5 +112,16 @@ jobs:
           nasm -v
           nasm -v | grep -q "^NASM version $NASM_VERSION "
 
+      # The test machine (tests/vm/run.sh) boots the runner's own kernel,
+      # which Ubuntu makes readable by root only, and uses KVM, which the
+      # runner's user may not open until this udev rule allows it.
+      - name: Let the test machine boot
+        run: |
+          sudo chmod 0644 "/boot/vmlinuz-$(uname -r)"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm-for-tests.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Run the gate
         run: ./scripts/local-ci.sh

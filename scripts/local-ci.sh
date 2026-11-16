@@ -44,7 +44,9 @@ NASM_SHA256='87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d'
 
 # The Ubuntu packages CI installs. The workflow reads this list with
 # --ci-packages, so the list has one home, as the pins above do.
-CI_PACKAGES='ninja-build qt6-base-dev libgl-dev shellcheck'
+# From qemu-system-x86 on, they are the test machine's (tests/vm/run.sh).
+# One line: the workflow reads the list with `read`.
+CI_PACKAGES='ninja-build qt6-base-dev libgl-dev shellcheck qemu-system-x86 busybox-static cpio zstd kmod e2fsprogs'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
 if [[ ${1:-} == --nasm-pin ]]; then printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA256"; exit 0; fi
@@ -175,6 +177,9 @@ run configure cmake -S . -B "$BUILD_DIR" -G Ninja "${CONFIGURE_ARGS[@]}"
 run build "${GENTLE[@]}" cmake --build "$BUILD_DIR" -j "$JOBS"
 
 step 'test'
+# The gate must boot the test machine: a host that cannot fails the vm_smoke
+# test here instead of skipping it, so a skip never reads as a pass.
+export DEFRAGR_VM_REQUIRED=1
 run test "${GENTLE[@]}" ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error
 
 if (( CONFIGURED )); then

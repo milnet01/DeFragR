@@ -6,4 +6,11 @@ add_test(NAME engine_binary_shape
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/engine/binary-shape.sh
             $<TARGET_FILE:defragr-engine>)
 
+# The throwaway test machine image tests run in (ADR-0003). Skipped where
+# the host cannot boot it, unless DEFRAGR_VM_REQUIRED=1, as the gate sets.
+add_test(NAME vm_smoke
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vm/test-vm.sh
+            ${CMAKE_CURRENT_BINARY_DIR}/vm)
+set_tests_properties(vm_smoke PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+
 add_subdirectory(app)

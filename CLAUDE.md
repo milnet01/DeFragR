@@ -33,6 +33,8 @@ CTest. `docs/design.md` § The stack, and what it rules out, is the home.
 
 `./scripts/local-ci.sh` is the gate: link check, shellcheck, a fresh
 CMake build in `build/ci` with warnings as errors, then CTest.
+CTest boots the throwaway test machine, and the gate fails where it
+cannot; `tests/vm/run.sh` says what the host needs.
 `--docs` runs the link check alone. NASM's floor is in
 `src/engine/CMakeLists.txt`; the version CI builds is pinned in
 `scripts/local-ci.sh`.
