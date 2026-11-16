@@ -1,0 +1,12 @@
+{
+  "version_source": "CMakeLists.txt",
+  "version_pattern": "project\\([^)]*VERSION\\s+([0-9]+\\.[0-9]+\\.[0-9]+)",
+  "files": [
+    {
+      "path": "CMakeLists.txt",
+      "pattern": "VERSION {OLD}\n    DESCRIPTION",
+      "replace": "VERSION {NEW}\n    DESCRIPTION"
+    }
+  ],
+  "tag": "v{NEW}"
+}
