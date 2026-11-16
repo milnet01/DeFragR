@@ -12,6 +12,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-16
+
+**Theme:** Read-only report
+
 ### Added
 - The window lists your drives and offers "View report" or "Defrag
   now" for each. An action a drive cannot take is greyed out, with the
@@ -26,6 +30,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0009).
 - A running report shows how far it has got: files and folders checked,
   of about how many, with a percentage bar (DFR-0043).
+- The window shows DeFragR's own icon (DFR-0039).
 
 ### Fixed
 - When the system blocks the engine after you enter your password, the
