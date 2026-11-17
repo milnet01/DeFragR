@@ -548,13 +548,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: review-code-2026-11-16.
   Lanes: Entry.
 
-- 📋 [DFR-0058] **tst_engineprocess stops waiting 30 s for its fake engine.**
+- ✅ [DFR-0058] **tst_engineprocess stops waiting 30 s for its fake engine.**
   tests/app/fakes/chatter.sh:15 ends in `sleep 30`, and ~QProcess waits
   up to 30 s for a running engine (EngineProcess.cpp:58). So
   destroyedMidRun waits out the fake: 30.85 s of the gate's 63.95 s test
   step (.git/local-ci/test.log, 2026-11-16). Make the fake exit on its
   closed pipe or SIGTERM, keeping what the test locks.
   Found by review-code --performance (orchestrator, measured).
+  Shipped 2026-11-17. The cause was not ~QProcess: the test ends in
+  0.62 s. kill() stopped the fake's shell, but its child `sleep 30` held
+  the inherited standard error open, and CTest waited for it. chatter.sh
+  now ends in `exec sleep 30`. Measured: tst_engineprocess 1.17 s in the
+  gate, test step 51.34 s; with the destructor's disconnect removed the
+  test still fails (batchesWhileDestroying 1).
   **Layman:** Cut about half a minute from every pre-push check.
   Kind: test.
   Source: review-code-perf-2026-11-16.

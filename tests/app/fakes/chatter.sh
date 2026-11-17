@@ -12,4 +12,7 @@ while [ "$i" -lt 64 ]; do
     printf '\000\177\000\000\000\000\000\000'
     i=$((i + 1))
 done
-sleep 30
+# exec, so stopping this process stops the wait. A child sleep would
+# outlive it, holding the test's standard error open, and CTest would wait
+# for it to close.
+exec sleep 30
