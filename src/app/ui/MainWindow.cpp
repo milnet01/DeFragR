@@ -80,9 +80,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     // follows the verdict.
     connect(m_defrag, &QPushButton::clicked, this, [this] {
         QMessageBox::information(this, QStringLiteral("Defrag now"),
-                                 QStringLiteral("Defragging comes in a later version of DeFragR. "
-                                                "The engine has checked this drive and will "
-                                                "allow it."));
+                                 model::messages::defragComesLater());
     });
 
     listDrives();
@@ -114,15 +112,14 @@ void MainWindow::updateActions()
         m_report->setEnabled(false);
         m_defrag->setEnabled(false);
         m_note->setText(m_drives.rowCount() == 0
-                            ? QStringLiteral("DeFragR found no drives to list.")
+                            ? model::messages::noDrives()
                             : QStringLiteral("Pick a drive to see what DeFragR can do with it."));
         return;
     }
     m_report->setEnabled(m_drives.canReport(row));
     m_defrag->setEnabled(m_drives.canDefrag(row));
     const QString why = model::messages::whyNoDefrag(m_drives.drive(row));
-    m_note->setText(why.isEmpty() ? QStringLiteral("DeFragR can report on this drive or defrag it.")
-                                  : why);
+    m_note->setText(why.isEmpty() ? model::messages::defragAllowed() : why);
 }
 
 void MainWindow::showFailure(const model::Message &message)

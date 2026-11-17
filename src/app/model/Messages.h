@@ -29,6 +29,15 @@ QString verdict(quint8 verdict);
 // Why the drive cannot be defragged. Empty when its verdict allows it.
 QString whyNoDefrag(const engine::Drive &drive);
 
+// What the user can do with a drive whose verdict allows defrag.
+QString defragAllowed();
+
+// The probe finished and found no drives.
+QString noDrives();
+
+// What "Defrag now" says until defragging is built (0.3.0).
+QString defragComesLater();
+
 // The label of the button that fetches the drive list again, which
 // advice about the list names.
 QString refreshButton();

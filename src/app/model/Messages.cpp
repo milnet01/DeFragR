@@ -104,6 +104,22 @@ QString whyNoDefrag(const Drive &drive)
                           "DeFragR does not know. It can still report on it.");
 }
 
+QString defragAllowed()
+{
+    return QStringLiteral("DeFragR can report on this drive or defrag it.");
+}
+
+QString noDrives()
+{
+    return QStringLiteral("DeFragR found no drives to list.");
+}
+
+QString defragComesLater()
+{
+    return QStringLiteral("Defragging comes in a later version of DeFragR. The engine has "
+                          "checked this drive and will allow it.");
+}
+
 QString refreshButton()
 {
     return QStringLiteral("Refresh drives");

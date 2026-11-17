@@ -461,13 +461,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: review-code-2026-11-16.
   Lanes: Engine link, Messages, Screens.
 
-- 📋 [DFR-0050] **All user-facing wording lives in model/Messages.**
+- ✅ [DFR-0050] **All user-facing wording lives in model/Messages.**
   docs/design.md says only model/Messages holds user-facing text about an
   engine result. MainWindow.cpp:79-81 ("Defrag now" comes later), :100
   (the drive's verdict reason) and :107 (no drives found) live elsewhere.
   The owner chose to move all three (2026-11-16). Messages.h:2's "only
   home" comment is then true. Found by review-readability lane 3 and
   review-code lane 03.
+  Shipped 2026-11-17. messages::defragAllowed, noDrives and
+  defragComesLater hold them. An offscreen run of the real window, with
+  a one-drive and a no-drive probe and the Defrag now dialog, printed
+  the same text before and after.
   **Layman:** Every sentence the window shows lives in one place, so it is easy to check and change. Nothing changes on screen.
   Kind: refactor.
   Source: review-code-2026-11-16.
