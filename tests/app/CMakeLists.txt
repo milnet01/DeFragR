@@ -1,5 +1,6 @@
-# Window tests: Qt Test, no root, no display.
-find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Test)
+# Window tests: Qt Test, no root, no display. Gui is for QTextDocument,
+# which reads markup as a tooltip does, and needs no display.
+find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Gui Test)
 qt_standard_project_setup()
 
 # The decoder alone: INV-1 to INV-9 (docs/specs/DFR-0002-engine-protocol.md).
@@ -40,7 +41,7 @@ set_tests_properties(tst_engineprocess PROPERTIES ENVIRONMENT "${DEFRAGR_TEST_EN
 # The drive list and its actions: DFR-0005.
 add_executable(tst_drivelist tst_drivelist.cpp)
 target_compile_options(tst_drivelist PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(tst_drivelist PRIVATE defragr-model Qt6::Test)
+target_link_libraries(tst_drivelist PRIVATE defragr-model Qt6::Gui Qt6::Test)
 add_dependencies(tst_drivelist defragr-engine)
 add_test(NAME tst_drivelist COMMAND tst_drivelist)
 set_tests_properties(tst_drivelist PROPERTIES ENVIRONMENT "${DEFRAGR_TEST_ENGINES}")

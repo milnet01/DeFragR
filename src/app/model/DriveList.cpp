@@ -73,8 +73,12 @@ QVariant DriveList::data(const QModelIndex &index, int role) const
     if (!index.isValid() || index.row() >= m_drives.size())
         return {};
     const Drive &drive = m_drives.at(index.row());
-    if (role == Qt::ToolTipRole)
-        return messages::whyNoDefrag(drive);
+    if (role == Qt::ToolTipRole) {
+        // A filesystem name is anybody's to choose. Escaped inside a
+        // paragraph, the tooltip shows it as text, never as markup.
+        const QString why = messages::whyNoDefrag(drive);
+        return why.isEmpty() ? why : QStringLiteral("<p>%1</p>").arg(why.toHtmlEscaped());
+    }
     if (role != Qt::DisplayRole)
         return {};
     switch (index.column()) {

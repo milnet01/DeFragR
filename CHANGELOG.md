@@ -16,6 +16,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A report refuses a folder that is not a real drive, such as a system
   area, a memory-only folder or a network share, instead of reading it
   with admin rights (DFR-0044).
+- Drive and file names always show as written. A name that looks like
+  web code is no longer drawn as a picture or a link (DFR-0047).
 
 ## [0.1.0] - 2026-11-16
 

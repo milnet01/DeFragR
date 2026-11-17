@@ -401,12 +401,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: review-code-2026-11-16.
   Lanes: Probe.
 
-- 📋 [DFR-0047] **Window shows names from a drive as plain text, never rich text.**
+- ✅ [DFR-0047] **Window shows names from a drive as plain text, never rich text.**
   QLabel guesses rich text. ReportView.cpp:72 and :104-106,
   MainWindow.cpp:106-107 and DriveList.cpp:76-77 show names any local user
   can choose. Qt::mightBeRichText is true for "Latest: dir/<img src=x>"
   (PySide6 probe on this host, 2026-11-16). Fix: Qt::PlainText on every
   label that shows drive or file names. Found by review-code lane 03.
+  Shipped 2026-11-17. ReportView's heading and latest-file labels and
+  MainWindow's note are Qt::PlainText. DriveList's tooltip is escaped
+  inside <p>, since the model stays Qt Core only. tst_drivelist
+  tooltipShowsNamesAsText failed before (the name read as an image) and
+  passes after. The labels have no automatic test until DFR-0063.
   **Layman:** A file whose name looks like web code is shown as its name, not drawn as a picture or link.
   Kind: security.
   Source: review-code-2026-11-16.
@@ -642,6 +647,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   which compiled the project's own window sources with a scratch main(),
   ran offscreen with a stand-in pkexec on PATH and a replayed engine
   stream. Turn that pattern into a CTest test.
+  Include a drive and a file whose names look like markup, such as
+  "<img src=x>", and check the labels show them as written (DFR-0047,
+  2026-11-17).
   **Layman:** An automatic check that presses the window's own buttons, so a break between the screen and the engine is caught before release.
   Kind: test.
   Source: verify-delivery-2026-11-16.

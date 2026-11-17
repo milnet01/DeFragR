@@ -15,7 +15,10 @@ namespace defragr::ui {
 
 ReportView::ReportView(QWidget *parent) : QWidget(parent)
 {
+    // Labels that show a drive's or a file's name show it as text: a name
+    // is anybody's to choose, and QLabel would read some as markup.
     m_heading = new QLabel;
+    m_heading->setTextFormat(Qt::PlainText);
     m_back = new QPushButton(QStringLiteral("Back to drives"));
     auto *top = new QHBoxLayout;
     top->addWidget(m_heading, 1);
@@ -29,6 +32,7 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
     m_checked = new QLabel;
     m_found = new QLabel;
     m_latest = new QLabel;
+    m_latest->setTextFormat(Qt::PlainText);
     // A long path must not widen the window; showFound elides it.
     m_latest->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     m_elapsed = new QLabel;

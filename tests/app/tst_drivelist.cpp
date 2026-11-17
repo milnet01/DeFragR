@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QLocale>
 #include <QTest>
+#include <QTextDocument>
 
 using namespace defragr::engine;
 using namespace defragr::model;
@@ -114,6 +115,25 @@ private slots:
         QCOMPARE(cell(DriveList::ColumnFileSystem), QStringLiteral("ext4"));
         QCOMPARE(cell(DriveList::ColumnMedia), messages::media(MediaSpinning));
         QCOMPARE(cell(DriveList::ColumnActions), messages::verdict(VerdictReportAndDefrag));
+    }
+
+    // DFR-0047: a filesystem name is anybody's to choose, as a FUSE mount
+    // shows, so the tooltip shows it as text, never as markup. A tooltip
+    // is markup when Qt::mightBeRichText says so.
+    void tooltipShowsNamesAsText()
+    {
+        Drive fuse = drive(VerdictReportOnly, ReasonFsNotExt4, MediaSpinning);
+        fuse.fsType = "fuse.<img src=x>";
+        DriveList list;
+        list.setDrives({fuse});
+        const QString tip = list.index(0, DriveList::ColumnDrive).data(Qt::ToolTipRole).toString();
+        QString shown = tip;
+        if (Qt::mightBeRichText(tip)) {
+            QTextDocument markup;
+            markup.setHtml(tip);
+            shown = markup.toPlainText();
+        }
+        QCOMPARE(shown, messages::whyNoDefrag(fuse));
     }
 
     // S1: opening the list runs the real probe and shows its drives.

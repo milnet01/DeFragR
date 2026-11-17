@@ -32,6 +32,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_table->horizontalHeader()->setStretchLastSection(true);
 
     m_note = new QLabel;
+    m_note->setTextFormat(Qt::PlainText);  // it can name a filesystem, which anybody can choose
     m_note->setWordWrap(true);
 
     m_report = new QPushButton(QStringLiteral("View report"));
