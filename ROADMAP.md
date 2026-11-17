@@ -391,6 +391,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   `model/DriveMap` bins extents into cells for the window's size;
   `ui/DriveMapView` paints them with the theme, after a report (S4,
   S10). Tested against recorded runs.
+  Owner request 2026-11-17: the map should be mesmerising to
+  watch. This item builds the motion; DFR-0018 drives it from real
+  moves. A cell never jumps: each change eases over a fraction of a
+  second, from one frame timer that runs only while something moves.
+  When a report arrives, the map fills in as a sweep from the first
+  block to the last. Tested with scripted cell changes, so the motion
+  can be watched and judged before the engine can defrag.
   **Layman:** Draws the drive as a grid of blocks showing whole, scattered and free space.
   Kind: feature.
   Source: design-2026-11-15.
@@ -830,6 +837,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Pick a folder, confirm, run; `model/RunState` applies change
   records and the map shows blocks turning from fragmented to whole
   (S4). Overlaps DFR-0021 in `model/RunState`.
+  Owner request 2026-11-17: make the moves mesmerising. Each chunk
+  the engine moves is one short journey: its old cells light up as
+  they are read, a trail of small blocks glides along a gentle arc to
+  the file's new place and lands cell by cell, the landed cells glow
+  and settle as whole, and the old cells fade to free. A soft marker
+  rests on the file being worked on. The map trails the engine by
+  about a second at most: when files finish faster than it can show,
+  small ones settle together, and the final picture always equals
+  the drive. For S10, a cell's symbol changes as well as its colour,
+  nothing flashes more than three times a second, and turning off
+  the desktop's animations turns off the motion. How Qt learns that
+  desktop setting is unverified.
   **Layman:** Choose a folder and watch its blocks join up on the map as it is defragged.
   Kind: feature.
   Source: design-2026-11-15.
