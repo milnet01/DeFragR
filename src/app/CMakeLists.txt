@@ -1,5 +1,5 @@
 # The window: C++23, Qt 6 Widgets and Qt D-Bus.
-find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Widgets DBus)
+find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Widgets DBus LinguistTools)
 message(STATUS "Qt ${Qt6_VERSION} (floor ${DEFRAGR_QT_MIN})")
 qt_standard_project_setup()
 
@@ -18,6 +18,30 @@ add_library(defragr-model STATIC
     model/Report.cpp)
 target_compile_options(defragr-model PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr-model PUBLIC defragr-engine-link)
+
+# Languages: Qt Gui only, so its test needs no widgets. The translations
+# are built into it, under :/i18n.
+add_library(defragr-languages STATIC ui/Languages.cpp)
+target_include_directories(defragr-languages PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(defragr-languages PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-languages PUBLIC Qt6::Gui)
+file(GLOB DEFRAGR_TS_FILES CONFIGURE_DEPENDS translations/defragr_*.ts)
+qt_add_lrelease(defragr-languages
+    TS_FILES ${DEFRAGR_TS_FILES}
+    QM_FILES_OUTPUT_VARIABLE DEFRAGR_QM_FILES)
+qt_add_resources(defragr-languages translations
+    PREFIX /i18n
+    BASE ${CMAKE_CURRENT_BINARY_DIR}
+    FILES ${DEFRAGR_QM_FILES})
+
+# Refreshes translations/ from the source, through the script the
+# translations_current test runs. Qt's own lupdate targets are not used:
+# under Qt 6.12 they scanned every target, and filed some words under a
+# name the window never looks up.
+add_custom_target(update-translations
+    COMMAND ${CMAKE_COMMAND} -E env LUPDATE=$<TARGET_FILE:Qt6::lupdate>
+            ${PROJECT_SOURCE_DIR}/scripts/update-translations.sh
+    VERBATIM)
 
 add_executable(defragr
     main.cpp
@@ -47,4 +71,4 @@ add_dependencies(defragr defragr-build-id)
 target_include_directories(defragr PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr PRIVATE defragr-model Qt6::Widgets Qt6::DBus)
+target_link_libraries(defragr PRIVATE defragr-model defragr-languages Qt6::Widgets Qt6::DBus)

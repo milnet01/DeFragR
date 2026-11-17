@@ -108,15 +108,17 @@ QVariant DriveList::headerData(int section, Qt::Orientation orientation, int rol
         return {};
     switch (section) {
     case ColumnDrive:
-        return QStringLiteral("Drive");
+        return tr("Drive");
     case ColumnSize:
-        return QStringLiteral("Size");
+        return tr("Size");
     case ColumnFileSystem:
-        return QStringLiteral("File system");
+        return tr("File system");
     case ColumnMedia:
-        return QStringLiteral("Type");
+        return tr("Type");
     case ColumnActions:
-        return QStringLiteral("DeFragR can");
+        //: Heads a column of what DeFragR can do with each drive, such as
+        //: "Report and defrag".
+        return tr("DeFragR can");
     }
     return {};
 }

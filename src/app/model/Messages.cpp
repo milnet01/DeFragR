@@ -1,5 +1,6 @@
 #include "model/Messages.h"
 
+#include <QCoreApplication>
 #include <QFile>
 
 #include <cstring>
@@ -16,8 +17,17 @@ QString errorText(qint32 errnum)
     return QString::fromLocal8Bit(std::strerror(errnum));
 }
 
-const QString kReportBug = QStringLiteral(
-    "This is a fault in DeFragR. Please report it on the project's GitHub page.");
+// For the struct's tr(): lupdate files these sentences under "Messages".
+struct Tr {
+    Q_DECLARE_TR_FUNCTIONS(Messages)
+};
+
+// A function, not a constant: a constant is built before any translation
+// is loaded, so it would stay English.
+QString reportBug()
+{
+    return Tr::tr("This is a fault in DeFragR. Please report it on the project's GitHub page.");
+}
 
 Message forResult(const Finished &finished)
 {
@@ -25,33 +35,37 @@ Message forResult(const Finished &finished)
     case ResultOk:
         return {};
     case ResultNotRoot:
-        return {QStringLiteral("The engine was not given admin rights."),
-                QStringLiteral("Try again and enter your password when asked.")};
+        return {Tr::tr("The engine was not given admin rights."),
+                Tr::tr("Try again and enter your password when asked.")};
     case ResultNotAMount:
-        return {QStringLiteral("That folder is not the top of a drive."),
-                QStringLiteral("Go back, press %1, and pick the drive again.")
+        return {Tr::tr("That folder is not the top of a drive."),
+                //: %1 is the label of the Refresh drives button.
+                Tr::tr("Go back, press %1, and pick the drive again.")
                     .arg(refreshButton())};
     case ResultMountinfo:
-        return {QStringLiteral("DeFragR could not read the list of mounted drives (%1).")
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return {Tr::tr("DeFragR could not read the list of mounted drives (%1).")
                     .arg(errorText(finished.errnum)),
-                QStringLiteral("Try again. If it keeps happening, restart the PC.")};
+                Tr::tr("Try again. If it keeps happening, restart the PC.")};
     case ResultDriveError:
-        return {QStringLiteral("The drive gave an error: %1.").arg(errorText(finished.errnum)),
-                QStringLiteral("Check the drive is still connected, then try again.")};
+        //: %1 is the system's own words for the error, such as "Input/output error".
+        return {Tr::tr("The drive gave an error: %1.").arg(errorText(finished.errnum)),
+                Tr::tr("Check the drive is still connected, then try again.")};
     case ResultRefused:
-        return {QStringLiteral("The engine refused, because this drive no longer allows it."),
-                QStringLiteral("The drive may have changed. Go back and press %1 to see "
-                               "what DeFragR can do with it now.")
+        return {Tr::tr("The engine refused, because this drive no longer allows it."),
+                //: %1 is the label of the Refresh drives button.
+                Tr::tr("The drive may have changed. Go back and press %1 to see "
+                       "what DeFragR can do with it now.")
                     .arg(refreshButton())};
     case ResultCancelled:
-        return {QStringLiteral("The run was cancelled."), {}};
+        return {Tr::tr("The run was cancelled."), {}};
     case ResultUsage:
     case ResultBadCommand:
     case ResultInternal:
-        return {QStringLiteral("The engine stopped with an internal problem."), kReportBug};
+        return {Tr::tr("The engine stopped with an internal problem."), reportBug()};
     }
-    return {QStringLiteral("The engine stopped for a reason this version of DeFragR does not know."),
-            QStringLiteral("A newer version of DeFragR may explain it.")};
+    return {Tr::tr("The engine stopped for a reason this version of DeFragR does not know."),
+            Tr::tr("A newer version of DeFragR may explain it.")};
 }
 
 }  // namespace
@@ -60,22 +74,22 @@ QString media(quint8 media)
 {
     switch (media) {
     case MediaSsd:
-        return QStringLiteral("SSD");
+        return Tr::tr("SSD");
     case MediaSpinning:
-        return QStringLiteral("Spinning drive");
+        return Tr::tr("Spinning drive");
     }
-    return QStringLiteral("Unknown");
+    return Tr::tr("Unknown");
 }
 
 QString verdict(quint8 verdict)
 {
     switch (verdict) {
     case VerdictReportAndDefrag:
-        return QStringLiteral("Report and defrag");
+        return Tr::tr("Report and defrag");
     case VerdictReportOnly:
-        return QStringLiteral("Report only");
+        return Tr::tr("Report only");
     }
-    return QStringLiteral("Nothing");
+    return Tr::tr("Nothing");
 }
 
 QString whyNoDefrag(const Drive &drive)
@@ -83,46 +97,47 @@ QString whyNoDefrag(const Drive &drive)
     if (drive.verdict == VerdictReportAndDefrag)
         return {};
     if (drive.verdict != VerdictReportOnly)
-        return QStringLiteral("This version of DeFragR does not understand what the engine said "
-                              "about this drive, so it offers nothing for it. A newer version may.");
+        return Tr::tr("This version of DeFragR does not understand what the engine said "
+                      "about this drive, so it offers nothing for it. A newer version may.");
     switch (drive.reason) {
     case ReasonFsNotExt4:
-        return QStringLiteral("This drive uses %1. DeFragR defrags ext4 drives only, "
-                              "but it can still report on this one.")
+        //: %1 is a filesystem's name, such as btrfs. Keep "ext4" as it is.
+        return Tr::tr("This drive uses %1. DeFragR defrags ext4 drives only, "
+                      "but it can still report on this one.")
             .arg(QFile::decodeName(drive.fsType));
     case ReasonReadOnly:
-        return QStringLiteral("This drive is read-only, so nothing on it can be moved. "
-                              "DeFragR can still report on it.");
+        return Tr::tr("This drive is read-only, so nothing on it can be moved. "
+                      "DeFragR can still report on it.");
     case ReasonSsd:
-        return QStringLiteral("This is a solid-state drive (SSD). Defragging wears an SSD out "
-                              "and does not make it faster. DeFragR can still report on it.");
+        return Tr::tr("This is a solid-state drive (SSD). Defragging wears an SSD out "
+                      "and does not make it faster. DeFragR can still report on it.");
     case ReasonMediaUnknown:
-        return QStringLiteral("DeFragR cannot tell whether this is a solid-state drive, so it "
-                              "will not defrag it, to be safe. It can still report on it.");
+        return Tr::tr("DeFragR cannot tell whether this is a solid-state drive, so it "
+                      "will not defrag it, to be safe. It can still report on it.");
     }
-    return QStringLiteral("The engine will not defrag this drive, for a reason this version of "
-                          "DeFragR does not know. It can still report on it.");
+    return Tr::tr("The engine will not defrag this drive, for a reason this version of "
+                  "DeFragR does not know. It can still report on it.");
 }
 
 QString defragAllowed()
 {
-    return QStringLiteral("DeFragR can report on this drive or defrag it.");
+    return Tr::tr("DeFragR can report on this drive or defrag it.");
 }
 
 QString noDrives()
 {
-    return QStringLiteral("DeFragR found no drives to list.");
+    return Tr::tr("DeFragR found no drives to list.");
 }
 
 QString defragComesLater()
 {
-    return QStringLiteral("Defragging comes in a later version of DeFragR. The engine has "
-                          "checked this drive and will allow it.");
+    return Tr::tr("Defragging comes in a later version of DeFragR. The engine has "
+                  "checked this drive and will allow it.");
 }
 
 QString refreshButton()
 {
-    return QStringLiteral("Refresh drives");
+    return Tr::tr("Refresh drives");
 }
 
 Message forRun(const RunOutcome &outcome)
@@ -131,29 +146,30 @@ Message forRun(const RunOutcome &outcome)
     case RunEnd::Finished:
         return forResult(outcome.finished);
     case RunEnd::EngineMissing:
-        return {QStringLiteral("DeFragR's engine is missing. It should be at %1.")
+        //: %1 is the path where the engine should be.
+        return {Tr::tr("DeFragR's engine is missing. It should be at %1.")
                     .arg(outcome.enginePath),
-                QStringLiteral("Reinstall DeFragR. Without its engine it cannot list or check "
-                               "drives.")};
+                Tr::tr("Reinstall DeFragR. Without its engine it cannot list or check "
+                       "drives.")};
     case RunEnd::LauncherMissing:
-        return {QStringLiteral("DeFragR could not ask for admin rights, because pkexec, the "
-                               "program that asks for them, did not start."),
-                QStringLiteral("Check that pkexec is installed. It comes with polkit. Then try "
-                               "again.")};
+        return {Tr::tr("DeFragR could not ask for admin rights, because pkexec, the "
+                       "program that asks for them, did not start."),
+                Tr::tr("Check that pkexec is installed. It comes with polkit. Then try "
+                       "again.")};
     case RunEnd::AdminRefused:
         // pkexec's 127 also covers the system blocking the engine after
         // the password, so the words blame neither (DFR-0042).
-        return {QStringLiteral("DeFragR could not start its engine with admin rights."),
-                QStringLiteral("Try again and enter your password when asked. If it still "
-                               "fails after you enter it, a security setting on this PC, such "
-                               "as SELinux, may be blocking the engine.")};
+        return {Tr::tr("DeFragR could not start its engine with admin rights."),
+                Tr::tr("Try again and enter your password when asked. If it still "
+                       "fails after you enter it, a security setting on this PC, such "
+                       "as SELinux, may be blocking the engine.")};
     case RunEnd::VersionMismatch:
-        return {QStringLiteral("DeFragR's engine belongs to a different version of DeFragR."),
-                QStringLiteral("Reinstall DeFragR so both halves match.")};
+        return {Tr::tr("DeFragR's engine belongs to a different version of DeFragR."),
+                Tr::tr("Reinstall DeFragR so both halves match.")};
     case RunEnd::Broken:
         break;
     }
-    return {QStringLiteral("The engine stopped unexpectedly."), kReportBug};
+    return {Tr::tr("The engine stopped unexpectedly."), reportBug()};
 }
 
 }  // namespace defragr::model::messages

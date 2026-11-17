@@ -194,11 +194,14 @@ first record states the block size. The window converts for display.
 review catches a bare English string.
 
 - **A sentence is translated whole.** Values go in as `%1`, `%2`, never
-  by joining pieces, because word order differs between languages.
-- **A sentence with a count uses Qt's plural form, `%n`.** Code never
-  picks "file" or "files". English's forms live in
-  `translations/defragr_en.ts`; a test fails when a `%n` sentence is
-  missing from it.
+  by joining pieces, because word order differs between languages. The
+  one exception is a sentence with two counts: a count with its noun,
+  such as "200 files", goes in as a value, and a note to the translator
+  says where.
+- **A sentence with a count uses Qt's plural forms**: the count goes to
+  `tr()` beside the sentence. Code never picks "file" or "files".
+  English's forms live in `translations/defragr_en.ts`; the
+  `translations_current` test fails when one is missing.
 - **Numbers, sizes and percentages are written by `QLocale`.**
 - **Names stay as they are.** Paths, drive names and filesystem names
   are never translated.

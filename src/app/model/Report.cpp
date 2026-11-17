@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <utility>
 
@@ -14,11 +15,12 @@ using namespace engine;
 
 namespace {
 
-// "1 file" or "58,310 files".
-QString count(quint64 n, const char *one, const char *many)
+// Qt chooses a plural form from an int, and a count can be bigger. Qt's
+// plural rules read a number's last two digits and whether it is small,
+// so a huge count keeps both. The sentence shows the real count as %1.
+int pluralOf(quint64 n)
 {
-    return QStringLiteral("%1 %2").arg(QLocale().toString(n),
-                                       QLatin1String(n == 1 ? one : many));
+    return n <= quint64(std::numeric_limits<int>::max()) ? int(n) : int(n % 1000000 + 1000000);
 }
 
 double rounded(double value, int decimals)
@@ -33,15 +35,22 @@ QString shortest(double value)
     return QLocale().toString(value, 'g', QLocale::FloatingPointShortest);
 }
 
+QString percentText(double percent)
+{
+    //: A percentage, such as 1.5%.
+    return Report::tr("%1%").arg(shortest(percent));
+}
+
 QString percentFragmented(quint64 fragmented, quint64 files)
 {
     if (fragmented == 0)
-        return QStringLiteral("0%");
+        return percentText(0);
     const double percent = 100.0 * double(fragmented) / double(files);
     // A drive with a few fragmented files among millions is not at 0%.
     if (percent < 0.05)
-        return QStringLiteral("under 0.1%");
-    return shortest(rounded(percent, 1)) + QLatin1Char('%');
+        //: %1 is the smallest percentage shown, 0.1%.
+        return Report::tr("under %1").arg(percentText(0.1));
+    return percentText(rounded(percent, 1));
 }
 
 }  // namespace
@@ -50,22 +59,33 @@ QStringList summaryLines(const ReportSummary &summary)
 {
     QStringList lines;
     if (summary.files == 0) {
-        lines << QStringLiteral("DeFragR found no files on this drive.");
+        lines << Report::tr("DeFragR found no files on this drive.");
     } else {
-        lines << QStringLiteral("%1 of %2 checked %3 fragmented (%4).")
-                     .arg(QLocale().toString(summary.fragmentedFiles),
-                          count(summary.files, "file", "files"),
-                          QLatin1String(summary.fragmentedFiles == 1 ? "is" : "are"),
+        //: %1 is the number of files checked. It is %2 in "3 of [200 files]
+        //: checked are fragmented", so use the form that fits there.
+        const QString checked = Report::tr("%1 file(s)", nullptr, pluralOf(summary.files))
+                                    .arg(QLocale().toString(summary.files));
+        //: %1 is the number of fragmented files, %2 the files checked, such
+        //: as "200 files", and %3 a percentage.
+        lines << Report::tr("%1 of %2 checked is fragmented (%3).", nullptr,
+                            pluralOf(summary.fragmentedFiles))
+                     .arg(QLocale().toString(summary.fragmentedFiles), checked,
                           percentFragmented(summary.fragmentedFiles, summary.files));
         const double average =
             rounded(double(summary.extents) / double(summary.files), 2);
-        lines << QStringLiteral("On average a file is in %1 %2.")
-                     .arg(shortest(average), QLatin1String(average == 1.0 ? "piece" : "pieces"));
+        // Plural forms are for whole numbers; a fraction has its own sentence.
+        if (average == std::floor(average))
+            lines << Report::tr("On average a file is in %1 piece(s).", nullptr, int(average))
+                         .arg(shortest(average));
+        else
+            //: %1 has decimals, such as 1.25.
+            lines << Report::tr("On average a file is in %1 pieces.").arg(shortest(average));
     }
     if (summary.skipped > 0) {
-        lines << QStringLiteral("%1 could not be read, so %2 not counted.")
-                     .arg(count(summary.skipped, "file or folder", "files or folders"),
-                          QLatin1String(summary.skipped == 1 ? "it is" : "they are"));
+        lines << Report::tr("%1 file(s) or folder(s) could not be read, so it is (they are) "
+                            "not counted.",
+                            nullptr, pluralOf(summary.skipped))
+                     .arg(QLocale().toString(summary.skipped));
     }
     return lines;
 }
@@ -85,11 +105,12 @@ QString progressLine(quint64 names, quint64 estimate)
 {
     const int percent = percentChecked(names, estimate);
     if (percent < 0)
-        return QStringLiteral("Files and folders checked so far: %1.")
+        return Report::tr("Files and folders checked so far: %1.")
             .arg(QLocale().toString(names));
-    return QStringLiteral("Checked %1 of about %2 files and folders (%3%).")
-        .arg(QLocale().toString(names), QLocale().toString(estimate))
-        .arg(percent);
+    //: %3 is a percentage, such as 50%.
+    return Report::tr("Checked %1 of about %2 file(s) and folder(s) (%3).", nullptr,
+                      pluralOf(estimate))
+        .arg(QLocale().toString(names), QLocale().toString(estimate), percentText(percent));
 }
 
 Report::Report(QString launcher, QObject *parent)
@@ -199,11 +220,11 @@ QVariant Report::headerData(int section, Qt::Orientation orientation, int role) 
         return {};
     switch (section) {
     case ColumnPieces:
-        return QStringLiteral("Pieces");
+        return tr("Pieces");
     case ColumnSize:
-        return QStringLiteral("Size");
+        return tr("Size");
     case ColumnFile:
-        return QStringLiteral("File");
+        return tr("File");
     }
     return {};
 }

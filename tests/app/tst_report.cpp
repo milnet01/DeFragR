@@ -2,6 +2,7 @@
 // read from the fake engines in DEFRAGR_FAKES through a launcher that
 // grants nothing. fakes/report.sh holds the report this test expects.
 #include "model/Report.h"
+#include "ui/Languages.h"
 
 #include <QDir>
 #include <QFile>
@@ -49,6 +50,8 @@ class TestReport : public QObject {
     Q_OBJECT
 
     QDir m_fakes;
+    // English's plural forms, as the window has them.
+    defragr::ui::Languages m_english{QLocale(QLocale::English)};
 
     QString fake(const char *name) const { return m_fakes.filePath(QLatin1String(name)); }
     void useEngine(const char *name) { qputenv("DEFRAGR_ENGINE", QFile::encodeName(fake(name))); }

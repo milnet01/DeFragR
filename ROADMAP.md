@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=68 -->
+<!-- ants-roadmap-id-high-water: DFR=69 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -297,8 +297,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 
 - 📋 [DFR-0066] **Every word ready for translation.**
   Groundwork for S13, per docs/design.md § Wording and languages.
-  Every shown word goes through tr() or translate(); counts use %n
-  plurals, with English's forms in translations/defragr_en.ts and a test
+  Every shown word goes through tr() or translate(); counts use Qt's
+  plural forms, with English's forms in translations/defragr_en.ts and a test
   that fails when one is missing. ui/Languages loads the desktop's
   translation and Qt's own, and sets the reading direction from the
   language, so Hebrew mirrors. First in 0.2.0, so the map's words are
@@ -308,6 +308,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: feature.
   Source: user-request-2026-11-17.
   Lanes: Languages, Messages, Report, Drives, Screens, Report view, Build.
+
+- 📋 [DFR-0069] **Paths read left to right in a right-to-left window.**
+  Found checking DFR-0066 with `defragr -reverse` (2026-11-17): the
+  drive list showed "/mnt/Games/" as "mnt/Games/" with the slash moved,
+  and sizes as "GiB 200.62". A path in a right-to-left layout needs
+  marking as left-to-right text: the drive column, the report's heading,
+  "Latest:", its File column, and the missing-engine message. Check
+  sizes again once Hebrew exists, since Hebrew's own size units may
+  read correctly. Check with `defragr -reverse`.
+  **Layman:** In Hebrew, a folder like /mnt/Games must still read /mnt/Games, not with its slashes moved.
+  Kind: fix.
+  Source: user-request-2026-11-17.
+  Lanes: Drives, Report, Report view, Messages.
 
 - 📋 [DFR-0011] **Engine drive map records.**
   `extents.asm`: `FS_IOC_GETFSMAP` for free space and metadata, and

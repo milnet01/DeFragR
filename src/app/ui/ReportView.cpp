@@ -19,7 +19,7 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
     // is anybody's to choose, and QLabel would read some as markup.
     m_heading = new QLabel;
     m_heading->setTextFormat(Qt::PlainText);
-    m_back = new QPushButton(QStringLiteral("Back to drives"));
+    m_back = new QPushButton(tr("Back to drives"));
     auto *top = new QHBoxLayout;
     top->addWidget(m_heading, 1);
     top->addWidget(m_back);
@@ -40,7 +40,7 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
     connect(&m_tick, &QTimer::timeout, this, &ReportView::showElapsed);
     m_progress = new QProgressBar;
 
-    m_filesHeading = new QLabel(QStringLiteral("Fragmented files, worst first:"));
+    m_filesHeading = new QLabel(tr("Fragmented files, worst first:"));
 
     m_table = new QTableView;
     m_table->setModel(&m_report);
@@ -73,13 +73,14 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
 
 void ReportView::start(const QByteArray &mountPoint)
 {
-    m_heading->setText(QStringLiteral("Report on %1").arg(QFile::decodeName(mountPoint)));
-    m_figures->setText(QStringLiteral("Checking every file on the drive. On a big drive this "
-                                      "can take a few minutes. Nothing on the drive is changed."));
-    m_checked->setText(QStringLiteral("Starting the check."));
+    //: %1 is the drive's folder, such as /mnt/Games.
+    m_heading->setText(tr("Report on %1").arg(QFile::decodeName(mountPoint)));
+    m_figures->setText(tr("Checking every file on the drive. On a big drive this "
+                          "can take a few minutes. Nothing on the drive is changed."));
+    m_checked->setText(tr("Starting the check."));
     // Moves back and forth until the engine's first progress arrives.
     m_progress->setRange(0, 0);
-    m_found->setText(QStringLiteral("No fragmented files found yet."));
+    m_found->setText(tr("No fragmented files found yet."));
     m_latest->clear();
     m_clock.start();
     showElapsed();
@@ -103,9 +104,10 @@ void ReportView::showFailure(const model::Message &message)
 
 void ReportView::showFound(quint64 count, const QByteArray &latestPath)
 {
-    m_found->setText(QStringLiteral("Fragmented files found so far: %1")
+    m_found->setText(tr("Fragmented files found so far: %1")
                          .arg(QLocale().toString(count)));
-    const QString latest = QStringLiteral("Latest: %1").arg(QFile::decodeName(latestPath));
+    //: %1 is the path of the file found most recently.
+    const QString latest = tr("Latest: %1").arg(QFile::decodeName(latestPath));
     m_latest->setText(fontMetrics().elidedText(latest, Qt::ElideMiddle, m_latest->width()));
     m_latest->setToolTip(latest);
 }
@@ -126,12 +128,16 @@ void ReportView::showElapsed()
     const qint64 seconds = m_clock.elapsed() / 1000;
     QString text;
     if (seconds >= 3600)
-        text = QStringLiteral("%1 h %2 min").arg(seconds / 3600).arg(seconds % 3600 / 60);
+        //: Hours and minutes, short.
+        text = tr("%1 h %2 min").arg(seconds / 3600).arg(seconds % 3600 / 60);
     else if (seconds >= 60)
-        text = QStringLiteral("%1 min %2 s").arg(seconds / 60).arg(seconds % 60);
+        //: Minutes and seconds, short.
+        text = tr("%1 min %2 s").arg(seconds / 60).arg(seconds % 60);
     else
-        text = QStringLiteral("%1 s").arg(seconds);
-    m_elapsed->setText(QStringLiteral("Running for %1").arg(text));
+        //: Seconds, short.
+        text = tr("%1 s").arg(seconds);
+    //: %1 is a time, such as "2 min 5 s".
+    m_elapsed->setText(tr("Running for %1").arg(text));
 }
 
 void ReportView::setRunning(bool running)

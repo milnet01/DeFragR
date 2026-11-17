@@ -17,10 +17,11 @@ namespace defragr::ui {
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("DeFragR %1 (build %2)")
+    //: %1 is the version, such as 0.1.0, and %2 the build's code.
+    setWindowTitle(tr("DeFragR %1 (build %2)")
                        .arg(QLatin1String(DEFRAGR_VERSION), QLatin1String(DEFRAGR_BUILD)));
 
-    auto *heading = new QLabel(QStringLiteral("Pick a drive, then choose what to do with it."));
+    auto *heading = new QLabel(tr("Pick a drive, then choose what to do with it."));
 
     m_table = new QTableView;
     m_table->setModel(&m_drives);
@@ -36,8 +37,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_note->setWordWrap(true);
 
     m_refresh = new QPushButton(model::messages::refreshButton());
-    m_report = new QPushButton(QStringLiteral("View report"));
-    m_defrag = new QPushButton(QStringLiteral("Defrag now"));
+    m_report = new QPushButton(tr("View report"));
+    m_defrag = new QPushButton(tr("Defrag now"));
     m_report->setEnabled(false);
     m_defrag->setEnabled(false);
     auto *buttons = new QHBoxLayout;
@@ -79,7 +80,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     // Defragging is not built yet; it comes with 0.3.0. The button still
     // follows the verdict.
     connect(m_defrag, &QPushButton::clicked, this, [this] {
-        QMessageBox::information(this, QStringLiteral("Defrag now"),
+        QMessageBox::information(this, tr("Defrag now"),
                                  model::messages::defragComesLater());
     });
 
@@ -105,7 +106,7 @@ void MainWindow::updateActions()
     if (m_drives.isListing()) {
         m_report->setEnabled(false);
         m_defrag->setEnabled(false);
-        m_note->setText(QStringLiteral("Listing drives…"));
+        m_note->setText(tr("Listing drives…"));
         return;
     }
     if (row < 0) {
@@ -113,7 +114,7 @@ void MainWindow::updateActions()
         m_defrag->setEnabled(false);
         m_note->setText(m_drives.rowCount() == 0
                             ? model::messages::noDrives()
-                            : QStringLiteral("Pick a drive to see what DeFragR can do with it."));
+                            : tr("Pick a drive to see what DeFragR can do with it."));
         return;
     }
     m_report->setEnabled(m_drives.canReport(row));

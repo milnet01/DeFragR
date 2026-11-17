@@ -1,6 +1,6 @@
 # Window tests: Qt Test, no root, no display. Gui is for QTextDocument,
 # which reads markup as a tooltip does, and needs no display.
-find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Gui Test)
+find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Gui Test LinguistTools)
 qt_standard_project_setup()
 
 # The decoder alone: INV-1 to INV-9 (docs/specs/DFR-0002-engine-protocol.md).
@@ -55,10 +55,33 @@ add_test(NAME tst_messages COMMAND tst_messages)
 # The report and its wording, from a fake engine: DFR-0009.
 add_executable(tst_report tst_report.cpp)
 target_compile_options(tst_report PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(tst_report PRIVATE defragr-model Qt6::Test)
+target_link_libraries(tst_report PRIVATE defragr-model defragr-languages Qt6::Test)
 add_test(NAME tst_report COMMAND tst_report)
 set_tests_properties(tst_report PROPERTIES
     ENVIRONMENT "DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
+
+# The window in the desktop's language: DFR-0066. A one-sentence Hebrew
+# file stands in for the translations, which come with DFR-0067.
+add_executable(tst_languages tst_languages.cpp)
+target_compile_options(tst_languages PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_languages PRIVATE defragr-model defragr-languages Qt6::Test)
+qt_add_lrelease(tst_languages
+    TS_FILES fixtures/defragr_he.ts
+    QM_FILES_OUTPUT_VARIABLE tst_languages_qm)
+qt_add_resources(tst_languages hebrew
+    PREFIX /i18n
+    BASE ${CMAKE_CURRENT_BINARY_DIR}
+    FILES ${tst_languages_qm})
+add_test(NAME tst_languages COMMAND tst_languages)
+set_tests_properties(tst_languages PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# The translation files match the source, and English has every plural
+# form: DFR-0066.
+add_test(NAME translations_current
+    COMMAND ${PROJECT_SOURCE_DIR}/scripts/update-translations.sh
+            --check ${CMAKE_CURRENT_BINARY_DIR}/translations-check)
+set_tests_properties(translations_current PROPERTIES
+    ENVIRONMENT "LUPDATE=$<TARGET_FILE:Qt6::lupdate>")
 
 # Qt Test otherwise compiles every test with their absolute source and
 # build folders (QT_TESTCASE_SOURCEDIR, QT_TESTCASE_BUILDDIR), for
@@ -66,5 +89,5 @@ set_tests_properties(tst_report PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_messages tst_report PROPERTIES
+    tst_drivelist tst_messages tst_report tst_languages PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

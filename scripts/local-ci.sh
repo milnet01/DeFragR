@@ -49,7 +49,7 @@ NASM_SHA256='87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d'
 # --ci-packages, so the list has one home, as the pins above do.
 # From qemu-system-x86 on, they are the test machine's (tests/vm/run.sh).
 # One line: the workflow reads the list with `read`.
-CI_PACKAGES='ninja-build qt6-base-dev libgl-dev shellcheck qemu-system-x86 busybox-static cpio zstd kmod e2fsprogs'
+CI_PACKAGES='ninja-build qt6-base-dev qt6-tools-dev qt6-l10n-tools libgl-dev shellcheck qemu-system-x86 busybox-static cpio zstd kmod e2fsprogs'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
 if [[ ${1:-} == --nasm-pin ]]; then printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA256"; exit 0; fi
