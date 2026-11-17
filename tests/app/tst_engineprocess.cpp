@@ -20,6 +20,7 @@ struct Run {
     int endsDuringStart = 0;  // ended() emitted before start() returned
 };
 
+// Once per engine: its connections outlive the Run they write to.
 Run run(EngineProcess &engine, Command command, const QStringList &arguments = {})
 {
     Run result;
@@ -130,6 +131,17 @@ private slots:
         useEngine(fake("wrong-major.sh"));
         EngineProcess engine;
         QCOMPARE(run(engine, CommandProbe).outcome.end, RunEnd::VersionMismatch);
+    }
+
+    // DFR-0051: an answer to another command is a broken engine, not an
+    // empty report. The same stream answers a probe properly.
+    void wrongCommandIsBroken()
+    {
+        useEngine(fake("wrong-command.sh"));
+        EngineProcess report(fake("pass-through.sh"));
+        QCOMPARE(run(report, CommandReport, {QStringLiteral("/")}).outcome.end, RunEnd::Broken);
+        EngineProcess probe;
+        QCOMPARE(run(probe, CommandProbe).outcome.end, RunEnd::Finished);
     }
 
     // ADR-0002: a missing engine is said plainly, and named. ended()

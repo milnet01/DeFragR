@@ -1,8 +1,9 @@
 #include "ui/ReportView.h"
 
+#include "ui/ReadOnlyTable.h"
+
 #include <QFontMetrics>
 #include <QHBoxLayout>
-#include <QHeaderView>
 #include <QLabel>
 #include <QLocale>
 #include <QProgressBar>
@@ -41,13 +42,7 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
 
     m_filesHeading = new QLabel(tr("Fragmented files, worst first:"));
 
-    m_table = new QTableView;
-    m_table->setModel(&m_report);
-    m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_table->verticalHeader()->hide();
-    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setStretchLastSection(true);
+    m_table = readOnlyTable(&m_report);
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(top);

@@ -1,10 +1,10 @@
 #include "ui/MainWindow.h"
 
 #include "BuildId.h"
+#include "ui/ReadOnlyTable.h"
 #include "ui/ReportView.h"
 
 #include <QHBoxLayout>
-#include <QHeaderView>
 #include <QItemSelectionModel>
 #include <QLabel>
 #include <QMessageBox>
@@ -23,14 +23,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
     auto *heading = new QLabel(tr("Pick a drive, then choose what to do with it."));
 
-    m_table = new QTableView;
-    m_table->setModel(&m_drives);
-    m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_table = readOnlyTable(&m_drives);
+    // The buttons act on one drive, so one drive is picked at a time.
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_table->verticalHeader()->hide();
-    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setStretchLastSection(true);
 
     m_note = new QLabel;
     m_note->setTextFormat(Qt::PlainText);  // it can name a filesystem, which anybody can choose

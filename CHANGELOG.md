@@ -31,6 +31,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - In a right-to-left language such as Hebrew, folder paths read as
   written, instead of with their first slash moved to the end
   (DFR-0069).
+- An engine that answers a different question than it was asked is
+  reported as a fault, not shown as an empty report. An error the system
+  has no words for reads "no details given", not "Success" or a number
+  (DFR-0051).
 - A drive whose folder name holds characters that are not valid text
   can be reported on, instead of being called "not the top of a drive"
   (DFR-0048).

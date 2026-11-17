@@ -52,7 +52,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Messages | Every engine error code and refusal reason, in plain words with what to do; how a path is shown | `model/Messages.{h,cpp}` |
 | Health | Drive health from UDisks2 over D-Bus | `health/DriveHealth.{h,cpp}` |
 | Theme | Colours, symbols and sizes for the map and text | `ui/Theme.{h,cpp}` |
-| Screens | Main window, start choice, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/TrayIcon.{h,cpp}` |
+| Screens | Main window, start choice, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/ReadOnlyTable.h`, `ui/TrayIcon.{h,cpp}` |
 | Map view | Painting and animating the map | `ui/DriveMapView.{h,cpp}` |
 | Report view | Showing a report | `ui/ReportView.{h,cpp}` |
 | Settings view | The options dialog | `ui/SettingsDialog.{h,cpp}` |

@@ -7,6 +7,8 @@
 #include <QSet>
 #include <QTest>
 
+#include <cstring>
+
 using namespace defragr::engine;
 using namespace defragr::model;
 
@@ -123,6 +125,19 @@ private slots:
         outcome.finished.errnum = 13;  // EACCES
         const Message message = messages::forRun(outcome);
         QVERIFY2(!hasDigit(message.what), qPrintable(message.what));
+    }
+
+    // DFR-0051: an errno the system has no words for is not shown as a
+    // number, and 0 is not shown as "Success".
+    void unnamedErrnoIsWords()
+    {
+        for (const qint32 errnum : {0, -5, 9999}) {
+            RunOutcome outcome = finishedWith(ResultDriveError);
+            outcome.finished.errnum = errnum;
+            const QString what = messages::forRun(outcome).what;
+            QVERIFY2(!hasDigit(what), qPrintable(what));
+            QVERIFY2(!what.contains(QString::fromLocal8Bit(std::strerror(0))), qPrintable(what));
+        }
     }
 
     // S9: each refusal has its own plain reason; a drive that may be

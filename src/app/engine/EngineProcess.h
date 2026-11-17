@@ -18,7 +18,8 @@ enum class RunEnd {
     EngineMissing,    // no engine program where the window looks for one
     LauncherMissing,  // pkexec itself could not be started, so nobody was asked
     AdminRefused,     // pkexec did not run the engine: refused or blocked
-    Broken,           // the engine crashed, or its stream broke a rule
+    Broken,           // the engine crashed, its stream broke a rule, or it
+                      // answered a command other than the one started
     VersionMismatch,  // the engine speaks another protocol major (INV-7)
 };
 
@@ -62,6 +63,8 @@ private:
     QProcess m_process;
     RecordDecoder m_decoder;
     RunOutcome m_outcome;
+    Command m_command = CommandUnknown;  // the command start() was given
+    quint32 m_helloCommand = 0;          // the command HELLO says it answers
     bool m_viaLauncher = false;
     bool m_gotOutput = false;
 };

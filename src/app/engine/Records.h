@@ -152,7 +152,7 @@ public:
     // Appends bytes; decodes every complete record they finish.
     void feed(QByteArrayView bytes);
     // Decoded records not yet taken, in stream order.
-    QList<Record> takeRecords();
+    [[nodiscard]] QList<Record> takeRecords();
     // Input has ended; runs the end-of-stream checks.
     void finish();
     // Set once the stream is malformed or a version mismatch; sticky.

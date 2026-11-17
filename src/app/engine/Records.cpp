@@ -119,17 +119,27 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
     Record record;
     switch (type) {
     case TypeHello:
-        record = Hello{in.at<quint16>(0), in.at<quint16>(2), in.at<quint32>(4),
-                       in.at<quint32>(8)};
+        record = Hello{.major = in.at<quint16>(0),
+                       .minor = in.at<quint16>(2),
+                       .command = in.at<quint32>(4),
+                       .blockSize = in.at<quint32>(8)};
         break;
     case TypeFinished:
-        record = Finished{in.at<qint32>(0), in.at<qint32>(4)};
+        record = Finished{.result = in.at<qint32>(0), .errnum = in.at<qint32>(4)};
         break;
     case TypeDrive: {
-        Drive d{in.at<quint64>(0), in.at<quint64>(8), in.at<quint32>(16),
-                in.at<quint32>(20), in.at<quint32>(24), in.at<quint8>(28),
-                in.at<quint8>(29), in.at<quint16>(30), in.at<quint32>(32),
-                {}, {}, {}};
+        Drive d{.totalBlocks = in.at<quint64>(0),
+                .freeBlocks = in.at<quint64>(8),
+                .blockSize = in.at<quint32>(16),
+                .devMajor = in.at<quint32>(20),
+                .devMinor = in.at<quint32>(24),
+                .media = in.at<quint8>(28),
+                .verdict = in.at<quint8>(29),
+                .reason = in.at<quint16>(30),
+                .mountFlags = in.at<quint32>(32),
+                .mountPoint = {},  // the strings follow the fixed part
+                .source = {},
+                .fsType = {}};
         in.startStringsAt(kDriveSize);
         if (!in.string(d.mountPoint) || !in.string(d.source) || !in.string(d.fsType)) {
             m_error = StreamError::Malformed;
@@ -145,7 +155,8 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         break;
     }
     case TypeFragmentedFile: {
-        FragmentedFile f{in.at<quint32>(0), in.at<quint64>(8), {}};
+        FragmentedFile f{
+            .extents = in.at<quint32>(0), .sizeBlocks = in.at<quint64>(8), .path = {}};
         in.startStringsAt(kFragmentedFileSize);
         if (!in.string(f.path)) {
             m_error = StreamError::Malformed;
@@ -155,7 +166,7 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         break;
     }
     case TypeFileSkipped: {
-        FileSkipped s{in.at<qint32>(0), in.at<quint16>(4), {}};
+        FileSkipped s{.errnum = in.at<qint32>(0), .stage = in.at<quint16>(4), .path = {}};
         in.startStringsAt(kFileSkippedSize);
         if (!in.string(s.path)) {
             m_error = StreamError::Malformed;
@@ -165,14 +176,17 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         break;
     }
     case TypeReportSummary:
-        record = ReportSummary{in.at<quint64>(0), in.at<quint64>(8), in.at<quint64>(16),
-                               in.at<quint64>(24), in.at<quint64>(32)};
+        record = ReportSummary{.files = in.at<quint64>(0),
+                               .fragmentedFiles = in.at<quint64>(8),
+                               .extents = in.at<quint64>(16),
+                               .fileBlocks = in.at<quint64>(24),
+                               .skipped = in.at<quint64>(32)};
         break;
     case TypeReportProgress:
-        record = ReportProgress{in.at<quint64>(0), in.at<quint64>(8)};
+        record = ReportProgress{.names = in.at<quint64>(0), .estimate = in.at<quint64>(8)};
         break;
     case TypeRunState:
-        record = RunState{in.at<quint32>(0)};
+        record = RunState{.state = in.at<quint32>(0)};
         break;
     default:
         record = Unknown{type};

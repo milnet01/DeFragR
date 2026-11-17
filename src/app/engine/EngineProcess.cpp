@@ -99,6 +99,8 @@ void EngineProcess::start(Command command, const QStringList &arguments)
     m_outcome = RunOutcome();
     m_outcome.enginePath = enginePath();
     m_gotOutput = false;
+    m_command = command;
+    m_helloCommand = 0;
     m_viaLauncher = command != CommandProbe;
 
     const QFileInfo engine(m_outcome.enginePath);
@@ -130,6 +132,8 @@ void EngineProcess::readOutput()
     for (const Record &record : records) {
         if (const auto *finished = std::get_if<Finished>(&record))
             m_outcome.finished = *finished;
+        else if (const auto *hello = std::get_if<Hello>(&record))
+            m_helloCommand = hello->command;
     }
     emit recordsReceived(records);
 }
@@ -141,11 +145,16 @@ void EngineProcess::processEnded(int exitCode, QProcess::ExitStatus status)
 
     const bool launcherSaidNo = m_viaLauncher && !m_gotOutput && status == QProcess::NormalExit
                                 && (exitCode == kPkexecDismissed || exitCode == kPkexecRefused);
+    // A stream for another command answers nothing that was asked. Bad
+    // arguments are the one exception: HELLO command 0 with USAGE (§ 4.3).
+    const bool otherCommand = m_helloCommand != m_command
+                              && !(m_helloCommand == CommandUnknown
+                                   && m_outcome.finished.result == ResultUsage);
     if (launcherSaidNo)
         m_outcome.end = RunEnd::AdminRefused;
     else if (m_decoder.error() == StreamError::VersionMismatch)
         m_outcome.end = RunEnd::VersionMismatch;
-    else if (status == QProcess::CrashExit || m_decoder.error())
+    else if (status == QProcess::CrashExit || m_decoder.error() || otherCommand)
         m_outcome.end = RunEnd::Broken;
     else
         m_outcome.end = RunEnd::Finished;

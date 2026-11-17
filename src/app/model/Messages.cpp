@@ -11,16 +11,21 @@ using namespace engine;
 
 namespace {
 
-// The failing call's error in words, e.g. "Permission denied".
-QString errorText(qint32 errnum)
-{
-    return QString::fromLocal8Bit(std::strerror(errnum));
-}
-
 // For the struct's tr(): lupdate files these sentences under "Messages".
 struct Tr {
     Q_DECLARE_TR_FUNCTIONS(Messages)
 };
+
+// The failing call's error in words, e.g. "Permission denied". An errno
+// the system has no name for would read "Unknown error 9999", and 0
+// "Success", so those get plain words instead.
+QString errorText(qint32 errnum)
+{
+    if (errnum <= 0 || !strerrorname_np(errnum))
+        //: Stands in for the system's words for an error, when it has none.
+        return Tr::tr("no details given");
+    return QString::fromLocal8Bit(std::strerror(errnum));
+}
 
 // A function, not a constant: a constant is built before any translation
 // is loaded, so it would stay English.
