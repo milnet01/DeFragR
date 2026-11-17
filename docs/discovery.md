@@ -52,6 +52,11 @@ SSD wears it and gains nothing. Defragging btrfs can bloat its snapshots.
 - **S12** — Every button and option responds to what is selected. Only
   actions that apply are available. For example, selecting an SSD leaves
   "View report" usable, and "Defrag" disabled or hidden.
+- **S13** — The window speaks the desktop's language, and English where
+  it has no translation. Hebrew reads right to left, with the whole
+  layout mirrored. At 1.0 it speaks English, Hebrew, German, Italian,
+  Greek, Spanish, Portuguese (Brazil and Portugal), Chinese (Simplified
+  and Traditional), Japanese, Russian, Polish, French and Ukrainian.
 
 ## What it deliberately does not do
 

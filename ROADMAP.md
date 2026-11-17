@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=65 -->
+<!-- ants-roadmap-id-high-water: DFR=68 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -18,7 +18,7 @@
 
 ## 0.1.0 — Read-only report
 
-Items are broken out of `docs/design.md`; each names the discovery signs (S1–S12) it delivers.
+Items are broken out of `docs/design.md`; each names the discovery signs it delivers.
 
 - ✅ [DFR-0001] **Build both programs from one CMake tree.**
   Top-level `CMakeLists.txt` with `src/engine/` (NASM, static,
@@ -294,6 +294,20 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Walk, Records, Report, Report view.
 
 ## 0.2.0 — Drive map
+
+- 📋 [DFR-0066] **Every word ready for translation.**
+  Groundwork for S13, per docs/design.md § Wording and languages.
+  Every shown word goes through tr() or translate(); counts use %n
+  plurals, with English's forms in translations/defragr_en.ts and a test
+  that fails when one is missing. ui/Languages loads the desktop's
+  translation and Qt's own, and sets the reading direction from the
+  language, so Hebrew mirrors. First in 0.2.0, so the map's words are
+  written ready. CI gains Qt's translation tools. No translations yet
+  (DFR-0067).
+  **Layman:** The app can be translated, and switches to the desktop's language and reading direction by itself.
+  Kind: feature.
+  Source: user-request-2026-11-17.
+  Lanes: Languages, Messages, Report, Drives, Screens, Report view, Build.
 
 - 📋 [DFR-0011] **Engine drive map records.**
   `extents.asm`: `FS_IOC_GETFSMAP` for free space and metadata, and
@@ -838,6 +852,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Build.
   Blocked-by: DFR-0027, DFR-0028.
 
+- 💭 [DFR-0068] **Choose the window's language in Options.**
+  Not asked for: S13 needs only the desktop's language. Today another
+  language needs LANGUAGE=<code> on the command line.
+  **Layman:** Pick a language other than the desktop's, without changing the desktop.
+  Kind: ux.
+  Source: user-request-2026-11-17.
+  Lanes: Settings, Settings view, Languages.
+
 ## 0.8.0 — Time remaining and drive health
 
 - 📋 [DFR-0030] **Time remaining.**
@@ -904,6 +926,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Kind: security.
   Source: review-code-2026-11-16.
   Lanes: Engine link, Packaging.
+
+- 📋 [DFR-0067] **Translate the window into the S13 languages.**
+  Once the wording has settled. One translations/defragr_<lang>.ts per
+  S13 language: he, de, it, el, es, pt_BR, pt_PT, zh_CN, zh_TW, ja, ru,
+  pl, fr, uk. Also the desktop entry's name and comment. Drafted by
+  Claude, not yet checked by native speakers: the README says so and
+  invites corrections. Each language is checked on screen, Hebrew right
+  to left.
+  **Layman:** DeFragR speaks Hebrew, German, Italian, Greek, Spanish, Portuguese, Chinese, Japanese, Russian, Polish, French and Ukrainian.
+  Kind: feature.
+  Source: user-request-2026-11-17.
+  Lanes: Languages, Packaging.
+  Blocked-by: DFR-0066.
 
 ## 1.0.0 — First public release
 

@@ -56,6 +56,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Map view | Painting and animating the map | `ui/DriveMapView.{h,cpp}` |
 | Report view | Showing a report | `ui/ReportView.{h,cpp}` |
 | Settings view | The options dialog | `ui/SettingsDialog.{h,cpp}` |
+| Languages | Choosing the desktop's language at start-up, loading its translations and Qt's own, and setting the reading direction | `ui/Languages.{h,cpp}`, `translations/` |
 | Start-up | `main()` | `main.cpp` |
 
 ### Build, packaging and tests
@@ -186,6 +187,29 @@ to the lowest at start-up. It reads commands without blocking, using
 The engine reports positions and lengths in filesystem blocks. Its
 first record states the block size. The window converts for display.
 
+### Wording and languages (S13)
+
+**Every word the window shows goes through Qt's translation**:
+`tr()` in a widget, `QCoreApplication::translate()` elsewhere. Only
+review catches a bare English string.
+
+- **A sentence is translated whole.** Values go in as `%1`, `%2`, never
+  by joining pieces, because word order differs between languages.
+- **A sentence with a count uses Qt's plural form, `%n`.** Code never
+  picks "file" or "files". English's forms live in
+  `translations/defragr_en.ts`; a test fails when a `%n` sentence is
+  missing from it.
+- **Numbers, sizes and percentages are written by `QLocale`.**
+- **Names stay as they are.** Paths, drive names and filesystem names
+  are never translated.
+- **Every screen works right to left.** Check each new one with
+  `defragr -reverse`. Nothing checks this automatically.
+- **The engine needs no translation.** It writes no text (§ Errors).
+
+Translations come once the wording has settled (0.9.0). Until then a
+new sentence is English only, which is what a missing translation
+shows.
+
 ## The stack, and what it rules out
 
 | Choice | Why | Runner-up | Rules out |
@@ -236,14 +260,14 @@ Each step places in the parts above.
 | Version | Delivers | Parts it adds or changes |
 |---|---|---|
 | 0.1.0 | Read-only report | Kernel ABI, System calls, Records, Entry, Probe, Walk, Extents; Engine link, Drives, Report, Messages; Screens (drive list, start choice, report); Build; Window tests; Image tests; Test machine |
-| 0.2.0 | Drive map | Extents (`GETFSMAP`); Map, Map view, Theme; Recorded runs |
+| 0.2.0 | Drive map; every word ready for translation | Extents (`GETFSMAP`); Map, Map view, Theme; Recorded runs; Languages |
 | 0.3.0 | Single-folder defrag with safety checks | Move, Checksum; Run |
 | 0.4.0 | Whole-drive defrag, menu, status bar, progress | Walk (whole drive); Screens; Run |
 | 0.5.0 | Pause, cancel, background mode | System calls (priorities, `poll`); Records (commands); Run; Tray icon |
 | 0.6.0 | Reports | Report (save, before and after); Report view |
 | 0.7.0 | Options | Settings, Settings view |
 | 0.8.0 | Time remaining and drive health | Run; Health |
-| 0.9.0 | Release candidate | Packaging; the whole |
+| 0.9.0 | Release candidate, translated | Packaging; Languages (the translations); the whole |
 | 1.0.0 | Release | the whole |
 
 ## Where each sign of success is delivered
@@ -262,6 +286,7 @@ Each step places in the parts above.
 | S10 readable by a partially sighted user | Theme, Map view |
 | S11 install from a GitHub release | the whole |
 | S12 only applicable actions available | Probe; Drives; Screens |
+| S13 the desktop's language, Hebrew right to left | Languages; every part that shows words |
 
 ## Close calls
 
