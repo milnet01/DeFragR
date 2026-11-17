@@ -9,6 +9,18 @@ could defrag, and why not for the rest. It can report how fragmented a
 drive is and list its worst files. Defragging is not built yet.
 [ROADMAP.md](ROADMAP.md) holds the plan.
 
+## Languages
+
+The window speaks your desktop's language: English, Hebrew, German,
+Italian, Greek, Spanish, Portuguese (Brazil and Portugal), Chinese
+(Simplified and Traditional), Japanese, Russian, Polish, French or
+Ukrainian. Hebrew reads right to left.
+
+Every language but English was drafted by an AI, and no native speaker
+has checked it yet. Corrections are welcome as a GitHub issue or pull
+request; the files are in `src/app/translations/`. A sentence added
+since shows in English until it is translated.
+
 ## Install
 
 (Once there is something to install.)

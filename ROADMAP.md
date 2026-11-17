@@ -965,7 +965,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Engine link, Packaging.
 
-- 📋 [DFR-0067] **Translate the window into the S13 languages.**
+- 🚧 [DFR-0067] **Translate the window into the S13 languages.**
   Once the wording has settled. One translations/defragr_<lang>.ts per
   S13 language: he, de, it, el, es, pt_BR, pt_PT, zh_CN, zh_TW, ja, ru,
   pl, fr, uk. Also the desktop entry's name and comment. Drafted by
@@ -973,6 +973,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   invites corrections. Each language is checked on screen, Hebrew right
   to left, including whether sizes such as "200.62 GiB" read correctly
   (DFR-0069 left them).
+  Started 2026-11-17, by the owner's choice to translate the words that
+  exist now: all fourteen files hold every sentence the window had then,
+  and the README's Languages section says they are AI drafts. Each was
+  checked on a demoreel screenshot of the drive list; Hebrew mirrors, and
+  its sizes read correctly ("GiB 9.02" on screen reads 9.02 GiB right to
+  left). Left: sentences added since, the desktop entry once packaging
+  makes it, and the report screen, which needs admin rights to show.
   **Layman:** DeFragR speaks Hebrew, German, Italian, Greek, Spanish, Portuguese, Chinese, Japanese, Russian, Polish, French and Ukrainian.
   Kind: feature.
   Source: user-request-2026-11-17.

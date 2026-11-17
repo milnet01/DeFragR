@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="pl">
+<context>
+    <name>Messages</name>
+    <message>
+        <source>no details given</source>
+        <extracomment>Stands in for the system&apos;s words for an error, when it has none.</extracomment>
+        <translation>brak szczegółów</translation>
+    </message>
+    <message>
+        <source>This is a fault in DeFragR. Please report it on the project&apos;s GitHub page.</source>
+        <translation>To błąd w DeFragR. Zgłoś go na stronie projektu w serwisie GitHub.</translation>
+    </message>
+    <message>
+        <source>The engine was not given admin rights.</source>
+        <translation>Silnik nie dostał uprawnień administratora.</translation>
+    </message>
+    <message>
+        <source>Try again and enter your password when asked.</source>
+        <translation>Spróbuj ponownie i wpisz hasło, gdy pojawi się prośba.</translation>
+    </message>
+    <message>
+        <source>That folder is not the top of a drive.</source>
+        <translation>Ten katalog nie jest katalogiem głównym dysku.</translation>
+    </message>
+    <message>
+        <source>Go back, press %1, and pick the drive again.</source>
+        <extracomment>%1 is the label of the Refresh drives button.</extracomment>
+        <translation>Wróć, naciśnij „%1” i wybierz dysk jeszcze raz.</translation>
+    </message>
+    <message>
+        <source>DeFragR could not read the list of mounted drives (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation>DeFragR nie mógł odczytać listy zamontowanych dysków (%1).</translation>
+    </message>
+    <message>
+        <source>Try again. If it keeps happening, restart the PC.</source>
+        <translation>Spróbuj ponownie. Jeśli to się powtarza, uruchom komputer ponownie.</translation>
+    </message>
+    <message>
+        <source>The drive gave an error: %1.</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Input/output error&quot;.</extracomment>
+        <translation>Dysk zgłosił błąd: %1.</translation>
+    </message>
+    <message>
+        <source>Check the drive is still connected, then try again.</source>
+        <translation>Sprawdź, czy dysk jest nadal podłączony, i spróbuj ponownie.</translation>
+    </message>
+    <message>
+        <source>The engine refused, because this drive no longer allows it.</source>
+        <translation>Silnik odmówił, bo ten dysk już na to nie pozwala.</translation>
+    </message>
+    <message>
+        <source>The drive may have changed. Go back and press %1 to see what DeFragR can do with it now.</source>
+        <extracomment>%1 is the label of the Refresh drives button.</extracomment>
+        <translation>Dysk mógł się zmienić. Wróć i naciśnij „%1”, aby zobaczyć, co DeFragR może teraz z nim zrobić.</translation>
+    </message>
+    <message>
+        <source>The run was cancelled.</source>
+        <translation>Operację anulowano.</translation>
+    </message>
+    <message>
+        <source>The engine stopped with an internal problem.</source>
+        <translation>Silnik zatrzymał się z powodu wewnętrznego problemu.</translation>
+    </message>
+    <message>
+        <source>The engine stopped for a reason this version of DeFragR does not know.</source>
+        <translation>Silnik zatrzymał się z przyczyny, której ta wersja DeFragR nie zna.</translation>
+    </message>
+    <message>
+        <source>A newer version of DeFragR may explain it.</source>
+        <translation>Nowsza wersja DeFragR może to wyjaśnić.</translation>
+    </message>
+    <message>
+        <source>SSD</source>
+        <translation>SSD</translation>
+    </message>
+    <message>
+        <source>Spinning drive</source>
+        <translation>Dysk talerzowy</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation>Nieznany</translation>
+    </message>
+    <message>
+        <source>Report and defrag</source>
+        <translation>Raport i defragmentacja</translation>
+    </message>
+    <message>
+        <source>Report only</source>
+        <translation>Tylko raport</translation>
+    </message>
+    <message>
+        <source>Nothing</source>
+        <translation>Nic</translation>
+    </message>
+    <message>
+        <source>This version of DeFragR does not understand what the engine said about this drive, so it offers nothing for it. A newer version may.</source>
+        <translation>Ta wersja DeFragR nie rozumie, co silnik przekazał o tym dysku, więc nic dla niego nie proponuje. Nowsza wersja może to zrobić.</translation>
+    </message>
+    <message>
+        <source>This drive uses %1. DeFragR defrags ext4 drives only, but it can still report on this one.</source>
+        <extracomment>%1 is a filesystem&apos;s name, such as btrfs. Keep &quot;ext4&quot; as it is.</extracomment>
+        <translation>Ten dysk używa systemu plików %1. DeFragR defragmentuje tylko dyski ext4, ale może przygotować raport o tym dysku.</translation>
+    </message>
+    <message>
+        <source>This drive is read-only, so nothing on it can be moved. DeFragR can still report on it.</source>
+        <translation>Ten dysk jest tylko do odczytu, więc nie można na nim niczego przenieść. DeFragR może jednak przygotować raport o tym dysku.</translation>
+    </message>
+    <message>
+        <source>This is a solid-state drive (SSD). Defragging wears an SSD out and does not make it faster. DeFragR can still report on it.</source>
+        <translation>To jest dysk półprzewodnikowy (SSD). Defragmentacja zużywa dysk SSD i nie przyspiesza go. DeFragR może jednak przygotować raport o tym dysku.</translation>
+    </message>
+    <message>
+        <source>DeFragR cannot tell whether this is a solid-state drive, so it will not defrag it, to be safe. It can still report on it.</source>
+        <translation>DeFragR nie potrafi stwierdzić, czy to dysk półprzewodnikowy, więc dla bezpieczeństwa go nie zdefragmentuje. Może jednak przygotować raport o tym dysku.</translation>
+    </message>
+    <message>
+        <source>The engine will not defrag this drive, for a reason this version of DeFragR does not know. It can still report on it.</source>
+        <translation>Silnik nie zdefragmentuje tego dysku z przyczyny, której ta wersja DeFragR nie zna. DeFragR może jednak przygotować raport o tym dysku.</translation>
+    </message>
+    <message>
+        <source>DeFragR can report on this drive or defrag it.</source>
+        <translation>DeFragR może przygotować raport o tym dysku lub go zdefragmentować.</translation>
+    </message>
+    <message>
+        <source>DeFragR found no drives to list.</source>
+        <translation>DeFragR nie znalazł żadnych dysków do pokazania.</translation>
+    </message>
+    <message>
+        <source>Defragging comes in a later version of DeFragR. The engine has checked this drive and will allow it.</source>
+        <translation>Defragmentacja pojawi się w późniejszej wersji DeFragR. Silnik sprawdził ten dysk i na nią pozwoli.</translation>
+    </message>
+    <message>
+        <source>Refresh drives</source>
+        <translation>Odśwież dyski</translation>
+    </message>
+    <message>
+        <source>DeFragR&apos;s engine is missing. It should be at %1.</source>
+        <extracomment>%1 is the path where the engine should be.</extracomment>
+        <translation>Brakuje silnika DeFragR. Powinien znajdować się tutaj: %1.</translation>
+    </message>
+    <message>
+        <source>Reinstall DeFragR. Without its engine it cannot list or check drives.</source>
+        <translation>Zainstaluj ponownie DeFragR. Bez silnika nie może wyświetlić ani sprawdzić dysków.</translation>
+    </message>
+    <message>
+        <source>DeFragR could not ask for admin rights, because pkexec, the program that asks for them, did not start.</source>
+        <translation>DeFragR nie mógł poprosić o uprawnienia administratora, ponieważ pkexec, program, który o nie prosi, nie uruchomił się.</translation>
+    </message>
+    <message>
+        <source>Check that pkexec is installed. It comes with polkit. Then try again.</source>
+        <translation>Sprawdź, czy pkexec jest zainstalowany. Jest częścią polkit. Potem spróbuj ponownie.</translation>
+    </message>
+    <message>
+        <source>DeFragR could not start its engine with admin rights.</source>
+        <translation>DeFragR nie mógł uruchomić silnika z uprawnieniami administratora.</translation>
+    </message>
+    <message>
+        <source>Try again and enter your password when asked. If it still fails after you enter it, a security setting on this PC, such as SELinux, may be blocking the engine.</source>
+        <translation>Spróbuj ponownie i wpisz hasło, gdy pojawi się prośba. Jeśli po wpisaniu hasła nadal się nie udaje, być może ustawienie bezpieczeństwa na tym komputerze, na przykład SELinux, blokuje silnik.</translation>
+    </message>
+    <message>
+        <source>DeFragR&apos;s engine belongs to a different version of DeFragR.</source>
+        <translation>Silnik DeFragR pochodzi z innej wersji DeFragR.</translation>
+    </message>
+    <message>
+        <source>Reinstall DeFragR so both halves match.</source>
+        <translation>Zainstaluj ponownie DeFragR, aby obie części do siebie pasowały.</translation>
+    </message>
+    <message>
+        <source>The engine stopped unexpectedly.</source>
+        <translation>Silnik nieoczekiwanie się zatrzymał.</translation>
+    </message>
+</context>
+<context>
+    <name>defragr::model::DriveList</name>
+    <message>
+        <source>Drive</source>
+        <translation>Dysk</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Rozmiar</translation>
+    </message>
+    <message>
+        <source>File system</source>
+        <translation>System plików</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>DeFragR can</source>
+        <extracomment>Heads a column of what DeFragR can do with each drive, such as &quot;Report and defrag&quot;.</extracomment>
+        <translation>DeFragR może</translation>
+    </message>
+</context>
+<context>
+    <name>defragr::model::Report</name>
+    <message>
+        <source>%1%</source>
+        <extracomment>A percentage, such as 1.5%.</extracomment>
+        <translation>%1%</translation>
+    </message>
+    <message>
+        <source>under %1</source>
+        <extracomment>%1 is the smallest percentage shown, 0.1%.</extracomment>
+        <translation>poniżej %1</translation>
+    </message>
+    <message>
+        <source>DeFragR found no files on this drive.</source>
+        <translation>DeFragR nie znalazł na tym dysku żadnych plików.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 file(s)</source>
+        <extracomment>%1 is the number of files checked. It is %2 in &quot;3 of [200 files] checked are fragmented&quot;, so use the form that fits there.</extracomment>
+        <translation>
+            <numerusform>%1 plik</numerusform>
+            <numerusform>%1 pliki</numerusform>
+            <numerusform>%1 plików</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 of %2 checked is fragmented (%3).</source>
+        <extracomment>%1 is the number of fragmented files, %2 the files checked, such as &quot;200 files&quot;, and %3 a percentage.</extracomment>
+        <translation>
+            <numerusform>Sprawdzono %2, z czego %1 jest pofragmentowany (%3).</numerusform>
+            <numerusform>Sprawdzono %2, z czego %1 są pofragmentowane (%3).</numerusform>
+            <numerusform>Sprawdzono %2, z czego %1 jest pofragmentowanych (%3).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>On average a file is in %1 piece(s).</source>
+        <translation>
+            <numerusform>Średnio plik składa się z %1 części.</numerusform>
+            <numerusform>Średnio plik składa się z %1 części.</numerusform>
+            <numerusform>Średnio plik składa się z %1 części.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>On average a file is in %1 pieces.</source>
+        <extracomment>%1 has decimals, such as 1.25.</extracomment>
+        <translation>Średnio plik składa się z %1 części.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 file(s) or folder(s) could not be read, so it is (they are) not counted.</source>
+        <translation>
+            <numerusform>Nie udało się odczytać %1 pliku lub katalogu, więc go nie policzono.</numerusform>
+            <numerusform>Nie udało się odczytać %1 plików lub katalogów, więc ich nie policzono.</numerusform>
+            <numerusform>Nie udało się odczytać %1 plików lub katalogów, więc ich nie policzono.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Files and folders checked so far: %1.</source>
+        <translation>Pliki i katalogi sprawdzone do tej pory: %1.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Checked %1 of about %2 file(s) and folder(s) (%3).</source>
+        <extracomment>%3 is a percentage, such as 50%.</extracomment>
+        <translation>
+            <numerusform>Sprawdzono %1 z około %2 pliku lub katalogu (%3).</numerusform>
+            <numerusform>Sprawdzono %1 z około %2 plików i katalogów (%3).</numerusform>
+            <numerusform>Sprawdzono %1 z około %2 plików i katalogów (%3).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Pieces</source>
+        <translation>Części</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Rozmiar</translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation>Plik</translation>
+    </message>
+</context>
+<context>
+    <name>defragr::ui::MainWindow</name>
+    <message>
+        <source>DeFragR %1 (build %2)</source>
+        <extracomment>%1 is the version, such as 0.1.0, and %2 the build&apos;s code.</extracomment>
+        <translation>DeFragR %1 (kompilacja %2)</translation>
+    </message>
+    <message>
+        <source>Pick a drive, then choose what to do with it.</source>
+        <translation>Wybierz dysk, a potem zdecyduj, co z nim zrobić.</translation>
+    </message>
+    <message>
+        <source>View report</source>
+        <translation>Pokaż raport</translation>
+    </message>
+    <message>
+        <source>Defrag now</source>
+        <translation>Defragmentuj teraz</translation>
+    </message>
+    <message>
+        <source>Listing drives…</source>
+        <translation>Wyszukiwanie dysków…</translation>
+    </message>
+    <message>
+        <source>Pick a drive to see what DeFragR can do with it.</source>
+        <translation>Wybierz dysk, aby zobaczyć, co DeFragR może z nim zrobić.</translation>
+    </message>
+</context>
+<context>
+    <name>defragr::ui::ReportView</name>
+    <message>
+        <source>Back to drives</source>
+        <translation>Wróć do dysków</translation>
+    </message>
+    <message>
+        <source>Fragmented files, worst first:</source>
+        <translation>Pofragmentowane pliki, od najgorszego:</translation>
+    </message>
+    <message>
+        <source>Report on %1</source>
+        <extracomment>%1 is the drive&apos;s folder, such as /mnt/Games.</extracomment>
+        <translation>Raport dla %1</translation>
+    </message>
+    <message>
+        <source>Checking every file on the drive. On a big drive this can take a few minutes. Nothing on the drive is changed.</source>
+        <translation>Sprawdzanie każdego pliku na dysku. Na dużym dysku może to potrwać kilka minut. Nic na dysku nie jest zmieniane.</translation>
+    </message>
+    <message>
+        <source>Starting the check.</source>
+        <translation>Rozpoczynanie sprawdzania.</translation>
+    </message>
+    <message>
+        <source>No fragmented files found yet.</source>
+        <translation>Na razie nie znaleziono pofragmentowanych plików.</translation>
+    </message>
+    <message>
+        <source>Fragmented files found so far: %1</source>
+        <translation>Pofragmentowane pliki znalezione do tej pory: %1</translation>
+    </message>
+    <message>
+        <source>Latest: %1</source>
+        <extracomment>%1 is the path of the file found most recently.</extracomment>
+        <translation>Ostatni: %1</translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 godz. %2 min</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 min %2 s</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 s</translation>
+    </message>
+    <message>
+        <source>Running for %1</source>
+        <extracomment>%1 is a time, such as &quot;2 min 5 s&quot;.</extracomment>
+        <translation>Czas działania: %1</translation>
+    </message>
+</context>
+</TS>

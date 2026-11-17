@@ -22,6 +22,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 ### Added
 - A "Refresh drives" button lists the drives again, and the window says
   "Listing drives…" while it does (DFR-0049).
+- The window speaks the desktop's language: Hebrew, German, Italian,
+  Greek, Spanish, Portuguese (Brazil and Portugal), Chinese (Simplified
+  and Traditional), Japanese, Russian, Polish, French or Ukrainian, with
+  English otherwise. These are AI drafts not yet checked by native
+  speakers; corrections are welcome (DFR-0067).
 
 ### Fixed
 - When pkexec, the program that asks for admin rights, is missing, the

@@ -40,7 +40,8 @@ private slots:
 
     void noTranslationMeansEnglish()
     {
-        const ui::Languages languages(QLocale(QLocale::German, QLocale::Germany));
+        // Dutch: not an S13 language, so DeFragR has no translation for it.
+        const ui::Languages languages(QLocale(QLocale::Dutch, QLocale::Netherlands));
         QCOMPARE(languages.chosen().language(), QLocale::English);
         QCOMPARE(model::messages::refreshButton(), QStringLiteral("Refresh drives"));
         // English's plural forms are in, so it never shows "file(s)".
@@ -56,6 +57,14 @@ private slots:
         QCOMPARE(languages.chosen().language(), QLocale::English);
         QCOMPARE(model::progressLine(1, 1),
                  QStringLiteral("Checked 1 of about 1 file or folder (99%)."));
+    }
+
+    // DFR-0067: a real translation loads.
+    void germanIsGerman()
+    {
+        const ui::Languages languages(QLocale(QLocale::German, QLocale::Germany));
+        QCOMPARE(languages.chosen().language(), QLocale::German);
+        QCOMPARE(model::messages::refreshButton(), QStringLiteral("Laufwerke aktualisieren"));
     }
 };
 
