@@ -204,7 +204,8 @@ review catches a bare English string.
   `translations_current` test fails when one is missing.
 - **Numbers, sizes and percentages are written by `QLocale`.**
 - **Names stay as they are.** Paths, drive names and filesystem names
-  are never translated.
+  are never translated. A path goes through `messages::path`, which
+  keeps it reading left to right in a right-to-left window.
 - **Every screen works right to left.** Check each new one with
   `defragr -reverse`. Nothing checks this automatically.
 - **The engine needs no translation.** It writes no text (§ Errors).

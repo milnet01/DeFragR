@@ -111,9 +111,9 @@ private slots:
         const auto cell = [&](int row, int column) {
             return report.index(row, column).data().toString();
         };
-        QCOMPARE(cell(0, Report::ColumnFile), QStringLiteral("/mnt/fake/games/big.iso"));
-        QCOMPARE(cell(1, Report::ColumnFile), QStringLiteral("/mnt/fake/games/tie.pak"));
-        QCOMPARE(cell(2, Report::ColumnFile), QStringLiteral("/mnt/fake/music/song.flac"));
+        QCOMPARE(cell(0, Report::ColumnFile), QStringLiteral(u"\u2066/mnt/fake/games/big.iso\u2069"));
+        QCOMPARE(cell(1, Report::ColumnFile), QStringLiteral(u"\u2066/mnt/fake/games/tie.pak\u2069"));
+        QCOMPARE(cell(2, Report::ColumnFile), QStringLiteral(u"\u2066/mnt/fake/music/song.flac\u2069"));
         QCOMPARE(cell(0, Report::ColumnPieces), QLocale().toString(40));
         // 1000 blocks of HELLO's 4096 bytes.
         QCOMPARE(cell(0, Report::ColumnSize), QLocale().formattedDataSize(4096000));
@@ -140,7 +140,7 @@ private slots:
         Report report(fake("pass-through.sh"));
         run(report, "/");
         QCOMPARE(report.index(0, Report::ColumnFile).data().toString(),
-                 QStringLiteral("/games/big.iso"));
+                 QStringLiteral(u"\u2066/games/big.iso\u2069"));
     }
 
     // The mount point reaches the engine as its argument: the fake

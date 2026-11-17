@@ -1,7 +1,7 @@
 // Messages: every engine code and refusal reason in plain words, with
-// what the user can do. The only home of user-facing text about an
-// engine result (docs/design.md § What may depend on what); the window
-// never shows a raw code. The codes are
+// what the user can do, and how a path is shown. The only home of
+// user-facing text about an engine result (docs/design.md § What may
+// depend on what); the window never shows a raw code. The codes are
 // docs/specs/DFR-0002-engine-protocol.md § 4.5 and § 4.7.
 #pragma once
 
@@ -19,6 +19,11 @@ struct Message {
 };
 
 namespace messages {
+
+// A path as the window shows it, marked to read left to right. In a
+// right-to-left window an unmarked "/mnt/Games" shows as "mnt/Games/".
+QString path(const QString &path);
+QString path(const QByteArray &path);  // decoded with QFile::decodeName
 
 // DRIVE.media, as a column entry: "SSD", "Spinning drive" or "Unknown".
 QString media(quint8 media);

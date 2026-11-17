@@ -28,6 +28,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   window says so, instead of asking you to enter a password no prompt
   will ask for. Advice to check the drive list again names the new
   "Refresh drives" button (DFR-0049).
+- In a right-to-left language such as Hebrew, folder paths read as
+  written, instead of with their first slash moved to the end
+  (DFR-0069).
 - A drive whose folder name holds characters that are not valid text
   can be reported on, instead of being called "not the top of a drive"
   (DFR-0048).

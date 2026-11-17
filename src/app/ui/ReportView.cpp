@@ -1,6 +1,5 @@
 #include "ui/ReportView.h"
 
-#include <QFile>
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -74,7 +73,7 @@ ReportView::ReportView(QWidget *parent) : QWidget(parent)
 void ReportView::start(const QByteArray &mountPoint)
 {
     //: %1 is the drive's folder, such as /mnt/Games.
-    m_heading->setText(tr("Report on %1").arg(QFile::decodeName(mountPoint)));
+    m_heading->setText(tr("Report on %1").arg(model::messages::path(mountPoint)));
     m_figures->setText(tr("Checking every file on the drive. On a big drive this "
                           "can take a few minutes. Nothing on the drive is changed."));
     m_checked->setText(tr("Starting the check."));
@@ -107,7 +106,7 @@ void ReportView::showFound(quint64 count, const QByteArray &latestPath)
     m_found->setText(tr("Fragmented files found so far: %1")
                          .arg(QLocale().toString(count)));
     //: %1 is the path of the file found most recently.
-    const QString latest = tr("Latest: %1").arg(QFile::decodeName(latestPath));
+    const QString latest = tr("Latest: %1").arg(model::messages::path(latestPath));
     m_latest->setText(fontMetrics().elidedText(latest, Qt::ElideMiddle, m_latest->width()));
     m_latest->setToolTip(latest);
 }

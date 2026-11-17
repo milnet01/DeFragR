@@ -70,6 +70,18 @@ Message forResult(const Finished &finished)
 
 }  // namespace
 
+QString path(const QString &path)
+{
+    // LEFT-TO-RIGHT ISOLATE and POP DIRECTIONAL ISOLATE: the path reads
+    // left to right inside any sentence, and leaves the sentence alone.
+    return QChar(0x2066) + path + QChar(0x2069);
+}
+
+QString path(const QByteArray &path)
+{
+    return messages::path(QFile::decodeName(path));
+}
+
 QString media(quint8 media)
 {
     switch (media) {
@@ -148,7 +160,7 @@ Message forRun(const RunOutcome &outcome)
     case RunEnd::EngineMissing:
         //: %1 is the path where the engine should be.
         return {Tr::tr("DeFragR's engine is missing. It should be at %1.")
-                    .arg(outcome.enginePath),
+                    .arg(path(outcome.enginePath)),
                 Tr::tr("Reinstall DeFragR. Without its engine it cannot list or check "
                        "drives.")};
     case RunEnd::LauncherMissing:

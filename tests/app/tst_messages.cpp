@@ -111,7 +111,9 @@ private slots:
         RunOutcome outcome;
         outcome.end = RunEnd::EngineMissing;
         outcome.enginePath = QStringLiteral("/opt/defragr/defragr-engine");
-        QVERIFY(messages::forRun(outcome).what.contains(outcome.enginePath));
+        // DFR-0069: marked left to right, as every path is.
+        QVERIFY(messages::forRun(outcome).what.contains(
+            QStringLiteral(u"\u2066/opt/defragr/defragr-engine\u2069")));
     }
 
     // A failing call's errno is shown as words, never as its number.

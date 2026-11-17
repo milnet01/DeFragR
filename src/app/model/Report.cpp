@@ -1,6 +1,5 @@
 #include "model/Report.h"
 
-#include <QFile>
 #include <QLocale>
 
 #include <algorithm>
@@ -208,7 +207,7 @@ QVariant Report::data(const QModelIndex &index, int role) const
         QByteArray path = m_mountPoint;
         if (!path.endsWith('/'))
             path += '/';
-        return QFile::decodeName(path + file.path);
+        return messages::path(path + file.path);
     }
     }
     return {};

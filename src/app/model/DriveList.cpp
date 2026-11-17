@@ -89,7 +89,7 @@ QVariant DriveList::data(const QModelIndex &index, int role) const
         return {};
     switch (index.column()) {
     case ColumnDrive:
-        return QFile::decodeName(drive.mountPoint);
+        return messages::path(drive.mountPoint);
     case ColumnSize:
         return QLocale().formattedDataSize(qint64(drive.totalBlocks * drive.blockSize));
     case ColumnFileSystem:
