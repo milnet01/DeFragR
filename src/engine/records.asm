@@ -5,6 +5,9 @@
 ; Building a record: rec_start, then store fields at the payload pointer
 ; it returns, using records.inc's struc offsets; then rec_string for each
 ; string in order; then rec_send.
+;
+; MAP_RUNS is not built that way. rec_map_run gathers runs, one batch per
+; kind, and sends a batch when it is full; rec_map_flush sends the rest.
 
 bits 64
 default rel
@@ -16,11 +19,14 @@ extern sys_write
 extern sys_exit
 
 REC_BUF_SIZE equ rec_header_size + PAYLOAD_MAX
+; One kind's batch: a MAP_RUNS payload, its count the runs gathered so far.
+MAP_BATCH_SIZE equ map_runs_size + MAP_RUNS_MAX * map_run_size
 
 section .bss
 alignb 8
 rec_buf:    resb REC_BUF_SIZE
 rec_end:    resq 1              ; bytes used in rec_buf, header included
+map_batches: resb MAP_KINDS * MAP_BATCH_SIZE    ; kind 1's first
 
 section .rodata
 ; Self-test (st_) strings: the values DFR-0002 § 4.9 fixes, odd bytes
@@ -40,6 +46,8 @@ global rec_string
 global rec_send
 global rec_hello
 global rec_finish
+global rec_map_run
+global rec_map_flush
 global rec_selftest
 
 ; rec_start(edi = record type, esi = fixed-part size, a multiple of 8)
@@ -164,6 +172,99 @@ rec_finish:
     mov edi, ebx
     call sys_exit
 
+; rec_map_run(edi = a MAP_ kind, 1 to MAP_KINDS, rsi = first block,
+;   rdx = blocks) -> rax = 0. Adds the run to its kind's batch, joined onto
+;   the batch's last run when it starts where that one ends. A run of 0
+;   blocks is dropped. Sends the batch first when it is full. Clobbers as
+;   rec_send.
+rec_map_run:
+    push rbx
+    push r12
+    push r13
+    test rdx, rdx
+    jz .done
+    mov r12, rsi                    ; r12 = first block
+    mov r13, rdx                    ; r13 = blocks
+    lea eax, [rdi - 1]
+    imul rbx, rax, MAP_BATCH_SIZE
+    lea rcx, [map_batches]
+    add rbx, rcx                    ; rbx = this kind's batch
+    mov [rbx + map_runs.kind], edi
+    mov ecx, [rbx + map_runs.count]
+    test ecx, ecx
+    jz .append
+    lea eax, [rcx - 1]
+    shl rax, 4                      ; map_run_size
+    lea rax, [rbx + map_runs_size + rax]    ; rax = the last run
+    mov rdx, [rax + map_run.start]
+    add rdx, [rax + map_run.length]
+    cmp rdx, r12
+    jne .room
+    add [rax + map_run.length], r13
+    jmp .done
+.room:
+    cmp ecx, MAP_RUNS_MAX
+    jb .append
+    mov rdi, rbx
+    call send_batch
+    xor ecx, ecx
+.append:                            ; ecx = runs in the batch
+    shl rcx, 4                      ; map_run_size
+    lea rax, [rbx + map_runs_size + rcx]
+    mov [rax + map_run.start], r12
+    mov [rax + map_run.length], r13
+    inc dword [rbx + map_runs.count]
+.done:
+    xor eax, eax
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; rec_map_flush() -> rax = 0. Sends every batch holding a run. Clobbers
+; as rec_send.
+rec_map_flush:
+    push rbx
+    push r12
+    sub rsp, 8
+    lea rbx, [map_batches]
+    mov r12d, MAP_KINDS
+.batch:
+    cmp dword [rbx + map_runs.count], 0
+    je .empty
+    mov rdi, rbx
+    call send_batch
+.empty:
+    add rbx, MAP_BATCH_SIZE
+    dec r12d
+    jnz .batch
+    xor eax, eax
+    add rsp, 8
+    pop r12
+    pop rbx
+    ret
+
+; send_batch(rdi = a batch holding a run) -> rax = 0. Sends it as one
+; MAP_RUNS and empties it. Clobbers as rec_send.
+send_batch:
+    push rbx
+    mov rbx, rdi
+    mov esi, [rbx + map_runs.count]
+    shl esi, 4                      ; map_run_size
+    add esi, map_runs_size          ; a multiple of 8, as rec_start needs
+    mov edi, REC_MAP_RUNS
+    call rec_start
+    mov ecx, [rbx + map_runs.count]
+    shl ecx, 4
+    add ecx, map_runs_size
+    mov rdi, rax
+    mov rsi, rbx
+    rep movsb
+    call rec_send
+    mov dword [rbx + map_runs.count], 0
+    pop rbx
+    ret
+
 ; rec_selftest() -> does not return. The whole selftest-records stream:
 ; one record of every engine type with the values § 4.9 fixes, then exits 0.
 rec_selftest:
@@ -251,6 +352,21 @@ rec_selftest:
     mov [rax + report_progress.names], rcx
     mov rcx, 0xF1F2F3F4F5F6F7F8
     mov [rax + report_progress.estimate], rcx
+    call rec_send
+
+    mov edi, REC_MAP_RUNS
+    mov esi, map_runs_size + 2 * map_run_size
+    call rec_start
+    mov dword [rax + map_runs.kind], 0x13141516
+    mov dword [rax + map_runs.count], 2
+    mov rcx, 0x3132333435363738
+    mov [rax + map_runs_size + map_run.start], rcx
+    mov rcx, 0x4142434445464748
+    mov [rax + map_runs_size + map_run.length], rcx
+    mov rcx, 0x5152535455565758
+    mov [rax + map_runs_size + map_run_size + map_run.start], rcx
+    mov rcx, 0x6162636465666768
+    mov [rax + map_runs_size + map_run_size + map_run.length], rcx
     call rec_send
 
     mov edi, REC_RUN_STATE

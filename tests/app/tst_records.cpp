@@ -1,5 +1,5 @@
-// The record decoder alone, against hand-built streams: INV-1 to INV-9 and
-// INV-13 of
+// The record decoder alone, against hand-built streams: INV-1 to INV-9,
+// INV-13 and INV-16 of
 // docs/specs/DFR-0002-engine-protocol.md. Proves nothing about the engine;
 // tst_records_conformance.cpp reads real engine output.
 #include "engine/Records.h"
@@ -132,6 +132,20 @@ QByteArray progress(quint64 names, quint64 estimate)
     put64(p, estimate);
     return record(TypeReportProgress, p);
 }
+// A MAP_RUNS record, with `count` written in place of the real number of
+// runs when given.
+QByteArray mapRuns(quint32 kind, const QList<MapRun> &runs,
+                   std::optional<quint32> count = std::nullopt)
+{
+    QByteArray p;
+    put32(p, kind);
+    put32(p, count.value_or(quint32(runs.size())));
+    for (const MapRun &run : runs) {
+        put64(p, run.start);
+        put64(p, run.length);
+    }
+    return record(TypeMapRuns, p);
+}
 QByteArray runState(quint32 state)
 {
     QByteArray p;
@@ -181,9 +195,11 @@ QByteArray selftestStream()
     put64(sum, 0xB1B2B3B4B5B6B7B8);
     put64(sum, 0xC1C2C3C4C5C6C7C8);
 
-    return hello(CommandSelftest, 0x01020304, 1, 1) + record(TypeDrive, drivePart)
+    return hello(CommandSelftest, 0x01020304, 1, 2) + record(TypeDrive, drivePart)
          + record(TypeFragmentedFile, frag) + record(TypeFileSkipped, skip)
          + record(TypeReportSummary, sum) + progress(0xE1E2E3E4E5E6E7E8, 0xF1F2F3F4F5F6F7F8)
+         + mapRuns(0x13141516, {{0x3132333435363738, 0x4142434445464748},
+                                {0x5152535455565758, 0x6162636465666768}})
          + runState(0xF1F2F3F4) + finished();
 }
 
@@ -400,6 +416,24 @@ private slots:
 
         const QByteArray h = hello(CommandReport);
         QCOMPARE(errorOf(h + summary(0, 0) + progress(250, 300) + finished()), kMalformed);
+    }
+
+    // INV-16: a summary claiming no files, so counting a MAP_RUNS as a
+    // file or a skip breaks INV-8's check.
+    void mapRuns()
+    {
+        const QList<MapRun> two{{10, 5}, {0x0102030405060708, 0x1112131415161718}};
+        const Outcome run = decode(reportStream(::mapRuns(1, two) + ::mapRuns(200, {})));
+        QCOMPARE(run.error, kNoError);
+        QCOMPARE(run.records.size(), 5);
+        QCOMPARE(std::get<MapRuns>(run.records[1]), (MapRuns{1, two}));
+        QCOMPARE(std::get<MapRuns>(run.records[2]), (MapRuns{200, {}}));
+
+        // The same 40-byte payload claiming a third run it does not hold.
+        QCOMPARE(errorOf(reportStream(::mapRuns(1, two, 3))), kMalformed);
+
+        const QByteArray h = hello(CommandReport);
+        QCOMPARE(errorOf(h + summary(0, 0) + ::mapRuns(1, two) + finished()), kMalformed);
     }
 
     // INV-9

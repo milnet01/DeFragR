@@ -344,12 +344,20 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-17.
   Lanes: Drives, Report, Report view, Messages.
 
-- 📋 [DFR-0011] **Engine drive map records.**
+- ✅ [DFR-0011] **Engine drive map records.**
   `extents.asm`: `FS_IOC_GETFSMAP` for free space and metadata, and
   each file's extents flagged whole or fragmented, in blocks. Engine
   side of S4. Overlaps DFR-0008 in `extents.asm`.
   Adds its drive map records to `docs/specs/DFR-0002-engine-protocol.md`
   by amendment, bumping the minor version.
+  Done 2026-11-17: protocol 1.2 adds MAP_RUNS (spec § 4.6), runs of
+  blocks marked free, the filesystem's, a whole file or a fragmented
+  one. extents_space reads GETFSMAP; extents_count sends a file's runs
+  on a second read, once its pieces give its kind. The image test
+  checks the runs block by block against statfs and filefrag -v; it
+  went red when the engine stopped after one GETFSMAP call and when it
+  marked every file whole. Blocks ext4 sets aside for files being
+  written are in no run until the drive is mounted afresh.
   **Layman:** The engine describes where everything sits on the drive, so the window can draw it.
   Kind: implement.
   Source: design-2026-11-15.

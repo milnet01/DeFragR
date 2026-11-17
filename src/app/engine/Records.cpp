@@ -19,6 +19,8 @@ constexpr quint32 kFragmentedFileSize = 16;
 constexpr quint32 kFileSkippedSize = 8;
 constexpr quint32 kReportSummarySize = 40;
 constexpr quint32 kReportProgressSize = 16;
+constexpr quint32 kMapRunsSize = 8;
+constexpr quint32 kMapRunSize = 16;  // each run after MAP_RUNS' fixed part
 constexpr quint32 kRunStateSize = 8;
 
 // Reads one payload: fixed fields by offset, then strings in order.
@@ -63,6 +65,7 @@ quint32 fixedSize(quint16 type)
     case TypeFileSkipped: return kFileSkippedSize;
     case TypeReportSummary: return kReportSummarySize;
     case TypeReportProgress: return kReportProgressSize;
+    case TypeMapRuns: return kMapRunsSize;
     case TypeRunState: return kRunStateSize;
     default: return 0;
     }
@@ -185,6 +188,21 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
     case TypeReportProgress:
         record = ReportProgress{.names = in.at<quint64>(0), .estimate = in.at<quint64>(8)};
         break;
+    case TypeMapRuns: {
+        const quint32 count = in.at<quint32>(4);
+        if (kMapRunsSize + quint64(count) * kMapRunSize > quint64(payload.size())) {
+            m_error = StreamError::Malformed;
+            return false;
+        }
+        MapRuns m{.kind = in.at<quint32>(0), .runs = {}};
+        m.runs.reserve(count);
+        for (quint32 i = 0; i < count; ++i) {
+            const qsizetype at = kMapRunsSize + qsizetype(i) * kMapRunSize;
+            m.runs.append({.start = in.at<quint64>(at), .length = in.at<quint64>(at + 8)});
+        }
+        record = std::move(m);
+        break;
+    }
     case TypeRunState:
         record = RunState{.state = in.at<quint32>(0)};
         break;
@@ -244,8 +262,9 @@ bool RecordDecoder::orderAllows(const Record &record)
     }
 
     if (m_command == CommandReport) {
-        // § 4.6 and INV-8: files, skips, progress and run states, then the summary
-        // only on OK, immediately before FINISHED, agreeing with the counts.
+        // § 4.6 and INV-8: files, skips, progress, map runs and run states, then
+        // the summary only on OK, immediately before FINISHED, agreeing with the
+        // counts.
         if (finished) {
             if (finished->result != ResultOk)
                 return m_summary ? malformed() : true;
@@ -269,6 +288,7 @@ bool RecordDecoder::orderAllows(const Record &record)
             return true;
         }
         if (std::holds_alternative<ReportProgress>(record)
+            || std::holds_alternative<MapRuns>(record)
             || std::holds_alternative<RunState>(record))
             return true;
         return malformed();

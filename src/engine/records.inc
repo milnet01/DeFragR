@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 1
+PROTOCOL_MINOR      equ 2
 
 ; § 4.1 framing.
 struc rec_header
@@ -26,6 +26,7 @@ REC_FRAGMENTED_FILE equ 0x0020
 REC_FILE_SKIPPED    equ 0x0021
 REC_REPORT_SUMMARY  equ 0x0022
 REC_REPORT_PROGRESS equ 0x0023
+REC_MAP_RUNS        equ 0x0024
 REC_RUN_STATE       equ 0x0030
 
 ; Fixed parts. Each size is a multiple of 8, so strings start aligned.
@@ -80,6 +81,16 @@ struc report_progress
     .estimate       resq 1
 endstruc
 
+struc map_runs
+    .kind           resd 1
+    .count          resd 1
+endstruc                            ; count map_run entries follow
+struc map_run
+    .start          resq 1
+    .length         resq 1
+endstruc
+MAP_RUNS_MAX        equ (PAYLOAD_MAX - map_runs_size) / map_run_size
+
 struc run_state
     .state          resd 1
     .reserved       resd 1
@@ -98,6 +109,13 @@ MEDIA_SPINNING      equ 2
 VERDICT_REPORT_ONLY equ 1
 VERDICT_DEFRAG      equ 2
 MOUNT_READ_ONLY     equ 1
+
+; MAP_RUNS.kind (§ 4.6).
+MAP_FREE            equ 1
+MAP_FILESYSTEM      equ 2
+MAP_WHOLE_FILE      equ 3
+MAP_FRAGMENTED_FILE equ 4
+MAP_KINDS           equ 4
 
 ; FILE_SKIPPED.stage (§ 4.6).
 STAGE_OPEN          equ 1

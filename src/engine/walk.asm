@@ -102,7 +102,8 @@ global walk_estimate
 
 ; walk_start(rdi = NUL-terminated mount point, rsi = its mount id)
 ;   -> eax = OK, NOT_A_MOUNT or DRIVE_ERROR; edx = errno on DRIVE_ERROR,
-;   the drive's block size on OK, else 0.
+;   the drive's block size on OK, else 0; on OK, ecx = the top folder's
+;   descriptor, open until walk_next returns WALK_END or WALK_ERROR.
 ; Opens the top folder and checks it is that mount: a path swapped for
 ; another folder since mountinfo was read is NOT_A_MOUNT. A block size of
 ; 0 or above 32 bits is DRIVE_ERROR with EINVAL. On OK, sets
@@ -153,6 +154,7 @@ walk_start:
     mov qword [rax + walk_level.path_len], 0
     xor eax, eax
     mov edx, r13d
+    mov ecx, ebx
     jmp .return
 .not_a_mount:
     mov edi, ebx

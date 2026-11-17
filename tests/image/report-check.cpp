@@ -2,22 +2,26 @@
 // engine's report on the fragmented image with the window's decoder and
 // compares it with filefrag's reference, the named one for extent counts
 // (docs/design.md § How it is tested). Also checks INV-12's stream: a
-// report on a sub-folder ends NOT_A_MOUNT and names no file; and INV-14's
-// first and last REPORT_PROGRESS.
+// report on a sub-folder ends NOT_A_MOUNT and names no file; INV-14's
+// first and last REPORT_PROGRESS; and INV-17's map runs.
 //
-// Usage: report-check REFERENCE BLOCKS REPORT SUBDIR INODES
+// Usage: report-check REFERENCE BLOCKS REPORT SUBDIR INODES SPACE EXTENTS
 //   REFERENCE  describe_files lines: EXTENTS SHA256 PATH
 //   BLOCKS     lines: BLOCKS PATH, each file's size in 4 KiB blocks
 //   REPORT     the engine's output for `report MOUNT`
 //   SUBDIR     the engine's output for `report MOUNT/deep`
 //   INODES     one line: ESTIMATE NAMES, the drive's used inodes before
 //              the report and every name below MOUNT
+//   SPACE      one line: FREE TOTAL, the drive's free blocks before the
+//              report and the disk's size, in 4 KiB blocks
+//   EXTENTS    lines: START LENGTH PATH, each extent filefrag -v lists
 // Prints one "ok" or "FAIL" line per check; exits 1 on any failure.
 #include "engine/Records.h"
 
 #include <QFile>
 #include <QMap>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -174,6 +178,82 @@ void checkProgress(const QByteArray &inodesText, const QByteArray &stream)
               .arg(last ? last->estimate : 0));
 }
 
+// INV-17: the map's runs, block by block, against statfs and filefrag -v.
+void checkMap(const QByteArray &referenceText, const QByteArray &spaceText,
+              const QByteArray &extentsText, const QByteArray &stream)
+{
+    const QList<QByteArray> space = spaceText.trimmed().split(' ');
+    check(space.size() == 2, QStringLiteral("SPACE is two numbers"));
+    if (space.size() != 2)
+        return;
+    const quint64 free = space[0].toULongLong();
+    const quint64 total = space[1].toULongLong();
+    check(free > 0 && total > free, QStringLiteral("the drive has free and used blocks"));
+
+    // Each block's kind in the engine's map; 0 where no run lies.
+    QList<quint32> kindOf(qsizetype(total), 0);
+    bool inside = true;
+    bool apart = true;
+    qsizetype freeRuns = 0;
+    for (const MapRuns &batch : recordsOf<MapRuns>(decode(stream).records)) {
+        if (batch.kind == MapFree)
+            freeRuns += batch.runs.size();
+        for (const MapRun &run : batch.runs) {
+            if (run.start > total || run.length > total - run.start) {
+                inside = false;
+                continue;
+            }
+            for (quint64 b = run.start; b < run.start + run.length; ++b) {
+                apart = apart && kindOf[qsizetype(b)] == 0;
+                kindOf[qsizetype(b)] = batch.kind;
+            }
+        }
+    }
+    check(inside, QStringLiteral("every run lies inside the disk's %1 blocks").arg(total));
+    check(apart, QStringLiteral("no block lies in two runs"));
+    const auto freeBlocks = quint64(std::count(kindOf.cbegin(), kindOf.cend(), MapFree));
+    check(freeBlocks == free,
+          QStringLiteral("free runs cover %1 blocks, statfs says %2").arg(freeBlocks).arg(free));
+    // FSMAP_PER_CALL in src/engine/extents.asm: more runs need a second call.
+    check(freeRuns > 64,
+          QStringLiteral("free space is in %1 runs, more than one GETFSMAP call holds")
+              .arg(freeRuns));
+    check(total > 0 && kindOf[0] == MapFilesystem,
+          QStringLiteral("block 0, the superblock's, is in a filesystem run"));
+
+    // Every file's blocks, as kind 4 when filefrag counts two or more
+    // pieces and kind 3 otherwise; every other block is no file's.
+    const QMap<QByteArray, quint64> pieces = numberByPath(referenceText);
+    QList<quint32> expected(qsizetype(total), 0);
+    for (const QByteArray &line : extentsText.split('\n')) {
+        const QList<QByteArray> fields = line.split(' ');
+        if (fields.size() < 3)
+            continue;
+        const quint64 start = fields[0].toULongLong();
+        const quint64 length = fields[1].toULongLong();
+        const quint32 kind =
+            pieces.value(fields.mid(2).join(' ')) >= 2 ? MapFragmentedFile : MapWholeFile;
+        for (quint64 b = start; b < start + length && b < total; ++b)
+            expected[qsizetype(b)] = kind;
+    }
+    const auto isFile = [](quint32 kind) {
+        return kind == MapWholeFile || kind == MapFragmentedFile;
+    };
+    qsizetype wrong = 0;
+    qsizetype first = -1;
+    for (qsizetype b = 0; b < kindOf.size(); ++b) {
+        const quint32 got = isFile(kindOf[b]) ? kindOf[b] : 0;
+        if (got != expected[b]) {
+            ++wrong;
+            if (first < 0)
+                first = b;
+        }
+    }
+    check(wrong == 0,
+          QStringLiteral("file runs match filefrag -v: %1 blocks differ, the first %2")
+              .arg(wrong).arg(first));
+}
+
 // INV-12: nothing but HELLO and FINISHED NOT_A_MOUNT.
 void checkSubdir(const QByteArray &stream)
 {
@@ -189,12 +269,14 @@ void checkSubdir(const QByteArray &stream)
 
 int main(int argc, char **argv)
 {
-    if (argc != 6) {
-        std::fprintf(stderr, "usage: report-check REFERENCE BLOCKS REPORT SUBDIR INODES\n");
+    if (argc != 8) {
+        std::fprintf(stderr, "usage: report-check REFERENCE BLOCKS REPORT SUBDIR INODES SPACE "
+                             "EXTENTS\n");
         return 2;
     }
     checkReport(readFile(argv[1]), readFile(argv[2]), readFile(argv[3]));
     checkSubdir(readFile(argv[4]));
     checkProgress(readFile(argv[5]), readFile(argv[3]));
+    checkMap(readFile(argv[1]), readFile(argv[6]), readFile(argv[7]), readFile(argv[3]));
     return failures == 0 ? 0 : 1;
 }

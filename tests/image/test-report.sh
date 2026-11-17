@@ -27,6 +27,8 @@ section BLOCKS >"$work/blocks"
 section REPORT | base64 -d >"$work/report.bin"
 section SUBDIR | base64 -d >"$work/subdir.bin"
 section INODES >"$work/inodes"
+section SPACE >"$work/space"
+section EXTENTS >"$work/extents"
 
 exec "$checker" "$work/reference" "$work/blocks" "$work/report.bin" "$work/subdir.bin" \
-    "$work/inodes"
+    "$work/inodes" "$work/space" "$work/extents"

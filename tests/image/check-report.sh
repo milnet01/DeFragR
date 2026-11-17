@@ -4,8 +4,9 @@
 # fragmented image and checks what only the machine can see: the exit
 # codes, and that the disk is byte for byte unchanged (S3); and which of
 # several stacked or disguised mounts `probe` lists. Then prints
-# the engine's output, the reference, and the drive's used inodes and
-# names between marker lines, for test-report.sh to decode on the host.
+# the engine's output, the reference, the drive's used inodes and names,
+# its free and total blocks, and each file's extents between marker lines,
+# for test-report.sh to decode on the host.
 # shellcheck source=SCRIPTDIR/../vm/guard.sh
 . /test/guard.sh
 # shellcheck source=SCRIPTDIR/fragment.sh
@@ -46,6 +47,11 @@ check "link is made" $? 0
 # Two empty folders, mounted on later to put other mounts inside the drive.
 mkdir /mnt/img/nested /mnt/img/auto
 check "the mount folders are made" $? 0
+# Nothing more is written. Mounted afresh, ext4 lets go of the blocks it
+# set aside for the files just written, which statfs counts free and
+# GETFSMAP does not (INV-17).
+umount /mnt/img && mount -t ext4 "$dev" /mnt/img
+check "the image is mounted afresh" $? 0
 describe_files /mnt/img >/tmp/reference
 check "filefrag counts joined as one piece" \
     "$(awk '$3 == "joined" { print $1 }' /tmp/reference)" 1
@@ -59,6 +65,10 @@ check "remount strictatime" $? 0
 stat -f -c '%c %d' /mnt/img >/tmp/inodes
 read -r total free </tmp/inodes
 estimate=$((total - free))
+# INV-17's map: the free blocks, and the disk's 4 KiB blocks from its
+# 512-byte sectors. statfs's own total leaves out the filesystem's blocks.
+echo "$(stat -f -c %f /mnt/img) $(( $(cat "/sys/class/block/${dev##*/}/size") / 8 ))" \
+    >/tmp/space
 before=$(disk_sum)
 /test/defragr-engine report /mnt/img >/tmp/report.bin
 check "report exits OK" $? 0
@@ -147,9 +157,17 @@ names=$(find /mnt/img -mindepth 1 -xdev | wc -l)
 (cd /mnt/img && find . -type f | sort | while read -r path; do
     echo "$(( ($(stat -c %s "$path") + 4095) / 4096 )) ${path#./}"
 done) >/tmp/blocks
+# Each file's extents as filefrag -v lists them: START LENGTH PATH, in
+# blocks. Its rows read "N: LOGICAL..END: PHYSICAL..END: LENGTH: ...".
+(cd /mnt/img && find . -type f | sort | while read -r path; do
+    filefrag -v "$path" | awk -v path="${path#./}" \
+        '/^ *[0-9]+:/ { gsub(/\.\./, " "); gsub(/:/, " "); print $4, $6, path }'
+done) >/tmp/extents
 
 section REFERENCE </tmp/reference
 section BLOCKS </tmp/blocks
+section SPACE </tmp/space
+section EXTENTS </tmp/extents
 base64 </tmp/report.bin | section REPORT
 base64 </tmp/subdir.bin | section SUBDIR
 echo "$estimate $names" | section INODES

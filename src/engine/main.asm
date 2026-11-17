@@ -18,6 +18,7 @@ extern rec_string
 extern rec_send
 extern rec_hello
 extern rec_finish
+extern rec_map_flush
 extern rec_selftest
 extern probe_run
 extern probe_find_mount
@@ -29,6 +30,7 @@ extern walk_path_len
 extern walk_names
 extern walk_estimate
 extern extents_count
+extern extents_space
 
 section .rodata
 arg_probe:      db "probe", 0
@@ -150,11 +152,11 @@ _start:
 ; report_run(rdi = NUL-terminated mount point, escaped) -> does not return.
 ; The rest of a report stream (DFR-0002 § 4.6), from the mount-point
 ; check on: HELLO with the block size, a FRAGMENTED_FILE for each file in
-; two or more pieces, a FILE_SKIPPED for each it could not measure, then
-; REPORT_SUMMARY and FINISHED. REPORT_PROGRESS comes straight after HELLO,
-; every PROGRESS_EVERY names, and straight before REPORT_SUMMARY. A
-; failure before the walk starts sends HELLO with block size 0 and
-; FINISHED with its result.
+; two or more pieces, a FILE_SKIPPED for each it could not measure, the
+; map's MAP_RUNS, then REPORT_SUMMARY and FINISHED. REPORT_PROGRESS comes
+; straight after HELLO, every PROGRESS_EVERY names, and straight before
+; REPORT_SUMMARY. A failure before the walk starts sends HELLO with block
+; size 0 and FINISHED with its result.
 report_run:
     sub rsp, 8
     ; The argument is escaped as mountinfo writes it (DFR-0002 § 4.3), so
@@ -186,11 +188,18 @@ report_run:
     test eax, eax
     jnz .failed
     mov r15d, edx                   ; r15 = the block size
+    mov r14d, ecx                   ; r14 = the top folder, open during the walk
     mov edi, CMD_REPORT
     mov esi, r15d
     call rec_hello
+    call send_progress              ; names 0, first after HELLO
+    ; The map's free and filesystem runs. A drive that cannot give them
+    ; sends none, and the report goes on (DFR-0002 § 4.6).
+    mov edi, r14d
+    mov esi, r15d
+    call extents_space
 
-.next:                              ; the first pass sends names 0
+.next:
     mov rax, [walk_names]
     cmp rax, [progress_due]
     jb .walk
@@ -211,9 +220,25 @@ report_run:
     mov ebx, edx                    ; ebx = the file
     mov edi, ebx
     mov esi, r15d
+    xor edx, edx                    ; count only
     call extents_count
     mov r12, rax                    ; r12 = pieces, or -errno
     mov r13, rdx                    ; r13 = blocks
+    cmp r12, -MAX_ERRNO
+    jae .close
+    ; Its map runs, now its pieces say which kind they are. A failure here
+    ; skips the file as a failed count would.
+    mov edx, MAP_WHOLE_FILE
+    mov eax, MAP_FRAGMENTED_FILE
+    cmp r12, 2
+    cmovae edx, eax
+    mov edi, ebx
+    mov esi, r15d
+    call extents_count
+    cmp rax, -MAX_ERRNO
+    jb .close
+    mov r12, rax
+.close:
     mov edi, ebx
     call sys_close                  ; read-only; a failed close loses nothing
     cmp r12, -MAX_ERRNO
@@ -262,6 +287,7 @@ report_run:
     jmp .next
 
 .end:
+    call rec_map_flush
     call send_progress              ; every name, for the last time
     mov edi, REC_REPORT_SUMMARY
     mov esi, report_summary_size

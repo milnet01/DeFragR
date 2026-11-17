@@ -123,7 +123,9 @@ struc kernel_statx
     .gid        resd 1
     .mode       resw 1
     .spare0     resw 1
-    .rest1      resb 144 - 32
+    .rest1      resb 136 - 32
+    .dev_major  resd 1          ; the device the file is on; always filled
+    .dev_minor  resd 1
     .mnt_id     resq 1
     .rest2      resb 256 - 152
 endstruc
@@ -163,7 +165,39 @@ struc fiemap_extent
     .flags          resd 1
     .reserved       resd 3
 endstruc
-; fe_flags: the file's last extent.
-FIEMAP_EXTENT_LAST  equ 1
+; fe_flags: the file's last extent; an extent with no place on the drive
+; yet (delayed allocation sets it too); one sharing its block with other
+; data (inline data and tails set it).
+FIEMAP_EXTENT_LAST          equ 0x001
+FIEMAP_EXTENT_UNKNOWN       equ 0x002
+FIEMAP_EXTENT_NOT_ALIGNED   equ 0x100
+
+; FS_IOC_GETFSMAP: _IOWR('X', 59, struct fsmap_head) (linux/fsmap.h).
+; Positions and lengths are in bytes. A query returns the records between
+; two keys; the last record returned, as the low key, asks for the next.
+FS_IOC_GETFSMAP     equ 0xC0C0583B
+struc fsmap
+    .device         resd 1      ; as new_encode_dev encodes it
+    .flags          resd 1
+    .physical       resq 1
+    .owner          resq 1
+    .offset         resq 1
+    .length         resq 1
+    .reserved       resq 3
+endstruc
+struc fsmap_head
+    .iflags         resd 1
+    .oflags         resd 1
+    .count          resd 1      ; records the buffer holds
+    .entries        resd 1      ; records returned
+    .reserved       resq 6
+    .keys           resb 2 * fsmap_size
+endstruc                        ; the records follow
+; fmr_flags: the owner is special, not an inode; the drive's last record.
+FMR_OF_SPECIAL_OWNER    equ 0x10
+FMR_OF_LAST             equ 0x20
+; Special owners: free space; in use, owner not known (ext4's file data).
+FMR_OWN_FREE            equ 1
+FMR_OWN_UNKNOWN         equ 2
 
 %endif

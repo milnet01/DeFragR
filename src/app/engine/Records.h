@@ -31,6 +31,7 @@ enum RecordType : quint16 {
     TypeFileSkipped = 0x0021,
     TypeReportSummary = 0x0022,
     TypeReportProgress = 0x0023,
+    TypeMapRuns = 0x0024,
     TypeRunState = 0x0030,
 };
 
@@ -64,6 +65,14 @@ enum Reason : quint16 {
     ReasonReadOnly = 2,
     ReasonSsd = 3,
     ReasonMediaUnknown = 4,
+};
+
+// MAP_RUNS.kind (§ 4.6).
+enum MapKind : quint32 {
+    MapFree = 1,
+    MapFilesystem = 2,
+    MapWholeFile = 3,
+    MapFragmentedFile = 4,
 };
 
 // Enumerated fields stay plain integers: a value this window does not
@@ -131,6 +140,19 @@ struct ReportProgress {
     bool operator==(const ReportProgress &) const = default;
 };
 
+// Blocks start to start + length - 1, in HELLO.blockSize units.
+struct MapRun {
+    quint64 start = 0;
+    quint64 length = 0;
+    bool operator==(const MapRun &) const = default;
+};
+
+struct MapRuns {
+    quint32 kind = 0;
+    QList<MapRun> runs;
+    bool operator==(const MapRuns &) const = default;
+};
+
 struct RunState {
     quint32 state = 0;
     bool operator==(const RunState &) const = default;
@@ -143,7 +165,7 @@ struct Unknown {
 };
 
 using Record = std::variant<Hello, Finished, Drive, FragmentedFile, FileSkipped,
-                            ReportSummary, ReportProgress, RunState, Unknown>;
+                            ReportSummary, ReportProgress, MapRuns, RunState, Unknown>;
 
 enum class StreamError { Malformed, VersionMismatch };
 

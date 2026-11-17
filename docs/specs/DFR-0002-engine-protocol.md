@@ -50,6 +50,11 @@ There is no such spec. Without it:
   for it on 2026-11-16. Claude's choices: the engine counts names, not
   files, and estimates the total from the drive's used inodes, which
   `statfs` gives without a walk.
+- **A report sends the drive map as runs of blocks (1.2, DFR-0011).**
+  Claude's choices: the window bins runs into cells (`docs/design.md`
+  § The parts, *Map*), so the engine sends positions, not cells; many runs
+  share a record, since a large drive has millions; a run says whether
+  its file is fragmented, so the map needs no file names.
 
 ## 4. Design
 
@@ -69,9 +74,9 @@ offset  size  field
 Each record therefore starts at a multiple of 8 bytes from the start of
 the stream.
 
-**A payload** is a fixed part, then zero or more strings, then optional
-trailing bytes. The fixed part's fields sit at the offsets each record's
-table gives.
+**A payload** is a fixed part, then zero or more strings or, in
+`MAP_RUNS`, its runs, then optional trailing bytes. The fixed part's
+fields sit at the offsets each record's table gives.
 
 **A string** is a `u32` byte count, then that many raw bytes, then zero
 bytes up to the next multiple of 8 from the payload's start. Bytes are
@@ -93,7 +98,8 @@ Padding bytes and `flags` are not checked.
 ### 4.2 Versioning
 
 The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
-defines **1.1**: 1.0 plus `REPORT_PROGRESS` (§ 4.6).
+defines **1.2**: 1.0 plus `REPORT_PROGRESS` in 1.1 and `MAP_RUNS` in 1.2
+(§ 4.6).
 
 - **Minor** changes add, and never change: a new record or command type,
   a field appended to a payload, a new value of an enumerated field. An
@@ -142,7 +148,7 @@ stream: `HELLO` with command 0, then `FINISHED` with `USAGE`.
 ```
 offset  size  field
 0       2     major        1
-2       2     minor        1
+2       2     minor        2
 4       4     command      0 unknown, 1 probe, 2 report, 255 selftest-records
 8       4     block_size   the drive's block size in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
@@ -189,8 +195,8 @@ which rule yields which reason, are set inside this layout by
 ### 4.6 Report records
 
 The report stream is `HELLO`, then `FRAGMENTED_FILE`, `FILE_SKIPPED`,
-`REPORT_PROGRESS` and `RUN_STATE` in any order, then — only when the
-result is `OK` — one `REPORT_SUMMARY`, then `FINISHED`.
+`REPORT_PROGRESS`, `MAP_RUNS` and `RUN_STATE` in any order, then — only
+when the result is `OK` — one `REPORT_SUMMARY`, then `FINISHED`.
 
 **`FRAGMENTED_FILE`** — type `0x0020`, fixed part 16 bytes, then one
 string. Sent for each regular file with two or more extents.
@@ -246,6 +252,41 @@ rate.
 `names` can end above or below `estimate`. A hard link adds a name but no
 inode; inodes the filesystem keeps for itself have no name. On
 2026-11-16, btrfs and vfat mounts gave `f_files` 0 (`stat -f -c %c`).
+
+**`MAP_RUNS`** — type `0x0024`, fixed part 8 bytes, then `count` runs of
+16 bytes. Where the drive's blocks lie, for the map. Added in 1.2.
+
+```
+offset      size  field
+0           4     kind     1 free, 2 the filesystem's own, 3 a file in one piece, 4 a file in two or more pieces
+4           4     count    runs after the fixed part
+8 + 16 × i  8     start    run i's first block
+16 + 16 × i 8     length   run i's blocks
+```
+
+A `count` whose runs pass the payload's end is malformed. Bytes after
+the last run are trailing bytes (§ 4.1).
+
+- Kinds 1 and 2 come from `FS_IOC_GETFSMAP`, read once before the walk.
+  Kind 2 is what the filesystem keeps for itself: superblocks, group
+  tables, bitmaps, inode tables, the journal. Blocks in use that
+  GETFSMAP gives no owner, as ext4 gives file data, are not sent.
+- Blocks ext4 has set aside for files being written are in no run:
+  GETFSMAP counts them in use, `statfs` counts them free. Mounting afresh
+  lets them go.
+- A drive that cannot give that map sends no runs of kinds 1 and 2, or
+  only those read before GETFSMAP failed. The report goes on.
+- Kinds 3 and 4 come from each visited file's extents
+  (`FS_IOC_FIEMAP`). Kind 4 is a file in two or more pieces, as
+  `FRAGMENTED_FILE` counts them. An extent flagged unknown or not aligned
+  has no blocks of its own yet, and is not sent. A file skipped at stage
+  3 may have sent some runs first.
+- A run starting where the last run of its kind ends is joined onto it,
+  so one run can span several files.
+- A block in no run is in use by something unnamed: a folder, an extent
+  tree, a skipped file, or a part of the drive GETFSMAP did not describe.
+- Runs can overlap. A file is visited once per hard link, and the drive
+  can change while the report runs.
 
 **`RUN_STATE`** — type `0x0030`, fixed part 8 bytes. Sent when the engine
 acts on a pause or resume command (§ 4.8).
@@ -307,16 +348,18 @@ between files. DFR-0023 builds the engine's half.
 Emits, in this order, one record of every engine type with these values,
 then exits 0. Each multi-byte value has distinct bytes, so a swapped,
 misplaced or mis-sized field shows. The exceptions are fixed by meaning:
-`HELLO`'s major, minor and command, and `FINISHED`'s result and errno.
+`HELLO`'s major, minor and command, `MAP_RUNS`' count, and `FINISHED`'s
+result and errno.
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 1, command 255, block_size `0x01020304` |
+| `HELLO` | major 1, minor 2, command 255, block_size `0x01020304` |
 | `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
 | `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
 | `REPORT_SUMMARY` | files `0x8182838485868788`, fragmented_files `0x9192939495969798`, extents `0xA1A2A3A4A5A6A7A8`, file_blocks `0xB1B2B3B4B5B6B7B8`, skipped `0xC1C2C3C4C5C6C7C8` |
 | `REPORT_PROGRESS` | names `0xE1E2E3E4E5E6E7E8`, estimate `0xF1F2F3F4F5F6F7F8` |
+| `MAP_RUNS` | kind `0x13141516`, count 2, run 0 start `0x3132333435363738` and length `0x4142434445464748`, run 1 start `0x5152535455565758` and length `0x6162636465666768` |
 | `RUN_STATE` | state `0xF1F2F3F4` |
 | `FINISHED` | result 0, errno 0 |
 
@@ -325,7 +368,7 @@ these 24 bytes:
 
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
-01 00 01 00 ff 00 00 00   major 1, minor 1, command 255
+01 00 02 00 ff 00 00 00   major 1, minor 2, command 255
 04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
@@ -504,6 +547,32 @@ isolates.
   passes the path through `QFile::decodeName`, which turns a byte that
   is not UTF-8 into U+FFFD.
 
+- **INV-16** — A `MAP_RUNS` decodes with its kind and every run, whatever
+  the kind's value, and counts toward neither of INV-8's counts. One whose
+  `count` passes its payload's end is malformed, as is one after
+  `REPORT_SUMMARY`.
+  *Test:* `tests/app/tst_records.cpp::mapRuns` — a report stream holding
+  a kind 1 record of two runs and a kind 200 record of none, with a
+  summary claiming no files. Then the first record with `count` 3 in the
+  same 40-byte payload: its length is valid, so only the count rule can
+  reject it.
+  *Breaks when:* the decoder trusts `count` and reads past the payload,
+  reads type `0x0024` as `Unknown`, or rejects a kind added later.
+
+- **INV-17** — On ext4 mounted afresh since its last write, with no hard
+  links, a report that finishes `OK` sends runs that share no block.
+  Kind 1 covers as many blocks as `statfs` gives free. Kind 3 covers
+  exactly the blocks
+  `filefrag -v` lists for files in one piece, and kind 4 those of files
+  in two or more. Block 0, the superblock's, is in a kind 2 run.
+  *Test:* `tests/image/report-check.cpp`, the `image_report` test. The
+  image's free space lies in more runs than one GETFSMAP call returns
+  (`FSMAP_PER_CALL`, `src/engine/extents.asm`), so a second call is
+  needed.
+  *Breaks when:* the engine reads a byte offset as a block, sends
+  GETFSMAP's unowned blocks as the filesystem's, marks a fragmented
+  file's runs as whole, or stops after the first GETFSMAP call.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -536,13 +605,14 @@ fail against an engine that accepts any folder under a mount point.
 
 | Test | Locks | Needs root |
 |---|---|---|
-| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13 | No |
+| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13, INV-16 | No |
 | `tests/app/tst_records_conformance.cpp` | INV-10, INV-11 | No |
 | `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
 | `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
-| `tests/image/report-check.cpp` | INV-14 | Yes, its input comes from the test machine |
+| `tests/image/report-check.cpp` | INV-14, INV-17 | Yes, its input comes from the test machine |
 
 DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
+DFR-0011 does the same for INV-16's and INV-17's.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -564,7 +634,6 @@ engine. The conformance and image tests read real engine output.
 
 ## 9. Out of scope
 
-- Drive map records — tracked by DFR-0011.
 - Defrag's arguments and records: file moved, blocks changed, checksum
   failure — tracked by DFR-0017.
 - Defrag's progress records — tracked by DFR-0020.
@@ -575,10 +644,10 @@ engine. The conformance and image tests read real engine output.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 to INV-9, INV-13 | `tests/app/tst_records.cpp` |
+| INV-1 to INV-9, INV-13, INV-16 | `tests/app/tst_records.cpp` |
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
-| INV-14 | `tests/image/report-check.cpp` (`image_report`) |
+| INV-14, INV-17 | `tests/image/report-check.cpp` (`image_report`) |
 | INV-15 | `tests/image/check-report.sh` (`image_report`); `tests/app/tst_engineprocess.cpp::pathArgument` |
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
