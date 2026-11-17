@@ -172,11 +172,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Report, Report view, Screens.
   Blocked-by: DFR-0005, DFR-0008.
 
-- 🚧 [DFR-0010] **Release 0.1.0.**
+- ✅ [DFR-0010] **Release 0.1.0.**
   2026-11-16: 0.1.0 committed (5d70f14), tagged v0.1.0 and pushed;
-  GitHub CI green on it. The GitHub release page is not published yet
-  (the owner's choice); publishing it finishes this item, with the 0.1.0
-  CHANGELOG section verbatim as the notes and no assets.
+  GitHub CI green on it.
+  Shipped 2026-11-17: the GitHub release page is published, with the
+  0.1.0 CHANGELOG section verbatim as the notes and no assets.
   **Layman:** Publishes the first version, which can report on a drive but not defrag it.
   Kind: release.
   Source: design-2026-11-15.
