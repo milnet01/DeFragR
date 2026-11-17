@@ -13,8 +13,9 @@
 #   SCRIPT        run as /test/run by the machine's shell, in /test
 #
 # The machine is the host's own kernel and a small initial filesystem:
-# busybox, e2fsprogs, the kernel modules for its disks, /test/guard.sh and
-# the files above. It has no network and no disk but the ones named here.
+# busybox, e2fsprogs, the kernel modules for its disks and filesystems,
+# /test/guard.sh and the files above. It has no network and no disk but the
+# ones named here.
 # Only regular files can be named, so no host drive can be attached.
 #
 # Exit codes: the script's own; 77 when this host cannot boot the machine
@@ -151,8 +152,9 @@ done
 
 # The modules the disks and filesystems need, in load order, decompressed
 # because busybox's insmod cannot read a compressed module. A module built
-# into the kernel prints "builtin" and needs nothing.
-load_order=$(for module in virtio_scsi sd_mod ext4 loop; do
+# into the kernel prints "builtin" and needs nothing. autofs is built in on
+# openSUSE but a module on Ubuntu, so it must be named here.
+load_order=$(for module in virtio_scsi sd_mod ext4 loop autofs4; do
     PATH=$PATH:/usr/sbin:/sbin modprobe -S "$kver" --show-depends "$module"
 done) || die "a module the machine needs is missing for $kver"
 : >"$root/lib/modules/order"
