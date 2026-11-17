@@ -317,7 +317,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-17.
   Lanes: Languages, Messages, Report, Drives, Screens, Report view, Build.
 
-- 📋 [DFR-0069] **Paths read left to right in a right-to-left window.**
+- ✅ [DFR-0069] **Paths read left to right in a right-to-left window.**
   Found checking DFR-0066 with `defragr -reverse` (2026-11-17): the
   drive list showed "/mnt/Games/" as "mnt/Games/" with the slash moved,
   and sizes as "GiB 200.62". A path in a right-to-left layout needs
@@ -325,6 +325,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   "Latest:", its File column, and the missing-engine message. Check
   sizes again once Hebrew exists, since Hebrew's own size units may
   read correctly. Check with `defragr -reverse`.
+  Shipped 2026-11-17. model::messages::path wraps a path in Unicode's
+  left-to-right isolate, and all five places use it. The tests failed
+  on the bare paths first. A throwaway right-to-left render showed
+  "opt/defragr/defragr-engine/" in a table cell and a Hebrew sentence
+  before the fix, and the path as written after. Sizes wait for
+  DFR-0067's Hebrew check.
   **Layman:** In Hebrew, a folder like /mnt/Games must still read /mnt/Games, not with its slashes moved.
   Kind: fix.
   Source: user-request-2026-11-17.
@@ -954,7 +960,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   pl, fr, uk. Also the desktop entry's name and comment. Drafted by
   Claude, not yet checked by native speakers: the README says so and
   invites corrections. Each language is checked on screen, Hebrew right
-  to left.
+  to left, including whether sizes such as "200.62 GiB" read correctly
+  (DFR-0069 left them).
   **Layman:** DeFragR speaks Hebrew, German, Italian, Greek, Spanish, Portuguese, Chinese, Japanese, Russian, Polish, French and Ukrainian.
   Kind: feature.
   Source: user-request-2026-11-17.
