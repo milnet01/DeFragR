@@ -14,6 +14,9 @@
 #   ./scripts/local-ci.sh           the full gate
 #   ./scripts/local-ci.sh --docs    the checks that do not need a build
 #   ./scripts/local-ci.sh --docs-glob   print what counts as documentation
+#   ./scripts/local-ci.sh --nasm-pin    print the NASM version and hash CI builds
+#   ./scripts/local-ci.sh --ci-packages print the packages CI installs
+# Anything else is refused, so a typo such as --doc cannot run the wrong mode.
 #
 # WHY --docs EXISTS, AND WHY IT IS NOT A SKIP. Rebuilding and re-testing to fix
 # a prose typo is how a person learns to reach for --no-verify. So --docs omits
@@ -53,7 +56,13 @@ if [[ ${1:-} == --nasm-pin ]]; then printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA2
 if [[ ${1:-} == --ci-packages ]]; then printf '%s\n' "$CI_PACKAGES"; exit 0; fi
 
 DOCS_ONLY=0
-[[ ${1:-} == --docs ]] && DOCS_ONLY=1
+case "$#:${1:-}" in
+    0:) ;;
+    1:--docs) DOCS_ONLY=1 ;;
+    *) printf 'local-ci: unknown arguments: %s\n' "$*" >&2
+       sed -n '/^# Usage:/,/^# Anything else/{s/^# \{0,1\}//;p}' "$0" >&2
+       exit 2 ;;
+esac
 
 # ── Have you filled anything in yet? ────────────────────────────────────────
 # SET THIS TO 1 once the steps below run at least one real check. Until then
@@ -68,8 +77,9 @@ CONFIGURED=1
 
 step() { printf '\n=== %s ===\n' "$1" >&2; }
 
-# A check whose tool is absent SAYS SO and is never silently dropped: a check
-# that did not run must not look like one that passed.
+# A check whose tool is absent SAYS SO and stops the gate: a check that did
+# not run must not look like one that passed. Call it on its own line, never
+# as `need X && ...`: set -e ignores a failure on the left of &&.
 need() {
     command -v "$1" >/dev/null 2>&1 && return 0
     printf 'local-ci: %s is not installed — that check did NOT run\n' "$1" >&2
@@ -103,7 +113,8 @@ run() {
 # Anything not needing a compiler or a full environment belongs here.
 
 step 'documentation'
-need python3 && run links python3 -I scripts/check-links.py
+need python3
+run links python3 -I scripts/check-links.py
 # SET THIS TO 1 once the documentation step runs a real check. CONFIGURED
 # covers the script as a whole, so a project with lint and tests filled in
 # still had --docs report a pass that checked nothing (Deedbox, 2026-09-28).
@@ -142,7 +153,8 @@ done >&2
 
 step 'lint'
 mapfile -t SHELL_FILES < <(git ls-files '*.sh' '.githooks/*')
-need shellcheck && run shellcheck shellcheck "${SHELL_FILES[@]}"
+need shellcheck
+run shellcheck shellcheck "${SHELL_FILES[@]}"
 
 # Locally the gate shares the machine with the desktop and other work, so
 # it builds at low CPU and disk priority on at most half the cores.
@@ -182,6 +194,7 @@ step 'test'
 export DEFRAGR_VM_REQUIRED=1
 run test "${GENTLE[@]}" ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error
 
+# ci-container.sh matches this pass line exactly; change both together.
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2
 else

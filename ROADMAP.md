@@ -498,7 +498,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: review-code-2026-11-16.
   Lanes: Records.
 
-- 📋 [DFR-0054] **The gate fails when a check's tool is missing.**
+- ✅ [DFR-0054] **The gate fails when a check's tool is missing.**
   - local-ci.sh:106,145,166: `need X && run ...` under set -e drops a check
     whose tool is missing, and the gate still prints "all checks passed".
     A bash probe confirmed a failed left side of && does not stop it.
@@ -510,6 +510,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
     root; check-links.py:18,26 (two LOWs in message 1).
   - ci-container.sh:146 prints its header as help; nothing says so.
   Found by review-code lane 04 and review-readability lane 4.
+  Shipped 2026-11-17. A missing python3 or shellcheck now stops the gate:
+  with python3 off PATH, --docs printed "passed" and exited 0 before, and
+  exits 1 after. The usage lists all five modes, and anything else exits 2
+  with the usage. check-links.py lists files with -z, reads a / link from
+  the repository root, and closes a code block only on its own marker; a
+  scratch repository failed all three before and passes after. The pass
+  line and the help text carry comments.
   **Layman:** The safety check before a push can no longer report a pass when it quietly skipped a check.
   Kind: fix.
   Source: review-code-2026-11-16.

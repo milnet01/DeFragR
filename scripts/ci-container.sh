@@ -143,5 +143,6 @@ run() {
 case ${1:-} in
     warm) shift; warm "$@" ;;
     run) shift; run "$@" ;;
+    # No command: print this file's header comment as the help text.
     *) sed -n '2,/^set -Eeuo/{/^set/d;s/^# \{0,1\}//;p}' "$0" >&2; exit 2 ;;
 esac
