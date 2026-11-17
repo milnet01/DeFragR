@@ -60,6 +60,15 @@ add_test(NAME tst_report COMMAND tst_report)
 set_tests_properties(tst_report PROPERTIES
     ENVIRONMENT "DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
 
+# A recorded run, played back by the fake engine: DFR-0012.
+add_executable(tst_replay tst_replay.cpp)
+target_compile_options(tst_replay PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_replay PRIVATE defragr-engine-link Qt6::Test)
+add_dependencies(tst_replay defragr-fake-engine)
+add_test(NAME tst_replay COMMAND tst_replay)
+set_tests_properties(tst_replay PROPERTIES ENVIRONMENT
+    "DEFRAGR_ENGINE=$<TARGET_FILE:defragr-fake-engine>;DEFRAGR_RECORDING=${PROJECT_SOURCE_DIR}/tests/fixtures/image-report;DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
+
 # The window in the desktop's language: DFR-0066. A one-sentence Hebrew
 # file stands in for the translations, which come with DFR-0067.
 add_executable(tst_languages tst_languages.cpp)
@@ -89,5 +98,5 @@ set_tests_properties(translations_current PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_messages tst_report tst_languages PROPERTIES
+    tst_drivelist tst_messages tst_report tst_replay tst_languages PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

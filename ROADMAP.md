@@ -364,10 +364,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Extents, Records.
   Blocked-by: DFR-0008.
 
-- 📋 [DFR-0012] **Fake engine replaying recorded runs.**
+- ✅ [DFR-0012] **Fake engine replaying recorded runs.**
   `tests/fake-engine/` replays files in `tests/fixtures/` through
-  `DEFRAGR_ENGINE`, at speed or in real time. Fixtures are captured
-  from image-test runs. Lets the window be built and tested without
+  `DEFRAGR_ENGINE`, at once or paced over a chosen number of
+  seconds. Fixtures are captured from image-test runs, which finish
+  too fast for their own timing to be worth keeping. Lets the window be built and tested without
   root.
   **Layman:** Lets the window be tested with recorded engine runs, no admin rights needed.
   Kind: test.
