@@ -417,12 +417,22 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: review-code-2026-11-16.
   Lanes: Report view, Screens, Drives.
 
-- 📋 [DFR-0048] **Window keeps a mount point's non-UTF-8 bytes intact.**
+- ✅ [DFR-0048] **Window keeps a mount point's non-UTF-8 bytes intact.**
   Report.cpp:111 passes the mount point through QFile::decodeName, which
   turns invalid UTF-8 into U+FFFD: /mnt/t\xff becomes /mnt/t\xef\xbf\xbd
   (Qt probe, 2026-11-16). The engine is then asked about a path that does
   not exist. Keep the raw bytes from the DRIVE record. Found by review-code
   lane 03.
+  Shipped 2026-11-17. Keeping the raw bytes could not work: QProcess
+  takes text arguments, so a byte that is not UTF-8 is lost before the
+  engine starts. The owner chose to escape it (2026-11-17). The window
+  sends the mount point escaped as mountinfo writes it
+  (EngineProcess::pathArgument), and report decodes it with probe's
+  unescape before any check. Spec DFR-0002 § 4.3 amended; INV-15 added.
+  image_report's bind mount at a name holding 0xFF, a space and a
+  backslash exited NOT_A_MOUNT before and OK after, with the first
+  report's stream; tst_engineprocess pathArgument failed against plain
+  decoding and passes after.
   **Layman:** A drive whose folder name has unusual characters can still be reported on.
   Kind: fix.
   Source: review-code-2026-11-16.

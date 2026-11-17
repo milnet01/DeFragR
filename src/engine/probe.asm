@@ -95,6 +95,7 @@ found_drive:    resb 1              ; whether that match is a drive
 section .text
 global probe_run
 global probe_find_mount
+global unescape
 
 ; probe_run() -> eax = result code, edx = errno or 0.
 ; Sends one DRIVE record per drive. On OK the caller sends FINISHED. Fails
@@ -580,8 +581,9 @@ next_field:
 
 ; unescape(rdi = bytes, rsi = count, rdx = buffer of STRING_MAX + 1)
 ;   -> rax = bytes written, or -1 when more than STRING_MAX.
-; Copies a mountinfo field, turning each backslash and three octal digits
-; back into the byte the kernel escaped (a space is \040), then a NUL.
+; Copies a mountinfo field, or report's argument (DFR-0002 § 4.3),
+; turning each backslash and three octal digits back into the byte they
+; stand for (a space is \040), then a NUL.
 ; Clobbers rcx, rsi, rdi, r8 to r10.
 unescape:
     add rsi, rdi                    ; rsi = end of the field

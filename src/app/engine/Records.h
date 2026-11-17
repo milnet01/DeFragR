@@ -93,7 +93,8 @@ struct Drive {
     quint8 verdict = 0;
     quint16 reason = 0;
     quint32 mountFlags = 0;
-    // Raw bytes as the kernel gave them; decode with QFile::decodeName.
+    // Raw bytes as the kernel gave them. Decode with QFile::decodeName to
+    // show them; send them to the engine with EngineProcess::pathArgument.
     QByteArray mountPoint;
     QByteArray source;
     QByteArray fsType;

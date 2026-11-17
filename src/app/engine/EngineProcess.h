@@ -39,6 +39,9 @@ public:
 
     // DEFRAGR_ENGINE when set, otherwise defragr-engine beside the window.
     static QString enginePath();
+    // A path as an engine argument, escaped as mountinfo writes it, so
+    // bytes that are not UTF-8 survive QProcess (DFR-0002 § 4.3).
+    static QString pathArgument(const QByteArray &path);
 
     // Runs one command. Ignored while a run is going.
     void start(Command command, const QStringList &arguments = {});

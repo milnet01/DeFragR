@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QTimer>
 
@@ -69,6 +70,25 @@ QString EngineProcess::enginePath()
     if (!fromEnvironment.isEmpty())
         return fromEnvironment;
     return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("defragr-engine"));
+}
+
+QString EngineProcess::pathArgument(const QByteArray &path)
+{
+    // QProcess turns each argument into bytes with QFile::encodeName.
+    // Where that gives the path back, only a backslash is escaped, so the
+    // password prompt still shows the name as written.
+    const bool asText = QFile::encodeName(QFile::decodeName(path)) == path;
+    QByteArray escaped;
+    for (const char c : path) {
+        const auto byte = static_cast<unsigned char>(c);
+        if (byte == '\\' || (!asText && byte >= 0x80)) {
+            escaped += '\\';
+            escaped += QByteArray::number(byte, 8).rightJustified(3, '0');
+        } else {
+            escaped += c;
+        }
+    }
+    return QFile::decodeName(escaped);
 }
 
 void EngineProcess::start(Command command, const QStringList &arguments)

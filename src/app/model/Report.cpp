@@ -108,7 +108,7 @@ void Report::run(const QByteArray &mountPoint)
     m_incomingBlockSize = 0;
     m_incomingSummary = {};
     m_incoming.clear();
-    m_engine.start(CommandReport, {QFile::decodeName(mountPoint)});
+    m_engine.start(CommandReport, {EngineProcess::pathArgument(mountPoint)});
 }
 
 void Report::collect(const QList<Record> &records)

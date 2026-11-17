@@ -72,6 +72,17 @@ check "report on a tmpfs exits NOT_A_MOUNT" $? 3
 check "the tmpfs report is the sub-folder's" \
     "$(sha256sum </tmp/memory.bin)" "$(sha256sum </tmp/subdir.bin)"
 umount /mnt/memory
+# § 4.3: the window sends the mount point escaped as mountinfo writes it.
+# This one holds a byte that is not UTF-8, a space and a backslash; it
+# mounts the same drive, so its stream must be the first report's.
+odd=$(printf '/mnt/t\377 x\134y')
+mkdir -p "$odd" && mount -o bind /mnt/img "$odd"
+check "the odd name is mounted" $? 0
+/test/defragr-engine report '/mnt/t\377 x\134y' >/tmp/odd.bin
+check "report on an escaped mount point exits OK" $? 0
+check "the escaped report is the first report" \
+    "$(sha256sum </tmp/odd.bin)" "$(sha256sum </tmp/report.bin)"
+umount "$odd"
 # Every name below the mount point; the image's names hold no newline.
 names=$(find /mnt/img -mindepth 1 -xdev | wc -l)
 

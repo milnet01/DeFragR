@@ -24,6 +24,7 @@ extern rec_finish
 extern rec_selftest
 extern probe_run
 extern probe_find_mount
+extern unescape
 extern walk_start
 extern walk_next
 extern walk_path
@@ -47,6 +48,7 @@ section .bss
 alignb 8
 summary:        resb report_summary_size   ; report's running totals
 progress_due:   resq 1                  ; walk_names at the next REPORT_PROGRESS
+mount_path:     resb STRING_MAX + 8     ; report's argument, decoded
 
 section .text
 global _start
@@ -148,7 +150,7 @@ _start:
     xor esi, esi
     call rec_finish
 
-; report_run(rdi = NUL-terminated mount point) -> does not return.
+; report_run(rdi = NUL-terminated mount point, escaped) -> does not return.
 ; The rest of a report stream (DFR-0002 § 4.6), from the mount-point
 ; check on: HELLO with the block size, a FRAGMENTED_FILE for each file in
 ; two or more pieces, a FILE_SKIPPED for each it could not measure, then
@@ -158,7 +160,26 @@ _start:
 ; FINISHED with its result.
 report_run:
     sub rsp, 8
-    mov r14, rdi                    ; r14 = the mount point
+    ; The argument is escaped as mountinfo writes it (DFR-0002 § 4.3), so
+    ; a name that is not UTF-8 survives Qt's text arguments.
+    ; The check and the walk both take the decoded path. A \000 ends it
+    ; early, the same as being given the shorter path.
+    mov rsi, rdi
+.measure:
+    cmp byte [rsi], 0
+    je .measured
+    inc rsi
+    jmp .measure
+.measured:
+    sub rsi, rdi                    ; rsi = the argument's length
+    lea rdx, [mount_path]
+    call unescape
+    test rax, rax
+    mov eax, RESULT_NOT_A_MOUNT     ; mov leaves the flags alone
+    mov edx, 0
+    js .failed                      ; longer than any mount point
+    lea r14, [mount_path]           ; r14 = the mount point
+    mov rdi, r14
     call probe_find_mount
     test eax, eax
     jnz .failed

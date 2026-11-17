@@ -144,6 +144,22 @@ private slots:
         QCOMPARE(probe.outcome.enginePath, path);
     }
 
+    // DFR-0002 § 4.3: a path reaches the engine escaped as mountinfo
+    // writes it. A name that is UTF-8 stays readable; one that is not is
+    // escaped above ASCII, since QProcess would turn its bytes into U+FFFD.
+    // image_report checks the engine decodes it.
+    void pathArgument()
+    {
+        QCOMPARE(EngineProcess::pathArgument(QByteArray("/mnt/games")),
+                 QStringLiteral("/mnt/games"));
+        QCOMPARE(EngineProcess::pathArgument(QByteArray("/mnt/sp\xc3\xa9l x")),
+                 QString::fromUtf8("/mnt/sp\xc3\xa9l x"));
+        QCOMPARE(EngineProcess::pathArgument(QByteArray("/mnt/a\\b")),
+                 QStringLiteral("/mnt/a\\134b"));
+        QCOMPARE(EngineProcess::pathArgument(QByteArray("/mnt/t\xff\xc3\xa9\\")),
+                 QStringLiteral("/mnt/t\\377\\303\\251\\134"));
+    }
+
     // Closing the window mid-report destroys the EngineProcess with the
     // engine still running and output still unread. Nothing may reach
     // the half-destroyed object: once, it corrupted the heap.

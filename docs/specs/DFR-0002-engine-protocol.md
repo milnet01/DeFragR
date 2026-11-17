@@ -118,6 +118,11 @@ Arguments are the only text the engine parses. Every run, including a
 bad one, writes a record stream to standard output and nothing else.
 Standard error is for a crash only.
 
+`report`'s mount point is written as `/proc/self/mountinfo` writes one:
+a backslash and three octal digits stand for one byte. The engine
+decodes it before any check (INV-15). Qt starts the engine with text
+arguments, so this is how a name that is not UTF-8 reaches it.
+
 The stream is:
 
 ```
@@ -486,6 +491,19 @@ isolates.
   *Breaks when:* the engine counts only what it visits, counts `.` and
   `..`, or sends `f_ffree` as the estimate.
 
+- **INV-15** — `report` decodes its argument's `\` and three octal
+  digits to one byte before matching a mount point. The window escapes
+  every backslash, and every byte above `0x7F` when the path is not
+  UTF-8.
+  *Test:* `tests/image/check-report.sh`, the `image_report` test: a bind
+  mount of the image at a name holding `0xFF`, a space and a backslash,
+  given escaped, must exit `OK` with the first report's stream byte for
+  byte. `tests/app/tst_engineprocess.cpp::pathArgument` checks the
+  window's escaping.
+  *Breaks when:* the engine matches the raw argument, or the window
+  passes the path through `QFile::decodeName`, which turns a byte that
+  is not UTF-8 into U+FFFD.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -504,6 +522,8 @@ isolates.
   values (INV-2, INV-9).
 - **A file name is not UTF-8.** It travels as bytes (INV-4); the window
   decodes it with `QFile::decodeName` for display.
+- **A mount point is not UTF-8.** The window sends it to `report`
+  escaped (§ 4.3, INV-15).
 
 ## 7. Tests
 
@@ -515,7 +535,8 @@ fail against an engine that accepts any folder under a mount point.
 |---|---|---|
 | `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13 | No |
 | `tests/app/tst_records_conformance.cpp` | INV-10, INV-11 | No |
-| `tests/image/check-report.sh` | INV-12 | Yes, inside the test machine |
+| `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
+| `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
 | `tests/image/report-check.cpp` | INV-14 | Yes, its input comes from the test machine |
 
 DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
@@ -555,6 +576,7 @@ engine. The conformance and image tests read real engine output.
 | INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
 | INV-14 | `tests/image/report-check.cpp` (`image_report`) |
+| INV-15 | `tests/image/check-report.sh` (`image_report`); `tests/app/tst_engineprocess.cpp::pathArgument` |
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |
