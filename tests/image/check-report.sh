@@ -42,6 +42,9 @@ check "joined is three extents to FIEMAP" \
 # A name the walk reads but never visits: INV-14 counts it.
 ln -s whole /mnt/img/link
 check "link is made" $? 0
+# Two empty folders, mounted on later to put other mounts inside the drive.
+mkdir /mnt/img/nested /mnt/img/auto
+check "the mount folders are made" $? 0
 describe_files /mnt/img >/tmp/reference
 check "filefrag counts joined as one piece" \
     "$(awk '$3 == "joined" { print $1 }' /tmp/reference)" 1
@@ -83,6 +86,29 @@ check "report on an escaped mount point exits OK" $? 0
 check "the escaped report is the first report" \
     "$(sha256sum </tmp/odd.bin)" "$(sha256sum </tmp/report.bin)"
 umount "$odd"
+# Mounts inside the drive are left out silently, so the stream must be the
+# first report's. The automount point must not be woken: nobody answers
+# it, so waking it would hang the engine and write a request to the pipe.
+# Its daemon's process group is keeper's; the engine's is not, as autofs
+# lets the daemon's own group through.
+mount -t tmpfs none /mnt/img/nested && echo data >/mnt/img/nested/file
+check "a tmpfs is mounted inside the drive" $? 0
+mkfifo /tmp/autofs.pipe && exec 3<>/tmp/autofs.pipe
+setsid sleep 600 &
+keeper=$!
+mount -t autofs -o "fd=3,pgrp=$keeper,minproto=5,maxproto=5,direct" \
+    auto /mnt/img/auto
+check "an automount point is made inside the drive" $? 0
+timeout 30 /test/defragr-engine report /mnt/img >/tmp/nested.bin
+check "report with mounts inside exits OK" $? 0
+check "report with mounts inside is the first report" \
+    "$(sha256sum </tmp/nested.bin)" "$(sha256sum </tmp/report.bin)"
+check "the automount was not woken" \
+    "$(timeout 1 head -c 1 <&3 | wc -c)" 0
+umount /mnt/img/auto
+umount /mnt/img/nested
+exec 3<&-
+kill "$keeper"
 # Every name below the mount point; the image's names hold no newline.
 names=$(find /mnt/img -mindepth 1 -xdev | wc -l)
 

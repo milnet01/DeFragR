@@ -17,8 +17,8 @@ SYS_statfs          equ 137
 SYS_fstatfs         equ 138
 SYS_getdents64      equ 217
 SYS_exit_group      equ 231
-SYS_openat          equ 257
 SYS_statx           equ 332
+SYS_openat2         equ 437
 
 ; A system call result in [-4095, -1] is -errno.
 MAX_ERRNO           equ 4095
@@ -26,6 +26,7 @@ MAX_ERRNO           equ 4095
 ; errno values (asm-generic/errno-base.h, errno.h).
 EINTR               equ 4
 EIO                 equ 5
+EXDEV               equ 18
 EINVAL              equ 22
 EPIPE               equ 32
 ENAMETOOLONG        equ 36
@@ -33,17 +34,22 @@ EOPNOTSUPP          equ 95
 
 ; open flags (asm-generic/fcntl.h).
 O_RDONLY            equ 0
-O_NOCTTY            equ 0o400
-O_NONBLOCK          equ 0o4000
 O_DIRECTORY         equ 0o200000
 O_NOFOLLOW          equ 0o400000
 O_NOATIME           equ 0o1000000
 O_CLOEXEC           equ 0o2000000
+O_PATH              equ 0o10000000
 
-; *at flags (linux/fcntl.h): act on a symbolic link, not its target;
-; act on the fd itself when the name is "".
-AT_SYMLINK_NOFOLLOW equ 0x100
+; *at flags (linux/fcntl.h): act on the fd itself when the name is "".
 AT_EMPTY_PATH       equ 0x1000
+
+; openat2's struct open_how and resolve flags (linux/openat2.h).
+struc open_how
+    .flags      resq 1
+    .mode       resq 1
+    .resolve    resq 1
+endstruc
+RESOLVE_NO_XDEV     equ 0x01            ; cross no mount point: EXDEV
 
 ; Standard file descriptors.
 STDOUT_FD           equ 1

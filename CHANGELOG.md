@@ -18,6 +18,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   with admin rights (DFR-0044).
 - Drive and file names always show as written. A name that looks like
   web code is no longer drawn as a picture or a link (DFR-0047).
+- A report never opens a device, and never wakes a network or
+  on-demand drive mounted inside the one being read. Before, an
+  on-demand drive there could make the report hang (DFR-0045).
 
 ### Added
 - A "Refresh drives" button lists the drives again, and the window says

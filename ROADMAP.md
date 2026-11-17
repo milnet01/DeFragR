@@ -411,7 +411,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Entry, Probe.
 
-- 📋 [DFR-0045] **Walk checks before it opens and bounds before it reads.**
+- ✅ [DFR-0045] **Walk checks before it opens and bounds before it reads.**
   - walk.asm:307-318 opens a folder, then checks its mount: opening a
     nested automount triggers it, and a dead NFS mount can hang. Candidate:
     openat2 RESOLVE_NO_XDEV; whether it acts before an automount fires is
@@ -422,6 +422,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   - walk.asm:210 reads reclen and type before bounding pos against len
     (asm.md "Bound before you index"). A correct kernel never triggers it.
   Found by review-code lane 02 (M3, L2, L3).
+  Shipped 2026-11-17. Each name is opened O_PATH with openat2
+  RESOLVE_NO_XDEV, checked by statx, then reopened through
+  /proc/self/fd; each entry is bounded before its reclen is read.
+  Measured on Linux 7.3.3 in the test machine: RESOLVE_NO_XDEV
+  refuses an autofs point with EXDEV and does not fire it; the old
+  DT_UNKNOWN statx did. image_report locks it: a tmpfs and an
+  autofs point inside the drive, the stream unchanged, no wake-up.
+  Not tested: the device swap race and a malformed getdents buffer.
   **Layman:** The engine checks what a name is before opening it, so it never opens a device or wakes a network drive by accident.
   Kind: fix.
   Source: review-code-2026-11-16.
@@ -624,6 +632,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   mount ids); § What may depend on what says nothing outside the drive is
   read (probe stats /dev sources). The code is deliberate in both.
   Found by review-code lanes 01-03; each has a recommendation there.
+  2026-11-17: design.md § Safety's device sentence is fixed by
+  DFR-0045 (now openat2 with RESOLVE_NO_XDEV). The /dev half of
+  § What may depend on what is still open.
   **Layman:** Decide six small rules the engine-window protocol leaves open, and correct two stale lines in the design.
   Kind: doc.
   Source: review-code-2026-11-16.

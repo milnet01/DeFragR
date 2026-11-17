@@ -26,7 +26,7 @@ global sys_open
 global sys_close
 global sys_stat
 global sys_statfs
-global sys_openat
+global sys_openat2
 global sys_statx
 global sys_fstatfs
 global sys_getdents64
@@ -77,12 +77,11 @@ sys_statfs:
     syscall
     ret
 
-; sys_openat(rdi = folder fd, rsi = NUL-terminated name, rdx = flags)
-;   -> rax = fd or -errno. Opens an existing file only, so no mode is
-;   passed. Clobbers r10 too.
-sys_openat:
-    mov eax, SYS_openat
-    xor r10d, r10d
+; sys_openat2(rdi = folder fd, rsi = NUL-terminated name, rdx = open_how)
+;   -> rax = fd or -errno. Clobbers r10 too.
+sys_openat2:
+    mov eax, SYS_openat2
+    mov r10d, open_how_size
     syscall
     ret
 

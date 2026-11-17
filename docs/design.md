@@ -163,8 +163,8 @@ donor is a named file in the same folder, unlinked straight after
 which is atomic. A cancelled file is left valid, partly defragged.
 
 **Paths from the window are not trusted.** The engine opens each
-folder with `openat` and `O_NOFOLLOW`, and refuses one whose device
-differs from the drive's.
+name with `openat2`, `O_NOFOLLOW` and `RESOLVE_NO_XDEV`, so it follows
+no link and enters no other mount.
 
 ### Sharing the PC (S8)
 

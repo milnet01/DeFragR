@@ -3,15 +3,20 @@
 ; caller, so walk calls nothing but sys.asm (docs/design.md).
 ;
 ; The rules:
-;   - It stays on the mount it started on: a folder or file whose mount
-;     id (statx) differs is another mount, and is left out silently.
-;     A btrfs subvolume inside the same mount is walked.
-;   - It follows no symbolic link: every open is O_NOFOLLOW, and a link
-;     is never visited.
-;   - It changes nothing: every open is O_NOATIME, so reading a folder
-;     does not update its access time. O_NOATIME fails with EPERM
-;     unless the caller owns the file or is root, so the walk assumes
-;     root, as report runs.
+;   - It looks before it opens. Each name is first opened as a path only
+;     (O_PATH), which runs no driver's open, so a device or pipe is never
+;     opened. The file found is then opened again for reading through
+;     /proc/self/fd, so nothing swapped in meanwhile is opened instead.
+;   - It stays on the mount it started on: that path-only open crosses
+;     no mount point (openat2 RESOLVE_NO_XDEV), so another mount is
+;     never entered and an automount never fires. It is left out
+;     silently. A btrfs subvolume inside the same mount is walked.
+;   - It follows no symbolic link: every name is opened O_NOFOLLOW, and
+;     a link is never visited.
+;   - It changes nothing: every open for reading is O_NOATIME, so
+;     reading a folder does not update its access time. O_NOATIME fails
+;     with EPERM unless the caller owns the file or is root, so the walk
+;     assumes root, as report runs.
 ;   - It visits regular files only. A hard link is visited once per
 ;     name, as filefrag would list it.
 ;   - Each folder holds one descriptor open while it is walked. A folder
@@ -32,7 +37,7 @@ default rel
 %include "walk.inc"
 
 extern sys_open
-extern sys_openat
+extern sys_openat2
 extern sys_close
 extern sys_statx
 extern sys_fstatfs
@@ -45,9 +50,11 @@ WALK_DEPTH_MAX  equ (STRING_MAX + 1) / 2 + 1
 DENTS_SIZE      equ 4096
 
 FOLDER_FLAGS    equ O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_NOATIME | O_CLOEXEC
-; O_NONBLOCK: a file swapped for a pipe after it was listed must not
-; block the open; its statx then shows it is no regular file.
-FILE_FLAGS      equ O_RDONLY | O_NOFOLLOW | O_NOATIME | O_NONBLOCK | O_NOCTTY | O_CLOEXEC
+; The reopens through /proc/self/fd follow that link, as they must, to
+; the file already checked; so no O_NOFOLLOW.
+REOPEN_FOLDER   equ O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC
+REOPEN_FILE     equ O_RDONLY | O_NOATIME | O_CLOEXEC
+FD_DIGITS_MAX   equ 10                  ; a 32-bit fd's decimal digits
 
 ; One open folder: its descriptor, how far through its entries the walk
 ; is, and its path's length in walk_path.
@@ -60,14 +67,23 @@ endstruc
 
 section .rodata
 empty_name:     db 0
+proc_fd:        db "/proc/self/fd/"
+PROC_FD_LEN     equ $ - proc_fd
+alignb 8
+path_only:                              ; how each name is first opened
+    istruc open_how
+        at open_how.flags,   dq O_PATH | O_NOFOLLOW | O_CLOEXEC
+        at open_how.mode,    dq 0
+        at open_how.resolve, dq RESOLVE_NO_XDEV
+    iend
 
 section .bss
 alignb 8
 levels:         resb walk_level_size * WALK_DEPTH_MAX
 dents:          resb DENTS_SIZE * WALK_DEPTH_MAX    ; one buffer per level
 depth:          resq 1                  ; the level being read
-mount_id:       resq 1
 statx_buf:      resb kernel_statx_size
+reopen_path:    resb PROC_FD_LEN + FD_DIGITS_MAX + 1
 statfs_buf:     resb kernel_statfs_size
 ; The path of what walk_next returned: a folder's path of at most
 ; STRING_MAX bytes, a "/", and a name no longer than one entry.
@@ -129,7 +145,6 @@ walk_start:
     mov [walk_estimate], rax
 
     mov qword [walk_names], 0
-    mov [mount_id], r12
     mov qword [depth], 0
     lea rax, [levels]
     mov [rax + walk_level.fd], rbx
@@ -205,6 +220,9 @@ walk_next:
     xor eax, eax
 
 .entry:                             ; rax = this entry's offset
+    lea rdx, [rax + linux_dirent64_size]
+    cmp rdx, [rbx + walk_level.len]
+    jae .bad_entries                ; no room for the fixed part and a name
     lea r14, [r12 + rax]            ; r14 = this entry
     movzx ecx, word [r14 + linux_dirent64.reclen]
     cmp ecx, linux_dirent64_size
@@ -249,95 +267,80 @@ walk_next:
 
     movzx eax, byte [r14 + linux_dirent64.type]
     cmp eax, DT_DIR
-    je .typed
+    je .look
     cmp eax, DT_REG
-    je .typed
+    je .look
     cmp eax, DT_UNKNOWN
     jne .next                       ; a link, device, pipe or socket
+
+.look:                              ; a path only, on this mount only
     mov rdi, [rbx + walk_level.fd]
     lea rsi, [r14 + linux_dirent64.name]
-    mov edx, AT_SYMLINK_NOFOLLOW
+    lea rdx, [path_only]
+    call sys_openat2
+    cmp rax, -EXDEV
+    je .next                        ; another mount: left out silently
+    cmp rax, -MAX_ERRNO
+    jae .open_failed
+    mov r12, rax                    ; r12 = the name, as a path only
+    mov edi, r12d
+    lea rsi, [empty_name]
+    mov edx, AT_EMPTY_PATH
     call statx_of
     cmp rax, -MAX_ERRNO
-    jae .stat_failed
+    jae .stat_failed_close
     movzx eax, word [statx_buf + kernel_statx.mode]
     and eax, S_IFMT
     cmp eax, S_IFDIR
-    mov eax, DT_DIR
-    je .typed
-    movzx eax, word [statx_buf + kernel_statx.mode]
-    and eax, S_IFMT
+    je .wanted
     cmp eax, S_IFREG
-    jne .next
-    mov eax, DT_REG
-
-.typed:                             ; eax = DT_DIR or DT_REG
+    jne .not_visited_close          ; another type, or swapped since listed
+.wanted:                            ; eax = S_IFDIR or S_IFREG
     cmp r13, STRING_MAX
-    ja .too_long
-    cmp eax, DT_DIR
+    ja .too_long_close
+    cmp eax, S_IFDIR
     je .folder
 
-    mov rdi, [rbx + walk_level.fd]
-    lea rsi, [r14 + linux_dirent64.name]
-    mov edx, FILE_FLAGS
-    call sys_openat
+    mov esi, REOPEN_FILE
+    call reopen
     cmp rax, -MAX_ERRNO
     jae .open_failed
-    mov r12, rax                    ; r12 = the file
-    call check_opened
-    cmp rax, -MAX_ERRNO
-    jae .stat_failed_close
-    test rax, rax
-    jz .not_ours_close
-    movzx eax, word [statx_buf + kernel_statx.mode]
-    and eax, S_IFMT
-    cmp eax, S_IFREG
-    jne .not_ours_close             ; swapped since it was listed
     mov [walk_path_len], r13
+    mov edx, eax
     mov eax, WALK_FILE
-    mov edx, r12d
     jmp .return
 
 .folder:
     mov rax, [depth]
     inc rax
     cmp rax, WALK_DEPTH_MAX
-    jae .too_long                   ; cannot happen: the path is bounded
-    mov rdi, [rbx + walk_level.fd]
-    lea rsi, [r14 + linux_dirent64.name]
-    mov edx, FOLDER_FLAGS
-    call sys_openat
+    jae .too_long_close             ; cannot happen: the path is bounded
+    mov esi, REOPEN_FOLDER
+    call reopen
     cmp rax, -MAX_ERRNO
     jae .open_failed
-    mov r12, rax                    ; r12 = the folder
-    call check_opened
-    cmp rax, -MAX_ERRNO
-    jae .stat_failed_close
-    test rax, rax
-    jz .not_ours_close
     inc qword [depth]
     add rbx, walk_level_size
-    mov [rbx + walk_level.fd], r12
+    mov [rbx + walk_level.fd], rax
     mov qword [rbx + walk_level.pos], 0
     mov qword [rbx + walk_level.len], 0
     mov [rbx + walk_level.path_len], r13
     jmp .next
 
-.not_ours_close:
+.not_visited_close:
+    mov edi, r12d
+    call sys_close                  ; read-only; a failed close loses nothing
+    jmp .next
+.too_long_close:
     mov edi, r12d
     call sys_close
-    jmp .next
+    jmp .too_long
 .stat_failed_close:
     neg rax
     mov r15, rax                    ; r15 = errno
     mov edi, r12d
     call sys_close
     mov edx, r15d
-    mov ecx, STAGE_STAT
-    jmp .skipped
-.stat_failed:
-    neg eax
-    mov edx, eax
     mov ecx, STAGE_STAT
     jmp .skipped
 .open_failed:
@@ -395,23 +398,40 @@ walk_next:
     pop rbx
     ret
 
-; check_opened(r12 = an fd walk_next just opened) -> rax = 1 when it is
-; on the walk's mount, 0 when not, or -errno. Fills statx_buf.
-; Clobbers as walk_next.
-check_opened:
-    sub rsp, 8
+; reopen(r12 = a path-only fd, esi = open flags) -> rax = a new fd on
+;   the very file r12 holds, or -errno. Opens it through /proc/self/fd,
+;   so nothing swapped in under its name since is opened instead. Closes
+;   r12 either way. Clobbers as walk_next.
+; Writes r12's digits itself: walk may call only sys.asm and records.asm
+; (docs/design.md), so probe's write_decimal is out of reach.
+reopen:
+    push rbx
+    mov ebx, esi                    ; ebx = the flags
+    lea rdi, [reopen_path + PROC_FD_LEN + FD_DIGITS_MAX]
+    mov byte [rdi], 0
+    mov eax, r12d
+    mov ecx, 10
+.digit:                             ; last digit first, leftward
+    xor edx, edx
+    div ecx
+    add dl, '0'
+    dec rdi
+    mov [rdi], dl
+    test eax, eax
+    jnz .digit
+    sub rdi, PROC_FD_LEN            ; the prefix goes just before them
+    mov rdx, rdi                    ; rdx = the path's start
+    lea rsi, [proc_fd]
+    mov ecx, PROC_FD_LEN
+    rep movsb
+    mov rdi, rdx
+    mov esi, ebx
+    call sys_open
+    mov rbx, rax                    ; rbx = the new fd, or -errno
     mov edi, r12d
-    lea rsi, [empty_name]
-    mov edx, AT_EMPTY_PATH
-    call statx_of
-    cmp rax, -MAX_ERRNO
-    jae .return
-    xor eax, eax
-    mov rcx, [statx_buf + kernel_statx.mnt_id]
-    cmp rcx, [mount_id]
-    sete al
-.return:
-    add rsp, 8
+    call sys_close                  ; read-only; a failed close loses nothing
+    mov rax, rbx
+    pop rbx
     ret
 
 ; statx_of(edi = folder fd, rsi = NUL-terminated name, edx = AT_ flags)
