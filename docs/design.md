@@ -49,7 +49,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Run | Progress, current file, counts, time remaining, pause and cancel state | `model/RunState.{h,cpp}` |
 | Report | Fragmentation figures and worst files; saving a report | `model/Report.{h,cpp}` |
 | Settings | Stored options | `model/Settings.{h,cpp}` |
-| Messages | Every engine error code and refusal reason, in plain words with what to do | `model/Messages.{h,cpp}` |
+| Messages | Every engine error code and refusal reason, in plain words with what to do; how a path is shown | `model/Messages.{h,cpp}` |
 | Health | Drive health from UDisks2 over D-Bus | `health/DriveHealth.{h,cpp}` |
 | Theme | Colours, symbols and sizes for the map and text | `ui/Theme.{h,cpp}` |
 | Screens | Main window, start choice, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/TrayIcon.{h,cpp}` |
