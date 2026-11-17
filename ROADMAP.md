@@ -677,7 +677,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   stream. Turn that pattern into a CTest test.
   Include a drive and a file whose names look like markup, such as
   "<img src=x>", and check the labels show them as written (DFR-0047,
-  2026-11-17).
+  2026-11-17). Cover Refresh drives too: greyed out, with "Listing
+  drives…", while a probe runs (DFR-0049; tests/app/fakes/slow-probe.sh
+  pauses mid-probe).
   **Layman:** An automatic check that presses the window's own buttons, so a break between the screen and the engine is caught before release.
   Kind: test.
   Source: verify-delivery-2026-11-16.
