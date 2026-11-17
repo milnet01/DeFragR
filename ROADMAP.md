@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=69 -->
+<!-- ants-roadmap-id-high-water: DFR=70 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -746,6 +746,22 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: doc.
   Source: verify-delivery-2026-11-16.
   Lanes: Build.
+
+- ✅ [DFR-0070] **Hebrew sentences that start with a Latin word read right to left.**
+  Found taking the website's screenshots (2026-11-17): with a drive
+  selected, the Hebrew drive list's note "DeFragR יכול להפיק דוח..." sat
+  on the left, read with its full stop first and DeFragR last. QLabel
+  takes a plain text's direction from its first strong letter, not from
+  the window. Every Hebrew sentence starting with "DeFragR" does the same.
+  Shipped 2026-11-17. In a right-to-left language, Languages' own
+  translator puts RIGHT-TO-LEFT MARK in front of a translation that would
+  read left to right from its first strong letter. tst_languages failed
+  on such a sentence before the fix. A demoreel screenshot of the Hebrew
+  drive list shows the note right-aligned, starting with DeFragR.
+  **Layman:** In Hebrew, a sentence that starts with the name DeFragR still reads right to left, with its full stop at the end.
+  Kind: fix.
+  Source: user-request-2026-11-17.
+  Lanes: Languages.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 

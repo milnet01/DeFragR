@@ -13,8 +13,9 @@ Languages::Languages(const QLocale &locale, const QString &qtFolder)
     if (!m_own.load(locale, QStringLiteral("defragr"), QStringLiteral("_"), folder)
         && !m_own.load(QStringLiteral("defragr_en"), folder))
         return;
-    QCoreApplication::installTranslator(&m_own);
     m_chosen = QLocale(m_own.language());
+    m_own.rightToLeft = m_chosen.textDirection() == Qt::RightToLeft;
+    QCoreApplication::installTranslator(&m_own);
     if (m_chosen.language() == QLocale::English)
         return;
 
@@ -28,6 +29,16 @@ Languages::Languages(const QLocale &locale, const QString &qtFolder)
     // Left alone otherwise, so `defragr -reverse` still works.
     if (m_chosen.textDirection() == Qt::RightToLeft)
         QGuiApplication::setLayoutDirection(Qt::RightToLeft);
+}
+
+QString Languages::OwnTranslator::translate(const char *context, const char *sourceText,
+                                            const char *disambiguation, int n) const
+{
+    QString text = QTranslator::translate(context, sourceText, disambiguation, n);
+    // Empty means no translation, and Qt shows the English instead.
+    if (rightToLeft && !text.isEmpty() && !text.isRightToLeft())
+        text.prepend(QChar(0x200F));
+    return text;
 }
 
 }  // namespace defragr::ui

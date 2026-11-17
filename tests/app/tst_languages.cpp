@@ -1,7 +1,7 @@
 // Languages: the window speaks the desktop's language, English where
 // DeFragR has no translation, and Hebrew lays it out right to left (S13).
-// fixtures/defragr_he.ts holds one Hebrew sentence, so this test does not
-// wait for the real translations (DFR-0067).
+// fixtures/defragr_he.ts holds the Hebrew sentences it needs, so this test
+// does not depend on the real translations (DFR-0067).
 #include "model/Messages.h"
 #include "model/Report.h"
 #include "ui/Languages.h"
@@ -32,6 +32,9 @@ private slots:
                                       QStringLiteral(":/no-such-folder"));
         QCOMPARE(languages.chosen().language(), QLocale::Hebrew);
         QCOMPARE(model::messages::refreshButton(), QStringLiteral("רענן כוננים"));
+        // A label takes a plain text's direction from its first strong
+        // letter, so this sentence must read right to left from its start.
+        QVERIFY(model::messages::defragAllowed().isRightToLeft());
         // Installing a translation posts a language change, on which Qt
         // may set the direction again. It must stay right to left.
         QCoreApplication::processEvents();

@@ -23,8 +23,20 @@ public:
     QLocale chosen() const { return m_chosen; }
 
 private:
+    // DeFragR's own translations. In a right-to-left language, a
+    // translation that would read left to right from its first strong
+    // letter, such as one starting "DeFragR", gets RIGHT-TO-LEFT MARK in
+    // front: a label takes a plain text's direction from that letter, not
+    // from the window.
+    class OwnTranslator : public QTranslator {
+    public:
+        QString translate(const char *context, const char *sourceText,
+                          const char *disambiguation = nullptr, int n = -1) const override;
+        bool rightToLeft = false;
+    };
+
     // Each removes itself from the application when destroyed.
-    QTranslator m_own;
+    OwnTranslator m_own;
     QTranslator m_qt;
     QLocale m_chosen{QLocale::English};
 };
