@@ -22,12 +22,18 @@ DriveList::DriveList(QObject *parent) : QAbstractTableModel(parent)
 
 void DriveList::refresh()
 {
+    // Not m_engine.isRunning(): a missing engine's end is queued, with
+    // no process running.
+    if (m_listing)
+        return;
+    m_listing = true;
     m_incoming.clear();
     m_engine.start(CommandProbe);
 }
 
 void DriveList::probeEnded(const RunOutcome &outcome)
 {
+    m_listing = false;
     const Message problem = messages::forRun(outcome);
     if (problem.what.isEmpty()) {
         setDrives(std::exchange(m_incoming, {}));

@@ -56,8 +56,8 @@ private slots:
     // Every way a run can end badly says what happened and what to do.
     void everyRunEndHasWords()
     {
-        for (RunEnd end : {RunEnd::EngineMissing, RunEnd::AdminRefused, RunEnd::Broken,
-                           RunEnd::VersionMismatch}) {
+        for (RunEnd end : {RunEnd::EngineMissing, RunEnd::LauncherMissing, RunEnd::AdminRefused,
+                           RunEnd::Broken, RunEnd::VersionMismatch}) {
             RunOutcome outcome;
             outcome.end = end;
             outcome.enginePath = QStringLiteral("/opt/defragr/defragr-engine");
@@ -80,6 +80,29 @@ private slots:
                                          "still fails after you enter it, a security setting "
                                          "on this PC, such as SELinux, may be blocking the "
                                          "engine.")}));
+    }
+
+    // DFR-0049: when pkexec cannot start, no password prompt can appear,
+    // so the words name pkexec and never ask for a password.
+    void missingLauncherIsNamed()
+    {
+        RunOutcome outcome;
+        outcome.end = RunEnd::LauncherMissing;
+        const Message message = messages::forRun(outcome);
+        QVERIFY2(message.what.contains(QStringLiteral("pkexec")), qPrintable(message.what));
+        QVERIFY2(!(message.what + message.action).contains(QStringLiteral("password")),
+                 qPrintable(message.action));
+    }
+
+    // DFR-0049: advice to look at the drive list again names the button
+    // that refreshes it, since the list is otherwise never fetched again.
+    void listAdviceNamesTheRefreshButton()
+    {
+        for (qint32 result : {ResultNotAMount, ResultRefused}) {
+            const Message message = messages::forRun(finishedWith(result));
+            QVERIFY2(message.action.contains(messages::refreshButton()),
+                     qPrintable(message.action));
+        }
     }
 
     // ADR-0002: the user is told where the missing engine should be.

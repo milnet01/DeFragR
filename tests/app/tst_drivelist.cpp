@@ -1,7 +1,7 @@
 // DriveList: the probe's drives (S1), and actions from the engine's
 // verdict alone (S12, ADR-0002; docs/specs/DFR-0002-engine-protocol.md
-// § 4.5 names this test). The real engine comes from DEFRAGR_ENGINE; a
-// crashing one from DEFRAGR_FAKES.
+// § 4.5 names this test). The real engine comes from DEFRAGR_ENGINE;
+// fakes, such as a crashing one, from DEFRAGR_FAKES.
 #include "model/DriveList.h"
 
 #include <QDir>
@@ -159,6 +159,30 @@ private slots:
         QCOMPARE(load.failures.size(), 1);
         QVERIFY(!load.failures.first().what.isEmpty());
         QCOMPARE(list.rowCount(), 0);
+    }
+
+    // DFR-0049: the window can refresh the list. A refresh while a probe
+    // runs is ignored, and keeps the drives that probe has already sent.
+    // The fake sends its drive at once, then pauses for a second.
+    void refreshWhileListingIsIgnored()
+    {
+        qputenv("DEFRAGR_ENGINE",
+                QFile::encodeName(m_fakes.filePath(QStringLiteral("slow-probe.sh"))));
+        DriveList list;
+        int loaded = 0;
+        int failed = 0;
+        connect(&list, &DriveList::loaded, this, [&] { ++loaded; });
+        connect(&list, &DriveList::failed, this, [&] { ++failed; });
+        list.refresh();
+        QVERIFY(list.isListing());
+        QTest::qWait(500);
+        list.refresh();
+        QVERIFY(QTest::qWaitFor([&] { return loaded + failed > 0; }, 10000));
+        QCOMPARE(failed, 0);
+        QCOMPARE(loaded, 1);
+        QCOMPARE(list.rowCount(), 1);
+        QCOMPARE(list.drive(0).mountPoint, QByteArray("/mnt/slow"));
+        QVERIFY(!list.isListing());
     }
 
     // ADR-0002: a missing engine is said plainly.

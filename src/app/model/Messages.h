@@ -29,6 +29,10 @@ QString verdict(quint8 verdict);
 // Why the drive cannot be defragged. Empty when its verdict allows it.
 QString whyNoDefrag(const engine::Drive &drive);
 
+// The label of the button that fetches the drive list again, which
+// advice about the list names.
+QString refreshButton();
+
 // How a run ended, when it did not end well. Empty for FINISHED OK.
 Message forRun(const engine::RunOutcome &outcome);
 

@@ -512,6 +512,9 @@ isolates.
   starts, so there is no `HELLO`. The window reads an empty stream with
   that exit status as "admin rights refused", not as a broken engine.
   That mapping is DFR-0005's.
+- **`pkexec` cannot be started.** No password prompt appeared, so the
+  window says `pkexec` did not start, not that admin rights were
+  refused (DFR-0049).
 - **The window dies.** The engine's writes fail with `EPIPE`, because
   `sys.asm` ignores `SIGPIPE`; the engine exits at once with
   `CANCELLED`. Its reads see end of input, which is `CANCEL` too.

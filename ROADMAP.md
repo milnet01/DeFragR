@@ -438,7 +438,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Source: review-code-2026-11-16.
   Lanes: Report.
 
-- 📋 [DFR-0049] **True, plain messages when the engine cannot start or list drives.**
+- ✅ [DFR-0049] **True, plain messages when the engine cannot start or list drives.**
   - EngineProcess.cpp:51: when pkexec itself is missing, the end is
     AdminRefused, and the user is told to "enter your password when
     asked", though no prompt can appear.
@@ -446,6 +446,16 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
     to refresh.
   - MainWindow.cpp:34 shows no "listing drives" note while the probe runs.
   Found by review-code lane 03 and review-readability lane 3.
+  Shipped 2026-11-17. A pkexec that cannot start is its own ending,
+  RunEnd::LauncherMissing, whose words name pkexec and ask for no
+  password; spec DFR-0002 § 6 amended. A "Refresh drives" button runs the
+  probe again, greyed out with "Listing drives…" while it runs, and the
+  report advice that sent the user to the list names it. DriveList's
+  refresh is ignored while a probe runs (moved here from DFR-0051, since
+  the button reaches it). tst_engineprocess launcherMissing,
+  tst_messages missingLauncherIsNamed and listAdviceNamesTheRefreshButton,
+  and tst_drivelist refreshWhileListingIsIgnored failed before and pass
+  after; an offscreen run of the real window showed both states.
   **Layman:** When something stops the engine, the window says what really happened and offers a way to try again.
   Kind: fix.
   Source: review-code-2026-11-16.
@@ -464,9 +474,6 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Messages, Screens.
 
 - 📋 [DFR-0051] **Window small fixes from the first full review.**
-  - DriveList.cpp:23-27: refresh() during a probe clears the list but the
-    new start is ignored; Report::run guards with isRunning(). No caller
-    reaches it today.
   - EngineProcess.cpp:117-131 does not check HELLO.command.
   - Messages.cpp:16: the strerror fallback.
   - Report.cpp:120: m_incoming has no cap.

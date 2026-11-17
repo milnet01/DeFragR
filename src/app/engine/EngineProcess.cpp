@@ -49,7 +49,7 @@ EngineProcess::EngineProcess(QString launcher, QObject *parent)
         // FailedToStart is the one error after which finished never comes.
         if (error != QProcess::FailedToStart)
             return;
-        m_outcome.end = m_viaLauncher ? RunEnd::AdminRefused : RunEnd::EngineMissing;
+        m_outcome.end = m_viaLauncher ? RunEnd::LauncherMissing : RunEnd::EngineMissing;
         emit ended(m_outcome);
     });
 }

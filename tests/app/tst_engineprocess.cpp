@@ -99,12 +99,14 @@ private slots:
         QCOMPARE(report.outcome.end, RunEnd::AdminRefused);
     }
 
+    // DFR-0049: a launcher that cannot start asked nobody for a
+    // password, so it is not a refusal.
     void launcherMissing()
     {
         EngineProcess engine(QStringLiteral("/nonexistent/pkexec"));
         const Run report = run(engine, CommandReport, {QStringLiteral("/")});
         QCOMPARE(report.ends, 1);
-        QCOMPARE(report.outcome.end, RunEnd::AdminRefused);
+        QCOMPARE(report.outcome.end, RunEnd::LauncherMissing);
     }
 
     // The same exit from the engine itself is a broken engine: the

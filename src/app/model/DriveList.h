@@ -22,7 +22,10 @@ public:
 
     // Runs the probe; ends in loaded() or failed(). The list keeps its
     // old drives until a probe succeeds, and empties when one fails.
+    // Ignored while a probe is going.
     void refresh();
+    // From refresh() until loaded() or failed().
+    bool isListing() const { return m_listing; }
     void setDrives(QList<engine::Drive> drives);
 
     const engine::Drive &drive(int row) const { return m_drives.at(row); }
@@ -45,6 +48,7 @@ private:
     engine::EngineProcess m_engine;
     QList<engine::Drive> m_drives;
     QList<engine::Drive> m_incoming;  // the running probe's drives so far
+    bool m_listing = false;
 };
 
 }  // namespace defragr::model

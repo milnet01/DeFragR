@@ -19,6 +19,16 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - Drive and file names always show as written. A name that looks like
   web code is no longer drawn as a picture or a link (DFR-0047).
 
+### Added
+- A "Refresh drives" button lists the drives again, and the window says
+  "Listing drives…" while it does (DFR-0049).
+
+### Fixed
+- When pkexec, the program that asks for admin rights, is missing, the
+  window says so, instead of asking you to enter a password no prompt
+  will ask for. Advice to check the drive list again names the new
+  "Refresh drives" button (DFR-0049).
+
 ## [0.1.0] - 2026-11-16
 
 **Theme:** Read-only report

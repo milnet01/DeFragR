@@ -35,11 +35,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_note->setTextFormat(Qt::PlainText);  // it can name a filesystem, which anybody can choose
     m_note->setWordWrap(true);
 
+    m_refresh = new QPushButton(model::messages::refreshButton());
     m_report = new QPushButton(QStringLiteral("View report"));
     m_defrag = new QPushButton(QStringLiteral("Defrag now"));
     m_report->setEnabled(false);
     m_defrag->setEnabled(false);
     auto *buttons = new QHBoxLayout;
+    buttons->addWidget(m_refresh);
     buttons->addStretch();
     buttons->addWidget(m_report);
     buttons->addWidget(m_defrag);
@@ -62,6 +64,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             &MainWindow::updateActions);
     connect(&m_drives, &model::DriveList::loaded, this, &MainWindow::updateActions);
     connect(&m_drives, &model::DriveList::failed, this, &MainWindow::showFailure);
+    connect(m_refresh, &QPushButton::clicked, this, &MainWindow::listDrives);
 
     connect(m_report, &QPushButton::clicked, this, [this] {
         const int row = selectedRow();
@@ -82,7 +85,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                                                 "allow it."));
     });
 
+    listDrives();
+}
+
+void MainWindow::listDrives()
+{
     m_drives.refresh();
+    updateActions();
 }
 
 int MainWindow::selectedRow() const
@@ -93,7 +102,14 @@ int MainWindow::selectedRow() const
 
 void MainWindow::updateActions()
 {
+    m_refresh->setEnabled(!m_drives.isListing());
     const int row = selectedRow();
+    if (m_drives.isListing()) {
+        m_report->setEnabled(false);
+        m_defrag->setEnabled(false);
+        m_note->setText(QStringLiteral("Listing drives…"));
+        return;
+    }
     if (row < 0) {
         m_report->setEnabled(false);
         m_defrag->setEnabled(false);

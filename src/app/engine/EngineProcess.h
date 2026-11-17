@@ -1,8 +1,8 @@
 // EngineProcess: runs one engine command and says how it ended. Starts
 // the engine plainly for probe and through pkexec for anything else
 // (docs/design.md § Window), turns its output into records, and tells a
-// finished run from a missing engine, refused admin rights, or a broken
-// engine (docs/specs/DFR-0002-engine-protocol.md § 6).
+// finished run from a missing engine, a missing pkexec, refused admin
+// rights, or a broken engine (docs/specs/DFR-0002-engine-protocol.md § 6).
 #pragma once
 
 #include "engine/Records.h"
@@ -16,7 +16,8 @@ namespace defragr::engine {
 enum class RunEnd {
     Finished,         // FINISHED arrived; its result says how the command went
     EngineMissing,    // no engine program where the window looks for one
-    AdminRefused,     // pkexec did not run the engine: refused, could not ask, or blocked
+    LauncherMissing,  // pkexec itself could not be started, so nobody was asked
+    AdminRefused,     // pkexec did not run the engine: refused or blocked
     Broken,           // the engine crashed, or its stream broke a rule
     VersionMismatch,  // the engine speaks another protocol major (INV-7)
 };

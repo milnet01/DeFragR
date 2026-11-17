@@ -29,7 +29,8 @@ Message forResult(const Finished &finished)
                 QStringLiteral("Try again and enter your password when asked.")};
     case ResultNotAMount:
         return {QStringLiteral("That folder is not the top of a drive."),
-                QStringLiteral("Pick the drive from the list again.")};
+                QStringLiteral("Go back, press %1, and pick the drive again.")
+                    .arg(refreshButton())};
     case ResultMountinfo:
         return {QStringLiteral("DeFragR could not read the list of mounted drives (%1).")
                     .arg(errorText(finished.errnum)),
@@ -39,7 +40,9 @@ Message forResult(const Finished &finished)
                 QStringLiteral("Check the drive is still connected, then try again.")};
     case ResultRefused:
         return {QStringLiteral("The engine refused, because this drive no longer allows it."),
-                QStringLiteral("The drive may have changed. Check the list again.")};
+                QStringLiteral("The drive may have changed. Go back and press %1 to see "
+                               "what DeFragR can do with it now.")
+                    .arg(refreshButton())};
     case ResultCancelled:
         return {QStringLiteral("The run was cancelled."), {}};
     case ResultUsage:
@@ -101,6 +104,11 @@ QString whyNoDefrag(const Drive &drive)
                           "DeFragR does not know. It can still report on it.");
 }
 
+QString refreshButton()
+{
+    return QStringLiteral("Refresh drives");
+}
+
 Message forRun(const RunOutcome &outcome)
 {
     switch (outcome.end) {
@@ -111,6 +119,11 @@ Message forRun(const RunOutcome &outcome)
                     .arg(outcome.enginePath),
                 QStringLiteral("Reinstall DeFragR. Without its engine it cannot list or check "
                                "drives.")};
+    case RunEnd::LauncherMissing:
+        return {QStringLiteral("DeFragR could not ask for admin rights, because pkexec, the "
+                               "program that asks for them, did not start."),
+                QStringLiteral("Check that pkexec is installed. It comes with polkit. Then try "
+                               "again.")};
     case RunEnd::AdminRefused:
         // pkexec's 127 also covers the system blocking the engine after
         // the password, so the words blame neither (DFR-0042).

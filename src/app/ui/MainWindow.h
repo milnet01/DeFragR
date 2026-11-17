@@ -26,6 +26,7 @@ public:
 private:
     // The selected drive's row, or -1.
     int selectedRow() const;
+    void listDrives();
     void updateActions();
     void showFailure(const model::Message &message);
 
@@ -35,6 +36,7 @@ private:
     ReportView *m_reportView = nullptr;
     QTableView *m_table = nullptr;
     QLabel *m_note = nullptr;
+    QPushButton *m_refresh = nullptr;
     QPushButton *m_report = nullptr;
     QPushButton *m_defrag = nullptr;
 };
