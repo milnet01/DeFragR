@@ -15,11 +15,13 @@ class QTableView;
 
 namespace defragr::ui {
 
+class Theme;
+
 class ReportView : public QWidget {
     Q_OBJECT
 
 public:
-    explicit ReportView(QWidget *parent = nullptr);
+    explicit ReportView(const Theme &theme, QWidget *parent = nullptr);
 
     // Starts a report on the drive mounted there and shows it once done.
     void start(const QByteArray &mountPoint);

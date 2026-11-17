@@ -1,6 +1,7 @@
 #include "ui/ReportView.h"
 
 #include "ui/ReadOnlyTable.h"
+#include "ui/Theme.h"
 
 #include <QFontMetrics>
 #include <QHBoxLayout>
@@ -13,12 +14,13 @@
 
 namespace defragr::ui {
 
-ReportView::ReportView(QWidget *parent) : QWidget(parent)
+ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
 {
     // Labels that show a drive's or a file's name show it as text: a name
     // is anybody's to choose, and QLabel would read some as markup.
     m_heading = new QLabel;
     m_heading->setTextFormat(Qt::PlainText);
+    m_heading->setFont(theme.headingFont());
     m_back = new QPushButton(tr("Back to drives"));
     auto *top = new QHBoxLayout;
     top->addWidget(m_heading, 1);

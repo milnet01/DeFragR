@@ -16,12 +16,13 @@ class QTableView;
 namespace defragr::ui {
 
 class ReportView;
+class Theme;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const Theme &theme, QWidget *parent = nullptr);
 
 private:
     // The selected drive's row, or -1.

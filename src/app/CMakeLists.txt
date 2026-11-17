@@ -34,6 +34,12 @@ qt_add_resources(defragr-languages translations
     BASE ${CMAKE_CURRENT_BINARY_DIR}
     FILES ${DEFRAGR_QM_FILES})
 
+# Theme: Qt Gui only, so its test paints without widgets or a screen.
+add_library(defragr-theme STATIC ui/Theme.cpp)
+target_include_directories(defragr-theme PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(defragr-theme PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-theme PUBLIC Qt6::Gui)
+
 # Refreshes translations/ from the source, through the script the
 # translations_current test runs. Qt's own lupdate targets are not used:
 # under Qt 6.12 they scanned every target, and filed some words under a
@@ -71,4 +77,4 @@ add_dependencies(defragr defragr-build-id)
 target_include_directories(defragr PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr PRIVATE defragr-model defragr-languages Qt6::Widgets Qt6::DBus)
+target_link_libraries(defragr PRIVATE defragr-model defragr-languages defragr-theme Qt6::Widgets Qt6::DBus)

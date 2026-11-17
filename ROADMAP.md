@@ -376,12 +376,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Recorded runs, Engine link.
   Blocked-by: DFR-0011.
 
-- 📋 [DFR-0013] **High-contrast theme with symbols as well as colours.**
+- ✅ [DFR-0013] **High-contrast theme with symbols as well as colours.**
   `ui/Theme`: palette, one symbol per map cell state, text and cell
   sizes, all asked of one place (S10). Readable without relying on
   colour.
   Owner ruling 2026-11-16: discovery S10 (readable by a partially
   sighted user) binds from 0.2.0, with this theme, not today's screens.
+  Shipped 2026-11-17. Owner rulings that day: themes, chosen from the
+  menu when DFR-0021 builds it; Desktop is the default; text follows
+  the desktop's size with a floor; patterns, not marks. Seven themes:
+  Desktop, Dark and Light high contrast, Yellow on black, Ocean, Ember,
+  Aurora. tst_theme checks contrast, patterns read with no colour, and
+  the text floor.
   **Layman:** Makes the map and text clear for a partially sighted user, using shapes as well as colours.
   Kind: accessibility.
   Source: design-2026-11-15.
@@ -399,6 +405,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   When a report arrives, the map fills in as a sweep from the first
   block to the last. Tested with scripted cell changes, so the motion
   can be watched and judged before the engine can defrag.
+  Owner, 2026-11-17: they read the screen through a magnifier lens, a
+  small square at a time. Each cell must read on its own, and the key
+  to the patterns must be readable close to the map, not only at a far
+  edge. ui::CellState lives in ui/Theme.h until model/DriveMap needs
+  it; move it to model/ then. Paint cells with Theme::paintCell, sized
+  by Theme::cellSide and Theme::cellGap.
   **Layman:** Draws the drive as a grid of blocks showing whole, scattered and free space.
   Kind: feature.
   Source: design-2026-11-15.
@@ -879,6 +891,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 - 📋 [DFR-0021] **Menu, status bar and progress bar.**
   `ui/MainWindow` menu; status bar naming the current file (S5);
   percentage and progress bar to 100% (S6); `model/RunState`.
+  Owner, 2026-11-17: the theme is chosen from this menu (View, then
+  Theme), from Theme::kAll, and the choice is remembered. The themes'
+  names are added for translation here, with the menu. Unverified until
+  then: that the Breeze style honours a theme's palette, and that a
+  desktop colour change while the window is open does not undo it.
   **Layman:** Adds a menu, shows which file is being worked on, and a progress bar that climbs to 100%.
   Kind: feature.
   Source: design-2026-11-15.

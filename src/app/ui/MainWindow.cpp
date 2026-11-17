@@ -3,6 +3,7 @@
 #include "BuildId.h"
 #include "ui/ReadOnlyTable.h"
 #include "ui/ReportView.h"
+#include "ui/Theme.h"
 
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
@@ -15,13 +16,14 @@
 
 namespace defragr::ui {
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
+MainWindow::MainWindow(const Theme &theme, QWidget *parent) : QMainWindow(parent)
 {
     //: %1 is the version, such as 0.1.0, and %2 the build's code.
     setWindowTitle(tr("DeFragR %1 (build %2)")
                        .arg(QLatin1String(DEFRAGR_VERSION), QLatin1String(DEFRAGR_BUILD)));
 
     auto *heading = new QLabel(tr("Pick a drive, then choose what to do with it."));
+    heading->setFont(theme.headingFont());
 
     m_table = readOnlyTable(&m_drives);
     // The buttons act on one drive, so one drive is picked at a time.
@@ -49,7 +51,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     layout->addWidget(m_note);
     layout->addLayout(buttons);
 
-    m_reportView = new ReportView;
+    m_reportView = new ReportView(theme);
     m_pages = new QStackedWidget;
     m_pages->addWidget(m_drivePage);
     m_pages->addWidget(m_reportView);

@@ -30,6 +30,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   and Traditional), Japanese, Russian, Polish, French or Ukrainian, with
   English otherwise. These are AI drafts not yet checked by native
   speakers; corrections are welcome (DFR-0067).
+- Headings are a step larger than the rest of the text, and text is
+  never smaller than 10 points, even on a desktop set smaller
+  (DFR-0013).
 
 ### Fixed
 - When pkexec, the program that asks for admin rights, is missing, the

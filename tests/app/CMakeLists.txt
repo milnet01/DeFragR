@@ -84,6 +84,13 @@ qt_add_resources(tst_languages hebrew
 add_test(NAME tst_languages COMMAND tst_languages)
 set_tests_properties(tst_languages PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# Every theme's contrast, map patterns and text floor: DFR-0013.
+add_executable(tst_theme tst_theme.cpp)
+target_compile_options(tst_theme PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_theme PRIVATE defragr-theme Qt6::Test)
+add_test(NAME tst_theme COMMAND tst_theme)
+set_tests_properties(tst_theme PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # The translation files match the source, and English has every plural
 # form: DFR-0066.
 add_test(NAME translations_current
@@ -98,5 +105,5 @@ set_tests_properties(translations_current PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_messages tst_report tst_replay tst_languages PROPERTIES
+    tst_drivelist tst_messages tst_report tst_replay tst_languages tst_theme PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)
