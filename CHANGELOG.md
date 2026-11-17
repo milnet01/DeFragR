@@ -46,6 +46,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A drive whose folder name holds characters that are not valid text
   can be reported on, instead of being called "not the top of a drive"
   (DFR-0048).
+- The drive list stays whole when one drive cannot be read: that drive
+  is left out, instead of the list coming back empty. A drive mounted
+  over another is listed once, as the one you see there, and a network
+  or add-on drive can no longer hide a real drive from the list
+  (DFR-0046).
 
 ## [0.1.0] - 2026-11-16
 

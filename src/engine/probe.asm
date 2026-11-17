@@ -5,9 +5,14 @@
 ;
 ; A mount in /proc/self/mountinfo is a drive when all of these hold:
 ;   - its device is a block device: the major of mountinfo's major:minor
-;     is non-zero, or, where it is 0 (btrfs), the mount source is an
-;     absolute path to a block device, whose number is used instead;
-;   - its mount point is a folder this user can stat;
+;     is non-zero, or, where it is 0 and the filesystem is btrfs, the
+;     mount source is an absolute path to a block device, whose number is
+;     used instead. No other filesystem's source is trusted: a FUSE mount
+;     may name any device as its source;
+;   - its mount point is a folder this user can open, and the mount found
+;     there is this line's own by mount id (statx, Linux 5.8), not one
+;     stacked on it;
+;   - statfs on that mount succeeds, with a block size from 1 to 32 bits;
 ;   - its mount point, source and filesystem type each fit a record
 ;     string (§ 4.1).
 ; Any other mount is left out. A device mounted in several places is
@@ -37,7 +42,8 @@ extern sys_read
 extern sys_open
 extern sys_close
 extern sys_stat
-extern sys_statfs
+extern sys_statx
+extern sys_fstatfs
 extern rec_start
 extern rec_string
 extern rec_send
@@ -58,6 +64,9 @@ rot_part:       db "/../queue/rotational", 0
 rot_part_len    equ $ - rot_part
 fs_ext4:        db "ext4"
 fs_ext4_len     equ $ - fs_ext4
+fs_btrfs:       db "btrfs"
+fs_btrfs_len    equ $ - fs_btrfs
+empty_name:     db 0
 
 section .bss
 alignb 8
@@ -67,6 +76,8 @@ devices:        resq DEVICES_MAX    ; (major << 32) | minor, one per drive sent
 devices_count:  resq 1
 stat_buf:       resb kernel_stat_size
 statfs_buf:     resb kernel_statfs_size
+statx_buf:      resb kernel_statx_size
+line_id:        resq 1              ; the judged line's mount id
 ; The line being judged: each field as a pointer, then a length.
 fld_id:         resq 2
 fld_dev:        resq 2
@@ -97,8 +108,8 @@ global unescape
 ; probe_run() -> eax = result code, edx = errno or 0.
 ; Sends one DRIVE record per drive. On OK the caller sends FINISHED. Fails
 ; with MOUNTINFO when mountinfo cannot be read (errno set) or has a line
-; of an unknown shape (errno 0); DRIVE_ERROR when statfs fails on a
-; drive; INTERNAL at a limit. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
+; of an unknown shape (errno 0); INTERNAL at a limit. Clobbers rax, rcx,
+; rdx, rsi, rdi, r8 to r11.
 probe_run:
     push rbx
     push r12
@@ -140,8 +151,7 @@ probe_run:
 ; sends it, and its mount a drive by the header's test, else NOT_A_MOUNT.
 ; A later mount of a drive probe lists once, at its first, passes too. Where
 ; several mounts share it, the last is the one on top, and is the one
-; judged. MOUNTINFO as probe_run, and for a matching line whose id is
-; not a number.
+; judged. MOUNTINFO as probe_run.
 ; Clobbers as probe_run.
 probe_find_mount:
     push rbx
@@ -177,9 +187,7 @@ probe_find_mount:
     mov rbx, rax                    ; rbx = next line
     mov [line_end], rsi
     mov rdi, r12
-    call next_field
-    mov [fld_id], rax
-    mov [fld_id + 8], rdx
+    call next_field                 ; mount id
     call next_field                 ; parent id
     call next_field                 ; major:minor
     call next_field                 ; root
@@ -195,22 +203,15 @@ probe_find_mount:
     mov rcx, r15                    ; non-zero, so repe compares
     repe cmpsb
     jne .next_line
-    mov rdi, [fld_id]
-    mov rsi, rdi
-    add rsi, [fld_id + 8]           ; rsi = end of the id
-    call parse_decimal
-    test rax, rax
-    js .malformed
-    cmp rdi, rsi
-    jne .malformed                  ; more than digits
-    mov [found_id], rax
-    mov byte [found], 1
     mov rdi, r12
     mov rsi, [line_end]
     call judge_line                 ; the test probe lists drives by
     test eax, eax
     jnz .return                     ; MOUNTINFO
     mov [found_drive], cl
+    mov rax, [line_id]
+    mov [found_id], rax
+    mov byte [found], 1
 .next_line:
     mov r12, rbx
     jmp .line
@@ -227,9 +228,6 @@ probe_find_mount:
     mov eax, RESULT_NOT_A_MOUNT
     xor edx, edx
     jmp .return
-.malformed:
-    mov eax, RESULT_MOUNTINFO
-    xor edx, edx
 .return:
     pop r15
     pop r14
@@ -317,14 +315,17 @@ read_mountinfo:
 
 ; judge_line(rdi = line start, rsi = line end, before any newline)
 ;   -> eax = OK or MOUNTINFO, edx = 0; on OK, ecx = 1 when the line's
-;   mount is a drive by the header's test, else 0.
+;   mount is a drive by the header's test, else 0, and line_id is set.
 ; For a drive, leaves mount_buf, source_buf and fs_buf with their
-; lengths, and dev_major and dev_minor, set. The line is: id parent
-; major:minor root mount-point options [optional fields...] - fs-type
-; source super-options. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
+; lengths, dev_major, dev_minor and statfs_buf set. The line is: id
+; parent major:minor root mount-point options [optional fields...] -
+; fs-type source super-options; an id that is not a number is
+; MOUNTINFO. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
 judge_line:
-    sub rsp, 8
-    call next_field                 ; mount id
+    push rbx
+    call next_field
+    mov [fld_id], rax
+    mov [fld_id + 8], rdx
     call next_field                 ; parent id
     call next_field
     mov [fld_dev], rax
@@ -348,6 +349,15 @@ judge_line:
     call next_field
     mov [fld_source], rax
     mov [fld_source + 8], rdx
+    mov rdi, [fld_id]
+    mov rsi, rdi
+    add rsi, [fld_id + 8]           ; rsi = end of the id
+    call parse_decimal
+    test rax, rax
+    js .malformed
+    cmp rdi, rsi
+    jne .malformed                  ; more than digits
+    mov [line_id], rax
 
     mov rdi, [fld_mount]
     mov rsi, [fld_mount + 8]
@@ -378,9 +388,16 @@ judge_line:
     js .malformed
     cmp dword [dev_major], 0
     jne .have_device
-    ; Major 0 is no block device; btrfs shows that for every mount, so
-    ; its source names the device. A relative source is not a path.
-    cmp byte [source_buf], '/'
+    ; Major 0 is no block device. btrfs shows it for every mount, so its
+    ; source names the device; no other source is trusted (header).
+    cmp qword [fs_len], fs_btrfs_len
+    jne .not_a_drive
+    lea rdi, [fs_buf]
+    lea rsi, [fs_btrfs]
+    mov ecx, fs_btrfs_len
+    repe cmpsb
+    jne .not_a_drive
+    cmp byte [source_buf], '/'      ; a relative source is not a path
     jne .not_a_drive
     lea rdi, [source_buf]
     lea rsi, [stat_buf]
@@ -409,28 +426,54 @@ judge_line:
     mov [dev_minor], ecx
 
 .have_device:
+    ; The mount point, by path, finds whichever mount is on top there.
     lea rdi, [mount_buf]
-    lea rsi, [stat_buf]
-    call sys_stat
+    mov esi, O_PATH | O_DIRECTORY | O_CLOEXEC
+    call sys_open
     cmp rax, -MAX_ERRNO
-    jae .not_a_drive
-    mov eax, [stat_buf + kernel_stat.mode]
-    and eax, S_IFMT
-    cmp eax, S_IFDIR
-    jne .not_a_drive                ; a file bind-mounted, e.g. in a container
+    jae .not_a_drive                ; or a file bind-mounted there
+    mov ebx, eax                    ; ebx = the mount point
+    mov edi, ebx
+    lea rsi, [empty_name]
+    mov edx, AT_EMPTY_PATH
+    mov ecx, STATX_MNT_ID
+    lea r8, [statx_buf]
+    call sys_statx
+    cmp rax, -MAX_ERRNO
+    jae .close
+    test dword [statx_buf + kernel_statx.mask], STATX_MNT_ID
+    jz .close                       ; before Linux 5.8
+    mov rax, [statx_buf + kernel_statx.mnt_id]
+    cmp rax, [line_id]
+    jne .close                      ; another mount is stacked on this one
+    mov edi, ebx
+    lea rsi, [statfs_buf]
+    call sys_fstatfs
+    cmp rax, -MAX_ERRNO
+    jae .close                      ; e.g. a dying disk, or a FUSE daemon gone
+    mov rax, [statfs_buf + kernel_statfs.bsize]
+    test rax, rax
+    jz .close
+    shr rax, 32
+    jnz .close                      ; walk_start refuses it too
+    mov edi, ebx
+    call sys_close                  ; read-only; a failed close loses nothing
     mov ecx, 1
     jmp .judged
+.close:
+    mov edi, ebx
+    call sys_close
 .not_a_drive:
     xor ecx, ecx
 .judged:
     xor eax, eax
     xor edx, edx
-    add rsp, 8
+    pop rbx
     ret
 .malformed:
     mov eax, RESULT_MOUNTINFO
     xor edx, edx
-    add rsp, 8
+    pop rbx
     ret
 
 ; probe_line(rdi = line start, rsi = line end, before any newline)
@@ -469,11 +512,6 @@ probe_line:
     inc rcx
     mov [devices_count], rcx
 
-    lea rdi, [mount_buf]
-    lea rsi, [statfs_buf]
-    call sys_statfs
-    cmp rax, -MAX_ERRNO
-    jae .statfs_failed
     call media_of
     mov ebx, eax                    ; ebx = media
 
@@ -539,11 +577,6 @@ probe_line:
 .skip:                              ; judged; listed or left out
     xor eax, eax
     xor edx, edx
-    jmp .return
-.statfs_failed:
-    neg eax
-    mov edx, eax
-    mov eax, RESULT_DRIVE_ERROR
     jmp .return
 .internal:
     mov eax, RESULT_INTERNAL

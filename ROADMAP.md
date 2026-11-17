@@ -435,7 +435,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Walk.
 
-- 📋 [DFR-0046] **Probe survives stacked mounts, a failed statfs and odd sources.**
+- ✅ [DFR-0046] **Probe survives stacked mounts, a failed statfs and odd sources.**
   - probe.asm:400-408,432-434 stats by path, so a mount hidden under
     another gets the top one's facts.
   - probe.asm:434-436: one failed statfs ends the whole probe.
@@ -445,6 +445,16 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     a FUSE mount with fsname=/dev/sdb1 can hide the real ext4 drive from
     the list. Follow the source only for btrfs.
   Found by review-code lane 02 (M2, M4, L1) and review-readability lane 2.
+  Shipped 2026-11-17. judge_line opens the mount point O_PATH and
+  requires statx's mount id to be the line's own, then takes fstatfs
+  from that fd; a failed statfs, or a block size of 0 or above 32
+  bits, leaves the mount out. A major-0 source is followed only for
+  btrfs. probe now needs Linux 5.8, as report already did.
+  image_report locks it: two loop drives stacked on one folder list
+  the top one once; a tmpfs named after a loop drive no longer hides
+  it. Probe output on this PC (btrfs, ext4, vfat) is byte-identical
+  to the previous engine's, free space masked.
+  Not tested: a failing statfs and an oversized block size.
   **Layman:** The drive list stays complete and correct when one drive misbehaves or two are mounted on the same folder.
   Kind: fix.
   Source: review-code-2026-11-16.

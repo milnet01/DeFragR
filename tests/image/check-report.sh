@@ -2,7 +2,8 @@
 # Run in the test machine by the image_report test, with one blank disk
 # called "img" and the engine at /test/defragr-engine. Runs `report` on a
 # fragmented image and checks what only the machine can see: the exit
-# codes, and that the disk is byte for byte unchanged (S3). Then prints
+# codes, and that the disk is byte for byte unchanged (S3); and which of
+# several stacked or disguised mounts `probe` lists. Then prints
 # the engine's output, the reference, and the drive's used inodes and
 # names between marker lines, for test-report.sh to decode on the host.
 # shellcheck source=SCRIPTDIR/../vm/guard.sh
@@ -109,6 +110,36 @@ umount /mnt/img/auto
 umount /mnt/img/nested
 exec 3<&-
 kill "$keeper"
+
+# Probe judges each mount by its own id. Of two drives stacked on one
+# folder, only the top one, the one visible there, is listed. A memory
+# filesystem naming a drive as its source does not hide that drive: only
+# btrfs's source is trusted. Each mount point and device name appears in
+# probe's output once per DRIVE record that holds it.
+times_in() { grep -a -o "$1" /tmp/probe.bin | wc -l; }
+truncate -s 8M /tmp/lower.img && mkfs.ext4 -q /tmp/lower.img &&
+    cp /tmp/lower.img /tmp/upper.img && cp /tmp/lower.img /tmp/real.img
+check "three small drives are made" $? 0
+lower=$(losetup -f) && losetup "$lower" /tmp/lower.img &&
+    upper=$(losetup -f) && losetup "$upper" /tmp/upper.img &&
+    real=$(losetup -f) && losetup "$real" /tmp/real.img
+check "three loop devices" $? 0
+mkdir -p /mnt/stack /mnt/spoof /mnt/real &&
+    mount -t ext4 "$lower" /mnt/stack && mount -t ext4 "$upper" /mnt/stack &&
+    mount -t tmpfs "$real" /mnt/spoof && mount -t ext4 "$real" /mnt/real
+check "the stacked and disguised mounts are made" $? 0
+/test/defragr-engine probe >/tmp/probe.bin
+check "probe exits OK" $? 0
+check "the stacked folder is listed once" "$(times_in /mnt/stack)" 1
+check "the top drive is listed" "$(times_in "$upper")" 1
+check "the drive under it is not" "$(times_in "$lower")" 0
+check "the disguised tmpfs is not listed" "$(times_in /mnt/spoof)" 0
+check "the drive it names is listed" "$(times_in /mnt/real)" 1
+umount /mnt/real
+umount /mnt/spoof
+umount /mnt/stack
+umount /mnt/stack
+losetup -d "$lower" && losetup -d "$upper" && losetup -d "$real"
 # Every name below the mount point; the image's names hold no newline.
 names=$(find /mnt/img -mindepth 1 -xdev | wc -l)
 

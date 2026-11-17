@@ -13,7 +13,6 @@ SYS_stat            equ 4
 SYS_rt_sigaction    equ 13
 SYS_ioctl           equ 16
 SYS_geteuid         equ 107
-SYS_statfs          equ 137
 SYS_fstatfs         equ 138
 SYS_getdents64      equ 217
 SYS_exit_group      equ 231

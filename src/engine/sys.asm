@@ -25,7 +25,6 @@ global sys_write
 global sys_open
 global sys_close
 global sys_stat
-global sys_statfs
 global sys_openat2
 global sys_statx
 global sys_fstatfs
@@ -67,13 +66,6 @@ sys_close:
 ;   -> rax = 0 or -errno. Follows symbolic links.
 sys_stat:
     mov eax, SYS_stat
-    syscall
-    ret
-
-; sys_statfs(rdi = NUL-terminated path, rsi = kernel_statfs buffer)
-;   -> rax = 0 or -errno.
-sys_statfs:
-    mov eax, SYS_statfs
     syscall
     ret
 
