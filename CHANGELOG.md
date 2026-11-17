@@ -28,6 +28,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   window says so, instead of asking you to enter a password no prompt
   will ask for. Advice to check the drive list again names the new
   "Refresh drives" button (DFR-0049).
+- A drive whose folder name holds characters that are not valid text
+  can be reported on, instead of being called "not the top of a drive"
+  (DFR-0048).
 
 ## [0.1.0] - 2026-11-16
 
