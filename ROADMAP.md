@@ -295,7 +295,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 
 ## 0.2.0 — Drive map
 
-- 📋 [DFR-0066] **Every word ready for translation.**
+- ✅ [DFR-0066] **Every word ready for translation.**
   Groundwork for S13, per docs/design.md § Wording and languages.
   Every shown word goes through tr() or translate(); counts use Qt's
   plural forms, with English's forms in translations/defragr_en.ts and a test
@@ -304,6 +304,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   language, so Hebrew mirrors. First in 0.2.0, so the map's words are
   written ready. CI gains Qt's translation tools. No translations yet
   (DFR-0067).
+  Shipped 2026-11-17. Plural sentences pass their count to tr() and
+  print it as %1, since %n holds only an int. Languages takes Qt's
+  translations folder as a parameter, so tst_languages proves the
+  right-to-left line on a PC with Qt's Hebrew installed. tst_report's
+  wording failed with "file(s)" before English was wired; the
+  translations_current check failed on a missing form and on a stale
+  sentence. Gate green here (Qt 6.12) and in the runner container
+  (Qt 6.10.2). The -reverse check found scrambled paths: DFR-0069.
   **Layman:** The app can be translated, and switches to the desktop's language and reading direction by itself.
   Kind: feature.
   Source: user-request-2026-11-17.
