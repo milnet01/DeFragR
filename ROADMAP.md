@@ -532,7 +532,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Drives, Engine link, Records, Report, Screens.
 
-- 📋 [DFR-0052] **Engine tidy-ups from the first full readability review.**
+- ✅ [DFR-0052] **Engine tidy-ups from the first full readability review.**
   - The NASM version floor is copied into eight places (main.asm:5 and
     others); give it one home.
   - sys.asm:4 says only rcx and r11 are clobbered; two wrappers clobber
@@ -545,6 +545,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   - probe.asm:443 compares fs_ext4 with one 4-byte load.
   - kernel.inc:49 STDIN_FD is unused.
   Found by review-readability lanes 1 and 2.
+  Shipped 2026-11-17. The floor's one home is src/engine/CMakeLists.txt,
+  which stops configure on an older NASM. probe.asm's comment now says a
+  later mount of a listed drive passes too. The engine's code and data
+  came out byte for byte the same; only six STDIN_FD symbols left.
   **Layman:** Small changes so the next person reading the engine is not misled.
   Kind: refactor.
   Source: review-code-2026-11-16.
