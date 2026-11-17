@@ -518,7 +518,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Messages, Screens.
 
-- 📋 [DFR-0051] **Window small fixes from the first full review.**
+- ✅ [DFR-0051] **Window small fixes from the first full review.**
   - EngineProcess.cpp:117-131 does not check HELLO.command.
   - Messages.cpp:16: the strerror fallback.
   - Report.cpp:120: m_incoming has no cap.
@@ -527,6 +527,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     twice, and the copies differ.
   - Records.cpp:129 fills Drive and the other records by position.
   Found by review-code lane 03 and review-readability lane 3.
+  Shipped 2026-11-17. A HELLO for another command ends the run Broken,
+  except command 0 with USAGE (§ 4.3). An unnamed errno, or one of 0 or
+  below, reads "no details given" (strerrorname_np). Records are filled
+  by field name. ui/ReadOnlyTable.h holds the shared table set-up; the
+  drive list adds single selection. m_incoming keeps no cap: the owner
+  chose every file listed (2026-11-17). tst_engineprocess and
+  tst_messages failed on the first two before their fixes.
   **Layman:** Small robustness fixes in the window that a user should never notice.
   Kind: fix.
   Source: review-code-2026-11-16.
