@@ -12,7 +12,8 @@
 ;     string (§ 4.1).
 ; Any other mount is left out. A device mounted in several places is
 ; listed once, at its first mount in mountinfo order (the user's choice,
-; 2026-11-15).
+; 2026-11-15). report applies the same test to the mount it is given
+; (probe_find_mount).
 ;
 ; Each drive's reason is the first of these that applies (§ 4.7):
 ;   1 FS_NOT_EXT4     the filesystem type is not exactly "ext4";
@@ -86,8 +87,10 @@ sys_path:       resb SYS_PATH_MAX
 rot_bytes:      resb 8
 dev_major:      resd 1
 dev_minor:      resd 1
+line_end:       resq 1              ; probe_find_mount's line, from split_line
 found_id:       resq 1              ; probe_find_mount's latest match
 found:          resb 1
+found_drive:    resb 1              ; whether that match is a drive
 
 section .text
 global probe_run
@@ -135,9 +138,11 @@ probe_run:
 ;   on OK, rcx = the mount's id, mountinfo's first field, which statx
 ;   gives as stx_mnt_id.
 ; The trust boundary of report (DFR-0002 INV-12): the path must be, byte
-; for byte, a mount point in /proc/self/mountinfo, as probe sends it.
-; Where several mounts share it, the last is the one on top. MOUNTINFO
-; as probe_run, and for a matching line whose id is not a number.
+; for byte, a mount point in /proc/self/mountinfo, as probe sends it,
+; and its mount a drive by the header's test, else NOT_A_MOUNT. Where
+; several mounts share it, the last is the one on top, and is the one
+; judged. MOUNTINFO as probe_run, and for a matching line whose id is
+; not a number.
 ; Clobbers as probe_run.
 probe_find_mount:
     push rbx
@@ -171,6 +176,7 @@ probe_find_mount:
     mov rsi, r13
     call split_line
     mov rbx, rax                    ; rbx = next line
+    mov [line_end], rsi
     mov rdi, r12
     call next_field
     mov [fld_id], rax
@@ -200,11 +206,19 @@ probe_find_mount:
     jne .malformed                  ; more than digits
     mov [found_id], rax
     mov byte [found], 1
+    mov rdi, r12
+    mov rsi, [line_end]
+    call judge_line                 ; the test probe lists drives by
+    test eax, eax
+    jnz .return                     ; MOUNTINFO
+    mov [found_drive], cl
 .next_line:
     mov r12, rbx
     jmp .line
 .done:
     cmp byte [found], 0
+    je .not_a_mount
+    cmp byte [found_drive], 0
     je .not_a_mount
     xor eax, eax
     xor edx, edx
@@ -302,15 +316,14 @@ read_mountinfo:
     pop rbx
     ret
 
-; probe_line(rdi = line start, rsi = line end, before any newline)
-;   -> eax = result code, edx = errno or 0, as probe_run.
-; Judges one mountinfo line and sends its DRIVE record if it is a drive.
-; The line is: id parent major:minor root mount-point options
-; [optional fields...] - fs-type source super-options.
-; Clobbers as probe_run.
-probe_line:
-    push rbx
-    push r13
+; judge_line(rdi = line start, rsi = line end, before any newline)
+;   -> eax = OK or MOUNTINFO, edx = 0; on OK, ecx = 1 when the line's
+;   mount is a drive by the header's test, else 0.
+; For a drive, leaves mount_buf, source_buf and fs_buf with their
+; lengths, and dev_major and dev_minor, set. The line is: id parent
+; major:minor root mount-point options [optional fields...] - fs-type
+; source super-options. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
+judge_line:
     sub rsp, 8
     call next_field                 ; mount id
     call next_field                 ; parent id
@@ -342,21 +355,21 @@ probe_line:
     lea rdx, [mount_buf]
     call unescape
     test rax, rax
-    js .skip
+    js .not_a_drive
     mov [mount_len], rax
     mov rdi, [fld_source]
     mov rsi, [fld_source + 8]
     lea rdx, [source_buf]
     call unescape
     test rax, rax
-    js .skip
+    js .not_a_drive
     mov [source_len], rax
     mov rdi, [fld_fs]
     mov rsi, [fld_fs + 8]
     lea rdx, [fs_buf]
     call unescape
     test rax, rax
-    js .skip
+    js .not_a_drive
     mov [fs_len], rax
 
     mov rdi, [fld_dev]
@@ -369,16 +382,16 @@ probe_line:
     ; Major 0 is no block device; btrfs shows that for every mount, so
     ; its source names the device. A relative source is not a path.
     cmp byte [source_buf], '/'
-    jne .skip
+    jne .not_a_drive
     lea rdi, [source_buf]
     lea rsi, [stat_buf]
     call sys_stat
     cmp rax, -MAX_ERRNO
-    jae .skip
+    jae .not_a_drive
     mov eax, [stat_buf + kernel_stat.mode]
     and eax, S_IFMT
     cmp eax, S_IFBLK
-    jne .skip
+    jne .not_a_drive
     mov rax, [stat_buf + kernel_stat.rdev]
     mov rcx, rax
     shr rcx, 8
@@ -401,11 +414,39 @@ probe_line:
     lea rsi, [stat_buf]
     call sys_stat
     cmp rax, -MAX_ERRNO
-    jae .skip
+    jae .not_a_drive
     mov eax, [stat_buf + kernel_stat.mode]
     and eax, S_IFMT
     cmp eax, S_IFDIR
-    jne .skip                       ; a file bind-mounted, e.g. in a container
+    jne .not_a_drive                ; a file bind-mounted, e.g. in a container
+    mov ecx, 1
+    jmp .judged
+.not_a_drive:
+    xor ecx, ecx
+.judged:
+    xor eax, eax
+    xor edx, edx
+    add rsp, 8
+    ret
+.malformed:
+    mov eax, RESULT_MOUNTINFO
+    xor edx, edx
+    add rsp, 8
+    ret
+
+; probe_line(rdi = line start, rsi = line end, before any newline)
+;   -> eax = result code, edx = errno or 0, as probe_run.
+; Judges one mountinfo line and sends its DRIVE record if it is a drive.
+; Clobbers as probe_run.
+probe_line:
+    push rbx
+    push r13
+    sub rsp, 8
+    call judge_line
+    test eax, eax
+    jnz .return                     ; MOUNTINFO
+    test ecx, ecx
+    jz .skip
 
     mov eax, [dev_major]
     shl rax, 32
@@ -498,10 +539,6 @@ probe_line:
 
 .skip:                              ; judged; listed or left out
     xor eax, eax
-    xor edx, edx
-    jmp .return
-.malformed:
-    mov eax, RESULT_MOUNTINFO
     xor edx, edx
     jmp .return
 .statfs_failed:

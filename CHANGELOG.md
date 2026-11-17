@@ -12,6 +12,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Security
+- A report refuses a folder that is not a real drive, such as a system
+  area, a memory-only folder or a network share, instead of reading it
+  with admin rights (DFR-0044).
+
 ## [0.1.0] - 2026-11-16
 
 **Theme:** Read-only report

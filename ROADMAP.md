@@ -347,7 +347,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   Lanes: Build.
   Blocked-by: DFR-0010, DFR-0011, DFR-0012, DFR-0013, DFR-0014.
 
-- 📋 [DFR-0044] **Report re-runs the drive rules before walking, as ADR-0002 says.**
+- ✅ [DFR-0044] **Report re-runs the drive rules before walking, as ADR-0002 says.**
   src/engine/main.asm report_run calls probe_find_mount, which accepts any
   line of /proc/self/mountinfo, then walks it as root. ADR-0002 says the
   engine re-runs the same rules at the start of every report. So /proc,
@@ -356,6 +356,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs (S1–S
   probe's is-a-drive test to the matched mount and finish with its reason.
   The owner chose fixing the engine over amending the ADR (2026-11-16).
   Found by review-code lanes 01 and 02 independently.
+  Shipped 2026-11-17. probe.asm's drive test is now judge_line, which
+  probe_line and probe_find_mount both call; the report judges the top
+  mount at the path. A mount that is not a drive finishes NOT_A_MOUNT,
+  not REFUSED: the window already says "not the top of a drive", and the
+  protocol is unchanged. The device-listed-once rule is not applied; a
+  second mount of a drive walks the same drive. Spec DFR-0002 § 4.7 and
+  INV-12 amended. image_report's tmpfs check failed before the fix
+  (exit 0) and passes after; probe's output is unchanged apart from free
+  space.
   **Layman:** A report refuses anything that is not a real drive, such as system areas or a network drive, instead of walking it with admin rights.
   Kind: fix.
   Source: review-code-2026-11-16.

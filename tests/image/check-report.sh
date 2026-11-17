@@ -62,6 +62,16 @@ check "report exits OK" $? 0
 /test/defragr-engine report /mnt/img/deep >/tmp/subdir.bin
 check "report on a sub-folder exits NOT_A_MOUNT" $? 3
 check "the disk is unchanged by report" "$(disk_sum)" "$before"
+# INV-12: a mount point, but of memory, not of a drive. Its stream must be
+# the sub-folder's byte for byte, which test-report.sh decodes.
+mkdir -p /mnt/memory && mount -t tmpfs none /mnt/memory &&
+    echo data >/mnt/memory/file
+check "tmpfs is mounted" $? 0
+/test/defragr-engine report /mnt/memory >/tmp/memory.bin
+check "report on a tmpfs exits NOT_A_MOUNT" $? 3
+check "the tmpfs report is the sub-folder's" \
+    "$(sha256sum </tmp/memory.bin)" "$(sha256sum </tmp/subdir.bin)"
+umount /mnt/memory
 # Every name below the mount point; the image's names hold no newline.
 names=$(find /mnt/img -mindepth 1 -xdev | wc -l)
 

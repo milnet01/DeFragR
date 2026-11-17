@@ -260,7 +260,7 @@ offset  size  field
 | 0 | `OK` | The command finished |
 | 1 | `USAGE` | Missing or unknown arguments |
 | 2 | `NOT_ROOT` | The command needs admin rights and has none |
-| 3 | `NOT_A_MOUNT` | The path given is not a mount point |
+| 3 | `NOT_A_MOUNT` | The path given is not the mount point of a drive |
 | 4 | `MOUNTINFO` | `/proc/self/mountinfo` could not be read |
 | 5 | `DRIVE_ERROR` | A drive-level call failed; `errno` says which error |
 | 6 | `REFUSED` | The drive's verdict does not allow this command |
@@ -454,14 +454,17 @@ isolates.
   `FINISHED`, or exits with a different code.
 
 - **INV-12** — Trust boundary: the engine reports on a path only after
-  finding it as a mount point in `/proc/self/mountinfo`; a path that is
-  not one finishes `NOT_A_MOUNT` with no record naming a file.
+  finding it as a mount point in `/proc/self/mountinfo` whose mount is a
+  drive by probe's test (§ 4.5); a path that is not one finishes
+  `NOT_A_MOUNT` with no record naming a file.
   *Test:* `tests/image/check-report.sh`, the `image_report` test, run as
   root in the test machine: `report /mnt/img/deep` on a mounted image,
   where only the mount-point rule can fail (the path exists and the
-  caller is root).
+  caller is root); and `report` on a tmpfs mount point, whose stream must
+  equal the sub-folder's byte for byte.
   *Breaks when:* the engine accepts any folder and walks it, so a
-  crafted path reaches files on another drive.
+  crafted path reaches files on another drive; or it accepts any mount
+  point, so it walks `/proc`, a network share or a FUSE mount as root.
 
 - **INV-13** — A `REPORT_PROGRESS` in a report stream decodes with its
   fields and counts toward neither of INV-8's counts. One after
