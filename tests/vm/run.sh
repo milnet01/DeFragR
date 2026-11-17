@@ -109,8 +109,12 @@ for spec in "${disks[@]}"; do
     # The vendor marks every test disk; guard.sh refuses any device without
     # it. The product is the name test_disk looks up. rotation_rate 1 is
     # SCSI's "not rotating", which Linux shows as rotational 0.
+    # cache=unsafe: the machine's flushes complete without reaching the
+    # host's drive. Inside the machine nothing changes, and the image is
+    # throwaway; on a spinning host drive each flush otherwise waits for
+    # the platter, which made image_build ten times slower.
     disk_args+=(
-        -drive "file=$image,format=raw,if=none,id=disk$index"
+        -drive "file=$image,format=raw,if=none,cache=unsafe,id=disk$index"
         -device "scsi-hd,drive=disk$index,bus=scsi0.0,vendor=DEFRAGR,product=$name,serial=dfr-$name,rotation_rate=$rotation"
     )
     index=$(( index + 1 ))

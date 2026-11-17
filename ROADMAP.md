@@ -229,7 +229,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: feature.
   Source: user-approval-2026-11-15 (via ants-projects-hub-website).
 
-- 📋 [DFR-0041] **Find why the image tests are slow on this PC.**
+- ✅ [DFR-0041] **Find why the image tests are slow on this PC.**
   Measured 2026-11-16: image_build took 86 s in one local gate run
   and 50 s in an earlier one; image_report took 25 to 36 s. On GitHub's
   runner each took about 2 s. Both build the same image with
@@ -244,6 +244,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   /mnt/Emulators, a spinning drive; GENTLE wraps QEMU. Note
   tst_engineprocess (30.85 s) is the slowest test, not an image test:
   see its own item.
+  Cause, 2026-11-17: QEMU's default disk cache passed each of the
+  machine's flushes on to the host drive, and this PC's build trees sit
+  on spinning drives. build_image fsyncs after every 4 KiB append. KVM
+  was in use, not TCG. With cache=unsafe on the test disks, image_build
+  took about 2 s against 19 to 23 s without it, on the same drive. Fixed
+  in tests/vm/run.sh; after the fix image_build took 2.61 s and
+  image_report 3.24 s. The initramfs rebuild is not worth changing:
+  vm_smoke's whole run took 2.20 s.
   **Layman:** Works out why the fake-drive tests take a minute or more here but seconds on GitHub.
   Kind: investigate.
   Source: user-request-2026-11-16.
