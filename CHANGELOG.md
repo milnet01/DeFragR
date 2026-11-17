@@ -33,6 +33,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - Headings are a step larger than the rest of the text, and text is
   never smaller than 10 points, even on a desktop set smaller
   (DFR-0013).
+- A report shows a map of the drive as a grid of squares: whole files
+  solid, fragmented files striped, folders and the filesystem dotted,
+  free space as an outline. A key to the patterns sits right above the
+  map. Each square shows what fills most of it. The map fills in from
+  the first block to the last, and a square that changes fades rather
+  than jumps (DFR-0014).
 
 ### Fixed
 - When pkexec, the program that asks for admin rights, is missing, the

@@ -67,6 +67,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Packaging | Polkit policy, desktop entry, icon, release bundle | `packaging/` |
 | Window tests | Qt Test unit tests of the model parts, run without root | `tests/app/` |
 | Recorded runs | Saved engine output, replayed by a fake engine | `tests/fixtures/`, `tests/fake-engine/` |
+| Map demo | A recorded map with scripted changes, to judge the map's motion by eye | `tests/map-demo/` |
 | Image tests | Building throwaway ext4 images and running the real engine on them | `tests/image/` |
 | Test machine | Booting the throwaway virtual machine the image tests run in | `tests/vm/` |
 

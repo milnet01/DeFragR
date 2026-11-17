@@ -34,3 +34,4 @@ set_tests_properties(image_report PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
 
 add_subdirectory(fake-engine)
 add_subdirectory(app)
+add_subdirectory(map-demo)

@@ -1,5 +1,6 @@
-// ReportView: one drive's report (S3) — how fragmented it is, then its
-// fragmented files worst first — with a way back to the drive list.
+// ReportView: one drive's report (S3) — how fragmented it is, a map of
+// where its blocks lie (S4), then its fragmented files worst first — with
+// a way back to the drive list.
 #pragma once
 
 #include "model/Report.h"
@@ -15,6 +16,7 @@ class QTableView;
 
 namespace defragr::ui {
 
+class DriveMapView;
 class Theme;
 
 class ReportView : public QWidget {
@@ -48,6 +50,8 @@ private:
     QProgressBar *m_progress = nullptr;
     QElapsedTimer m_clock;
     QTimer m_tick;
+    QWidget *m_mapKey = nullptr;
+    DriveMapView *m_map = nullptr;
     QLabel *m_filesHeading = nullptr;
     QTableView *m_table = nullptr;
     QPushButton *m_back = nullptr;

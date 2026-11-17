@@ -134,6 +134,24 @@ private slots:
         QVERIFY(QTest::qWaitFor([&] { return !report.isRunning(); }, 10000));
     }
 
+    // S4: the map comes from MAP_RUNS, and only once the report ends.
+    void mapFromTheReport()
+    {
+        Report report(fake("pass-through.sh"));
+        run(report, "/mnt/fake");
+        QCOMPARE(report.map().blocks(), quint64(300));
+        QCOMPARE(report.map().cells(6),
+                 (QList<CellState>{CellState::Free, CellState::Free, CellState::Filesystem,
+                                   CellState::Whole, CellState::Fragmented,
+                                   CellState::Fragmented}));
+        report.run("/mnt/fake");
+        QVERIFY(report.map().isEmpty());
+        QVERIFY(QTest::qWaitFor([&] { return !report.isRunning(); }, 10000));
+        // A second run's map replaces the first, not adds to it.
+        QCOMPARE(report.map().cells(6).size(), 6);
+        QCOMPARE(report.map().blocks(), quint64(300));
+    }
+
     // A drive mounted at / gives paths with one slash, not two.
     void rootDrive()
     {
@@ -165,6 +183,7 @@ private slots:
         QVERIFY(!load.failures.first().what.isEmpty());
         QCOMPARE(report.rowCount(), 0);
         QCOMPARE(report.summary(), ReportSummary());
+        QVERIFY(report.map().isEmpty());
     }
 
     // A report needs admin rights, so it goes through the launcher.

@@ -14,6 +14,7 @@ target_link_libraries(defragr-engine-link PUBLIC Qt6::Core)
 
 add_library(defragr-model STATIC
     model/DriveList.cpp
+    model/DriveMap.cpp
     model/Messages.cpp
     model/Report.cpp)
 target_compile_options(defragr-model PRIVATE -Wall -Wextra -Wpedantic)
@@ -39,6 +40,12 @@ add_library(defragr-theme STATIC ui/Theme.cpp)
 target_include_directories(defragr-theme PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(defragr-theme PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr-theme PUBLIC Qt6::Gui)
+
+# Map view: Qt Widgets, apart from the window so its test can paint it
+# offscreen.
+add_library(defragr-map-view STATIC ui/DriveMapView.cpp)
+target_compile_options(defragr-map-view PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-map-view PUBLIC defragr-model defragr-theme Qt6::Widgets)
 
 # Refreshes translations/ from the source, through the script the
 # translations_current test runs. Qt's own lupdate targets are not used:
@@ -77,4 +84,5 @@ add_dependencies(defragr defragr-build-id)
 target_include_directories(defragr PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr PRIVATE defragr-model defragr-languages defragr-theme Qt6::Widgets Qt6::DBus)
+target_link_libraries(defragr PRIVATE defragr-model defragr-languages defragr-theme defragr-map-view
+    Qt6::Widgets Qt6::DBus)

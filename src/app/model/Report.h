@@ -6,6 +6,7 @@
 
 #include "engine/EngineProcess.h"
 #include "engine/Records.h"
+#include "model/DriveMap.h"
 #include "model/Messages.h"
 
 #include <QAbstractTableModel>
@@ -41,6 +42,7 @@ public:
 
     const QByteArray &mountPoint() const { return m_mountPoint; }
     const engine::ReportSummary &summary() const { return m_summary; }
+    const DriveMap &map() const { return m_map; }
 
     int rowCount(const QModelIndex &parent = {}) const override;
     int columnCount(const QModelIndex &parent = {}) const override;
@@ -67,10 +69,12 @@ private:
     quint32 m_blockSize = 0;
     engine::ReportSummary m_summary;
     QList<engine::FragmentedFile> m_files;
+    DriveMap m_map;
     // The running report's records so far; shown only once it succeeds.
     quint32 m_incomingBlockSize = 0;
     engine::ReportSummary m_incomingSummary;
     QList<engine::FragmentedFile> m_incoming;
+    DriveMap m_incomingMap;
 };
 
 }  // namespace defragr::model

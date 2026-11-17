@@ -394,7 +394,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Theme.
   Blocked-by: DFR-0005.
 
-- 📋 [DFR-0014] **Drive map model and view.**
+- ✅ [DFR-0014] **Drive map model and view.**
   `model/DriveMap` bins extents into cells for the window's size;
   `ui/DriveMapView` paints them with the theme, after a report (S4,
   S10). Tested against recorded runs.
@@ -411,6 +411,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   edge. ui::CellState lives in ui/Theme.h until model/DriveMap needs
   it; move it to model/ then. Paint cells with Theme::paintCell, sized
   by Theme::cellSide and Theme::cellGap.
+  Done 2026-11-17: model/DriveMap sorts MAP_RUNS into cells; a cell
+  shows the kind filling most of it, and blocks in no run count as the
+  filesystem's. CellState moved there; ui/Theme.h aliases it.
+  ui/DriveMapView fades each change over 400 ms and sweeps a new map in
+  over 1.5 s, from one frame timer that stops when still; right to left
+  in a right-to-left language. mapKey puts the patterns and their names
+  right above the map. tst_drivemap and tst_drivemapview (on a test
+  clock) cover it. tests/map-demo plays the recorded run with scripted
+  changes, which sidesteps pkexec stripping DEFRAGR_RECORDING for
+  watching the motion. Turning off motion with the desktop's
+  animations stays with DFR-0018.
   **Layman:** Draws the drive as a grid of blocks showing whole, scattered and free space.
   Kind: feature.
   Source: design-2026-11-15.

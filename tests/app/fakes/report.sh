@@ -36,10 +36,19 @@ fragmented() {
     le "$1" 4; zeros 4; le "$2" 8; string_part 16 "$3"
 }
 
-# HELLO: version 1.1, report, block size 4096.
-header 1 16; le 1 2; le 1 2; le 2 4; le 4096 4; zeros 4
+# MAP_RUNS of kind $1, one run: start $2, length $3.
+map_run() { header 36 24; le "$1" 4; le 1 4; le "$2" 8; le "$3" 8; }
+
+# HELLO: version 1.2, report, block size 4096.
+header 1 16; le 1 2; le 2 2; le 2 4; le 4096 4; zeros 4
 # REPORT_PROGRESS: names 0 of an estimated 300.
 header 35 16; le 0 8; le 300 8
+# A drive of 300 blocks: 100 free, 50 the filesystem's, 50 of whole
+# files, then 100 of fragmented ones.
+map_run 1 0 100
+map_run 2 100 50
+map_run 3 150 50
+map_run 4 200 100
 fragmented 3 10 music/song.flac
 fragmented 40 1000 games/big.iso
 fragmented 3 50 games/tie.pak

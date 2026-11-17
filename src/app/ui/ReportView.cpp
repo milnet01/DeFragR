@@ -1,5 +1,6 @@
 #include "ui/ReportView.h"
 
+#include "ui/DriveMapView.h"
 #include "ui/ReadOnlyTable.h"
 #include "ui/Theme.h"
 
@@ -42,6 +43,10 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     connect(&m_tick, &QTimer::timeout, this, &ReportView::showElapsed);
     m_progress = new QProgressBar;
 
+    // The key sits right above the map, so a magnifier shows both.
+    m_mapKey = mapKey(theme);
+    m_map = new DriveMapView(theme);
+
     m_filesHeading = new QLabel(tr("Fragmented files, worst first:"));
 
     m_table = readOnlyTable(&m_report);
@@ -54,6 +59,8 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     layout->addWidget(m_found);
     layout->addWidget(m_latest);
     layout->addWidget(m_elapsed);
+    layout->addWidget(m_mapKey);
+    layout->addWidget(m_map, 1);
     layout->addWidget(m_filesHeading);
     layout->addWidget(m_table, 1);
     // Takes the space only while the table is hidden, so the text stays
@@ -78,6 +85,7 @@ void ReportView::start(const QByteArray &mountPoint)
     m_progress->setRange(0, 0);
     m_found->setText(tr("No fragmented files found yet."));
     m_latest->clear();
+    m_map->showMap(nullptr);
     m_clock.start();
     showElapsed();
     setRunning(true);
@@ -87,6 +95,7 @@ void ReportView::start(const QByteArray &mountPoint)
 void ReportView::showReport()
 {
     m_figures->setText(model::summaryLines(m_report.summary()).join(QLatin1Char('\n')));
+    m_map->showMap(&m_report.map());
     setRunning(false);
 }
 
@@ -150,6 +159,9 @@ void ReportView::setRunning(bool running)
         m_tick.start();
     else
         m_tick.stop();
+    const bool anyMap = !running && !m_report.map().isEmpty();
+    m_mapKey->setVisible(anyMap);
+    m_map->setVisible(anyMap);
     const bool anyFiles = !running && m_report.rowCount() > 0;
     m_filesHeading->setVisible(anyFiles);
     m_table->setVisible(anyFiles);

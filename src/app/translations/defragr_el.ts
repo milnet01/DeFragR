@@ -276,6 +276,29 @@
     </message>
 </context>
 <context>
+    <name>defragr::ui::DriveMapView</name>
+    <message>
+        <source>Drive map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whole files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fragmented files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Folders and filesystem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Free space</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>defragr::ui::MainWindow</name>
     <message>
         <source>DeFragR %1 (build %2)</source>

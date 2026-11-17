@@ -46,6 +46,12 @@ add_dependencies(tst_drivelist defragr-engine)
 add_test(NAME tst_drivelist COMMAND tst_drivelist)
 set_tests_properties(tst_drivelist PROPERTIES ENVIRONMENT "${DEFRAGR_TEST_ENGINES}")
 
+# Map runs sorted into map cells: DFR-0014.
+add_executable(tst_drivemap tst_drivemap.cpp)
+target_compile_options(tst_drivemap PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_drivemap PRIVATE defragr-model Qt6::Test)
+add_test(NAME tst_drivemap COMMAND tst_drivemap)
+
 # The message table: DFR-0005.
 add_executable(tst_messages tst_messages.cpp)
 target_compile_options(tst_messages PRIVATE -Wall -Wextra -Wpedantic)
@@ -91,6 +97,13 @@ target_link_libraries(tst_theme PRIVATE defragr-theme Qt6::Test)
 add_test(NAME tst_theme COMMAND tst_theme)
 set_tests_properties(tst_theme PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The map painted, faded and swept, on the test's own clock: DFR-0014.
+add_executable(tst_drivemapview tst_drivemapview.cpp)
+target_compile_options(tst_drivemapview PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_drivemapview PRIVATE defragr-map-view Qt6::Test)
+add_test(NAME tst_drivemapview COMMAND tst_drivemapview)
+set_tests_properties(tst_drivemapview PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # The translation files match the source, and English has every plural
 # form: DFR-0066.
 add_test(NAME translations_current
@@ -105,5 +118,5 @@ set_tests_properties(translations_current PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_messages tst_report tst_replay tst_languages tst_theme PROPERTIES
+    tst_drivelist tst_drivemap tst_messages tst_report tst_replay tst_languages tst_theme tst_drivemapview PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

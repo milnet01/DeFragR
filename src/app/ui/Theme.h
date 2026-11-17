@@ -4,6 +4,8 @@
 // colour. Text follows the desktop's size, never below a floor.
 #pragma once
 
+#include "model/DriveMap.h"
+
 #include <QColor>
 #include <QFont>
 #include <QPalette>
@@ -15,8 +17,7 @@ class QRect;
 
 namespace defragr::ui {
 
-// What one map cell shows.
-enum class CellState { Free, Filesystem, Whole, Fragmented };
+using model::CellState;
 
 class Theme {
 public:

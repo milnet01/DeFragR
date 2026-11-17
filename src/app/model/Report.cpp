@@ -128,6 +128,7 @@ void Report::run(const QByteArray &mountPoint)
     m_incomingBlockSize = 0;
     m_incomingSummary = {};
     m_incoming.clear();
+    m_incomingMap.clear();
     m_engine.start(CommandReport, {EngineProcess::pathArgument(mountPoint)});
 }
 
@@ -140,6 +141,8 @@ void Report::collect(const QList<Record> &records)
             m_incoming.append(*file);
         else if (const auto *latest = std::get_if<ReportProgress>(&record))
             progress = *latest;
+        else if (const auto *runs = std::get_if<MapRuns>(&record))
+            m_incomingMap.add(*runs);
         else if (const auto *summary = std::get_if<ReportSummary>(&record))
             m_incomingSummary = *summary;
         else if (const auto *hello = std::get_if<Hello>(&record))
@@ -157,6 +160,7 @@ void Report::runEnded(const RunOutcome &outcome)
     if (!problem.what.isEmpty()) {
         // A broken run's figures are never shown: a message, never a guess.
         m_incoming.clear();
+        m_incomingMap.clear();
         emit failed(problem);
         return;
     }
@@ -169,6 +173,7 @@ void Report::runEnded(const RunOutcome &outcome)
     m_blockSize = m_incomingBlockSize;
     m_summary = m_incomingSummary;
     m_files = std::exchange(m_incoming, {});
+    m_map = std::exchange(m_incomingMap, {});
     endResetModel();
     emit loaded();
 }
@@ -180,6 +185,7 @@ void Report::clear()
     m_blockSize = 0;
     m_summary = {};
     m_files.clear();
+    m_map.clear();
     endResetModel();
 }
 
