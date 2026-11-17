@@ -5,9 +5,6 @@
 ; Building a record: rec_start, then store fields at the payload pointer
 ; it returns, using records.inc's struc offsets; then rec_string for each
 ; string in order; then rec_send.
-%if __?NASM_VERSION_ID?__ < 0x03020000
-%error "NASM 3.02 or later required"
-%endif
 
 bits 64
 default rel
@@ -26,6 +23,8 @@ rec_buf:    resb REC_BUF_SIZE
 rec_end:    resq 1              ; bytes used in rec_buf, header included
 
 section .rodata
+; Self-test (st_) strings: the values DFR-0002 § 4.9 fixes, odd bytes
+; included. The 0xFF is a byte that is not UTF-8, not a lost end marker.
 st_mount_point:     db "/mnt/t", 0xFF
 st_mount_point_len  equ $ - st_mount_point
 st_fs_type:         db "ext4"
@@ -186,7 +185,7 @@ rec_selftest:
     mov byte [rax + drive.media], MEDIA_SPINNING
     mov byte [rax + drive.verdict], VERDICT_REPORT_ONLY
     mov word [rax + drive.reason], 0xD1D2
-    mov dword [rax + drive.mount_flags], 0xE1E2E3E5
+    mov dword [rax + drive.mount_flags], 0xE1E2E3E5  ; E5, as § 4.9 fixes
     lea rdi, [st_mount_point]
     mov esi, st_mount_point_len
     call rec_string

@@ -11,9 +11,6 @@
 ;
 ; FIEMAP is asked with no flags, as filefrag asks by default: nothing is
 ; flushed, so the drive is not written to.
-%if __?NASM_VERSION_ID?__ < 0x03020000
-%error "NASM 3.02 or later required"
-%endif
 
 bits 64
 default rel

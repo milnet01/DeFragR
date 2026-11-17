@@ -2,9 +2,7 @@
 ; and process setup. Each returns rax as the kernel left it, so a value in
 ; [-4095, -1] is -errno and the caller checks it. Each keeps the System V
 ; convention: rdi, rsi, rdx in; rax out; rcx and r11 clobbered by syscall.
-%if __?NASM_VERSION_ID?__ < 0x03020000
-%error "NASM 3.02 or later required"
-%endif
+; A wrapper that overwrites any other register says so.
 
 bits 64
 default rel
@@ -52,7 +50,7 @@ sys_read:
     ret
 
 ; sys_open(rdi = NUL-terminated path, rsi = flags) -> rax = fd or -errno.
-; Opens an existing file only, so no mode is passed.
+; Opens an existing file only, so no mode is passed. Clobbers rdx too.
 sys_open:
     mov eax, SYS_open
     xor edx, edx
@@ -132,6 +130,7 @@ sys_exit:
 
 ; sys_ignore_sigpipe() -> rax = 0 or -errno. A write to a closed pipe
 ; then fails with EPIPE instead of killing the engine (DFR-0002 § 6).
+; Clobbers rdi, rsi, rdx and r10 too.
 sys_ignore_sigpipe:
     mov eax, SYS_rt_sigaction
     mov edi, SIGPIPE

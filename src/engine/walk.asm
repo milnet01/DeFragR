@@ -9,7 +9,9 @@
 ;   - It follows no symbolic link: every open is O_NOFOLLOW, and a link
 ;     is never visited.
 ;   - It changes nothing: every open is O_NOATIME, so reading a folder
-;     does not update its access time. Report runs as root, which may.
+;     does not update its access time. O_NOATIME fails with EPERM
+;     unless the caller owns the file or is root, so the walk assumes
+;     root, as report runs.
 ;   - It visits regular files only. A hard link is visited once per
 ;     name, as filefrag would list it.
 ;   - Each folder holds one descriptor open while it is walked. A folder
@@ -21,9 +23,6 @@
 ;   - It counts every name it reads, of any type, in walk_names, and
 ;     walk_start sets walk_estimate: REPORT_PROGRESS's two fields
 ;     (DFR-0002 § 4.6).
-%if __?NASM_VERSION_ID?__ < 0x03020000
-%error "NASM 3.02 or later required"
-%endif
 
 bits 64
 default rel
@@ -42,7 +41,7 @@ extern sys_getdents64
 ; A folder at depth k has a path of at least 2k - 1 bytes ("a/b/..."),
 ; and none longer than STRING_MAX is descended into: so 2048 levels below
 ; the top, and the top itself. Unused .bss costs no memory until touched.
-WALK_DEPTH_MAX  equ 2049
+WALK_DEPTH_MAX  equ (STRING_MAX + 1) / 2 + 1
 DENTS_SIZE      equ 4096
 
 FOLDER_FLAGS    equ O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_NOATIME | O_CLOEXEC
@@ -416,6 +415,7 @@ check_opened:
     ret
 
 ; statx_of(edi = folder fd, rsi = NUL-terminated name, edx = AT_ flags)
+;   With an empty name and AT_EMPTY_PATH, edi is the file itself.
 ;   -> rax = 0, or -errno. Fills statx_buf with the type and mount id;
 ;   a kernel that cannot give both (before Linux 5.8) is -EOPNOTSUPP.
 ; Clobbers as walk_next.

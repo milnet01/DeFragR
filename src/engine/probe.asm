@@ -26,9 +26,6 @@
 ; a partition, its disk's at /sys/dev/block/MAJ:MIN/../queue/rotational:
 ; the /sys/block/*/queue/rotational files ADR-0002 names, reached by
 ; device number.
-%if __?NASM_VERSION_ID?__ < 0x03020000
-%error "NASM 3.02 or later required"
-%endif
 
 bits 64
 default rel
@@ -139,8 +136,9 @@ probe_run:
 ;   on OK, rcx = the mount's id, mountinfo's first field, which statx
 ;   gives as stx_mnt_id.
 ; The trust boundary of report (DFR-0002 INV-12): the path must be, byte
-; for byte, a mount point in /proc/self/mountinfo, as probe sends it,
-; and its mount a drive by the header's test, else NOT_A_MOUNT. Where
+; for byte, a mount point in /proc/self/mountinfo, unescaped as probe
+; sends it, and its mount a drive by the header's test, else NOT_A_MOUNT.
+; A later mount of a drive probe lists once, at its first, passes too. Where
 ; several mounts share it, the last is the one on top, and is the one
 ; judged. MOUNTINFO as probe_run, and for a matching line whose id is
 ; not a number.
@@ -482,7 +480,7 @@ probe_line:
     mov r13d, REASON_FS_NOT_EXT4    ; r13d = reason, in § 4.7's order
     cmp qword [fs_len], fs_ext4_len
     jne .judged
-    mov eax, [fs_buf]
+    mov eax, [fs_buf]               ; fs_ext4 is 4 bytes: one load holds it
     cmp eax, [fs_ext4]
     jne .judged
     mov r13d, REASON_READ_ONLY

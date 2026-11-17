@@ -2,9 +2,6 @@
 ; and ends every run with FINISHED and its result as the exit status
 ; (docs/specs/DFR-0002-engine-protocol.md § 4.3). Checks run in § 4.7's
 ; order: arguments, admin rights, mount point, drive rules.
-%if __?NASM_VERSION_ID?__ < 0x03020000
-%error "NASM 3.02 or later required"
-%endif
 
 bits 64
 default rel

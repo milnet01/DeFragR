@@ -46,7 +46,6 @@ AT_SYMLINK_NOFOLLOW equ 0x100
 AT_EMPTY_PATH       equ 0x1000
 
 ; Standard file descriptors.
-STDIN_FD            equ 0
 STDOUT_FD           equ 1
 
 ; Signals.
