@@ -1702,7 +1702,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-18.
   Lanes: Build, Packaging.
 
-- 📋 [DFR-0092] **Publish DeFragR on OBS for every distribution it builds on.**
+- 🚧 [DFR-0092] **Publish DeFragR on OBS for every distribution it builds on.**
   Subproject home:milnet:DeFragR (user's choice 2026-11-18), x86_64
   only. Built from the GitHub tag, so OBS and GitHub carry the same
   version. NASM 3.02 is bundled as a build-only source, since no

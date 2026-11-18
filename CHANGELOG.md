@@ -12,6 +12,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-18
+
+**Theme:** Packages on OBS
+
 ### Added
 - DeFragR can be installed: `cmake --install` puts the window, its
   engine, a menu entry and the icon in place. A package built without

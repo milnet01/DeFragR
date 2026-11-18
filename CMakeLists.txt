@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(DeFragR
-    VERSION 0.2.0
+    VERSION 0.2.1
     DESCRIPTION "Defragmenter for ext4 drives"
     LANGUAGES CXX ASM_NASM)
 
