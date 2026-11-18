@@ -55,6 +55,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   count of fragmented files reads "1 file" or "2 files" as it should, and
   the share of fragmented files shows 100% only when every file is
   (DFR-0080).
+- The drive map takes about half the computer power to draw while it
+  moves, and no longer redraws itself about 60 times a second for
+  nothing while a report starts (DFR-0088).
 - On a screen scaled to a size such as 125% or 150%, the drive map no
   longer redraws every block from scratch, and its key stays sharp
   (DFR-0079).

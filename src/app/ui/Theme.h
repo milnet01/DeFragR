@@ -62,7 +62,7 @@ public:
     QColor cellColour(CellState state) const;
     // A cell's side grows with the text, so a bigger desktop font gives a
     // bigger, easier map.
-    int cellSide() const;
+    int cellSide() const { return m_cellSide; }
     int cellGap() const;
     // Paints the whole of one cell, background included: whole is solid,
     // fragmented is diagonal stripes, filesystem is four dots, free is a
@@ -93,6 +93,7 @@ private:
     bool m_ownPalette = false;
     QFont m_body;
     bool m_raisedFont = false;
+    int m_cellSide = kMinCellSide;
     MapColours m_map;
 };
 

@@ -119,6 +119,9 @@ Theme::Theme(Id id, const QPalette &desktopPalette, const QFont &desktopFont)
         m_body.setPixelSize(kMinPixelSize);
         m_raisedFont = true;
     }
+    // About two thirds of a line of text. Kept, since the map asks for it
+    // several times per cell per frame and the font never changes.
+    m_cellSide = std::max(kMinCellSide, QFontMetrics(m_body).height() * 2 / 3);
 }
 
 void Theme::apply() const
@@ -174,13 +177,7 @@ QColor Theme::glowWash(CellState state) const
     return isDark(m_map.background) ? QColor(Qt::white) : cellColour(state);
 }
 
-int Theme::cellSide() const
-{
-    // About two thirds of a line of text.
-    return std::max(kMinCellSide, QFontMetrics(m_body).height() * 2 / 3);
-}
-
-int Theme::cellGap() const { return std::max(1, cellSide() / 10); }
+int Theme::cellGap() const { return std::max(1, m_cellSide / 10); }
 
 void Theme::paintCell(QPainter &painter, const QRect &cell, CellState state) const
 {

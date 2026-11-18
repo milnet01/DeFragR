@@ -2,7 +2,6 @@
 
 #include "ui/Theme.h"
 
-#include <QEasingCurve>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPaintEvent>
@@ -113,11 +112,18 @@ qreal progress(qint64 start, int length, qint64 now)
     return std::clamp(qreal(now - start) / length, 0.0, 1.0);
 }
 
-// How much of the new state shows, eased: 0 none, 1 all of it.
-qreal fadeIn(qreal t)
+// QEasingCurve's OutCubic and OutQuad, written out: a QEasingCurve
+// allocates, and the map eases every cell every frame.
+qreal outCubic(qreal x)
 {
-    return QEasingCurve(QEasingCurve::OutCubic).valueForProgress(std::min(1.0, t / kFadePart));
+    const qreal left = 1 - x;
+    return 1 - left * left * left;
 }
+
+qreal outQuad(qreal x) { return x * (2 - x); }
+
+// How much of the new state shows, eased: 0 none, 1 all of it.
+qreal fadeIn(qreal t) { return outCubic(std::min(1.0, t / kFadePart)); }
 
 // How brightly the cell glows: 0 not at all, 1 at its peak.
 qreal glowAt(qreal t)
@@ -125,7 +131,7 @@ qreal glowAt(qreal t)
     if (t <= 0 || t >= 1)
         return 0;
     if (t < kGlowPeak)
-        return QEasingCurve(QEasingCurve::OutQuad).valueForProgress(t / kGlowPeak);
+        return outQuad(t / kGlowPeak);
     const qreal left = 1 - (t - kGlowPeak) / (1 - kGlowPeak);
     return left * left;
 }
@@ -253,12 +259,13 @@ void DriveMapView::fitMapToCells(bool sweep)
                                   : now - kArriveMs,
                             kArriveMs});
     }
-    if (sweep) {
+    if (sweep && !m_cells.isEmpty()) {
         moveUntil(m_sweepStart + kSweepMs + kArriveMs);
         return;
     }
-    // Every cell has arrived, so nothing moves.
+    // Every cell has arrived, or there are none, so nothing moves.
     m_stillAt = now;
+    m_frame.stop();
     update();
 }
 

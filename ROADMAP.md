@@ -1094,7 +1094,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-readability-2026-11-18.
   Lanes: Build.
 
-- 📋 [DFR-0088] **Map view per-frame costs: measure, then change only what wins.**
+- ✅ [DFR-0088] **Map view per-frame costs: measure, then change only what wins.**
   None measured (review-code --performance lane P2, 2026-11-18). Measure
   first (review-cost.md § 5): perf record -g on the window during a sweep,
   heaptrack for allocation counts only, and a painted-cells counter. Keep
@@ -1122,6 +1122,27 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Found by review-code --performance lane P2; Theme.cpp:161 also by
   review-readability lane 04.
   Priority: 5 — measure before changing.
+  Shipped 2026-11-18. Measured off screen at 1880×900 (9,936 cells),
+  RelWithDebInfo, on a fake clock, paired against HEAD. perf could not
+  open events in the session's sandbox, so each suspect was timed alone,
+  then each change was timed in and out.
+  - Kept: Theme stores the cell side when built. The calls to cellSide()
+    took about 2 ms of a 3.4 ms frame.
+  - Kept: the easing written out, equal to QEasingCurve's at every point
+    tried. Allocations per frame fell from about 10,000 to 5.
+  - Kept: showMap(nullptr) starts no frame timer. Paints in the next 3 s
+    fell from 158 to 1. noMapShowsNothing locks it; it failed before.
+  - Together, the median frame fell from 5.3–8.0 ms to 2.5–3.3 ms in a
+    sweep, and from 3.7–6.6 ms to 1.2–1.9 ms while four cells change.
+  - Deferred to DFR-0018: repainting only the moving rows. It made a
+    four-cell change frame about 20 times cheaper and a sweep frame about
+    28% cheaper, but nothing in the window calls changeCells yet, and
+    tests that grab() the view repaint all of it, so cannot see a stale
+    row.
+  - Dropped: merging a burst of resizes. A refit (fitMapToCells, once
+    sortMap) of a 2^32-block map of a million runs took about 2–3 ms,
+    within one frame. DriveMap now tallies into bins and stores its end,
+    so cells() walks no runs and blocks() walks nothing.
   **Layman:** Check whether the drive map's animation wastes computer power, and trim only what measurably helps.
   Kind: perf.
   Source: code-quality-review-2026-11-18.
@@ -1686,7 +1707,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   the drive. For S10, a cell's symbol changes as well as its colour,
   nothing flashes more than three times a second, and turning off
   the desktop's animations turns off the motion. How Qt learns that
-  desktop setting is unverified.
+  desktop setting is unverified. Repaint only the rows that move:
+  DFR-0088 measured a four-cell change frame about 20 times cheaper so.
+  A test of it must read what the screen shows, not grab().
   **Layman:** Choose a folder and watch its blocks join up on the map as it is defragged.
   Kind: feature.
   Source: design-2026-11-15.

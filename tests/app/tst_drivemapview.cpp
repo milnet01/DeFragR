@@ -284,10 +284,12 @@ private slots:
         QCOMPARE(shot, still->grab().toImage());
     }
 
+    // No map: no cells, and no frame timer waking to sweep them in.
     void noMapShowsNothing()
     {
         const auto view = settledView();
         view->showMap(nullptr);
+        QVERIFY(!view->isMoving());
         QCOMPARE(view->cells(), QList<CellState>{});
         QVERIFY(samePixels(view->grab().toImage(), cellAt(0), blankImage(m_theme)));
     }
