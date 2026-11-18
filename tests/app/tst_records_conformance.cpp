@@ -59,9 +59,9 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-records")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.exitCode, 0);
-        QCOMPARE(run.records.size(), 9);
+        QCOMPARE(run.records.size(), 11);
 
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 3, 255, 0x01020304}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 4, 255, 0x01020304}));
 
         Drive drive;
         drive.totalBlocks = 0x1112131415161718;
@@ -91,7 +91,13 @@ private slots:
                           {{0x3132333435363738, 0x4142434445464748},
                            {0x5152535455565758, 0x6162636465666768}}}));
         QCOMPARE(std::get<RunState>(run.records[7]), (RunState{0xF1F2F3F4}));
-        QCOMPARE(std::get<Finished>(run.records[8]), (Finished{0, 0}));
+        QCOMPARE(std::get<FileDefragged>(run.records[8]),
+                 (FileDefragged{0x21222324, 0x25262728, 0x2A2B2C2D2E2F3031, "d/e"}));
+        QCOMPARE(std::get<BlocksMoved>(run.records[9]),
+                 (BlocksMoved{{{0x7172737475767778, 0x8182838485868788}},
+                              {{0x9192939495969798, 0xA1A2A3A4A5A6A7A8},
+                               {0xB1B2B3B4B5B6B7B8, 0xC1C2C3C4C5C6C7C8}}}));
+        QCOMPARE(std::get<Finished>(run.records[10]), (Finished{0, 0}));
     }
 
     // INV-18: the engine's CRC32C gives every published value § 4.11 lists.
@@ -100,7 +106,7 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-crc32c")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.records.size(), 2);
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 3, CommandSelftestCrc32c, 0}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 4, CommandSelftestCrc32c, 0}));
         QCOMPARE(std::get<Finished>(run.records[1]).result, int(ResultOk));
         QCOMPARE(run.exitCode, 0);
     }
@@ -121,6 +127,11 @@ private slots:
         // ...and admin rights before the mount point.
         QTest::newRow("report, not root")
             << QStringList{"report", "/nonexistent"} << int(ResultNotRoot) << true;
+        // INV-21: defrag checks its arguments, then admin rights.
+        QTest::newRow("defrag, no folder")
+            << QStringList{"defrag", "/nonexistent"} << int(ResultUsage) << false;
+        QTest::newRow("defrag, not root")
+            << QStringList{"defrag", "/nonexistent", "x"} << int(ResultNotRoot) << true;
         QTest::newRow("selftest-records") << QStringList{"selftest-records"} << int(ResultOk)
                                           << false;
         QTest::newRow("selftest-crc32c, extra argument")

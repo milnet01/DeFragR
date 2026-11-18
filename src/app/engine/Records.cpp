@@ -1,5 +1,6 @@
 // The record decoder: framing (§ 4.1), versioning (§ 4.2), each record's
-// fields (§ 4.4 to § 4.6) and the stream-order rules (§ 4.3, § 4.10) of
+// fields (§ 4.4 to § 4.6, § 4.12) and the stream-order rules (§ 4.3,
+// § 4.10) of
 // docs/specs/DFR-0002-engine-protocol.md.
 #include "engine/Records.h"
 
@@ -18,6 +19,8 @@ constexpr quint32 kFragmentedFileSize = 16;
 constexpr quint32 kFileSkippedSize = 8;
 constexpr quint32 kMapRunsSize = 8;
 constexpr quint32 kMapRunSize = 16;  // each run after MAP_RUNS' fixed part
+constexpr quint32 kFileDefraggedSize = 16;
+constexpr quint32 kBlocksMovedSize = 8;  // its runs are laid out as MAP_RUNS'
 
 // Reads one payload: fixed fields by offset, then strings in order. A
 // field past the payload's end reads as 0 and marks the payload short,
@@ -54,6 +57,19 @@ public:
     }
 
     void startStringsAt(qsizetype offset) { m_cursor = offset; }
+
+    // `count` runs from `offset`; false when they pass the payload's end.
+    bool runs(qsizetype offset, quint32 count, QList<MapRun> &out)
+    {
+        if (quint64(offset) + quint64(count) * kMapRunSize > quint64(m_payload.size()))
+            return false;
+        out.reserve(count);
+        for (quint32 i = 0; i < count; ++i) {
+            const qsizetype at = offset + qsizetype(i) * kMapRunSize;
+            out.append({.start = this->at<quint64>(at), .length = this->at<quint64>(at + 8)});
+        }
+        return true;
+    }
 
 private:
     QByteArrayView m_payload;
@@ -182,18 +198,37 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         record = ReportProgress{.names = in.at<quint64>(0), .estimate = in.at<quint64>(8)};
         break;
     case TypeMapRuns: {
-        const quint32 count = in.at<quint32>(4);
-        if (kMapRunsSize + quint64(count) * kMapRunSize > quint64(payload.size())) {
+        MapRuns m{.kind = in.at<quint32>(0), .runs = {}};
+        if (!in.runs(kMapRunsSize, in.at<quint32>(4), m.runs)) {
             m_error = StreamError::Malformed;
             return false;
         }
-        MapRuns m{.kind = in.at<quint32>(0), .runs = {}};
-        m.runs.reserve(count);
-        for (quint32 i = 0; i < count; ++i) {
-            const qsizetype at = kMapRunsSize + qsizetype(i) * kMapRunSize;
-            m.runs.append({.start = in.at<quint64>(at), .length = in.at<quint64>(at + 8)});
-        }
         record = std::move(m);
+        break;
+    }
+    case TypeFileDefragged: {
+        FileDefragged f{.extentsBefore = in.at<quint32>(0),
+                        .extentsAfter = in.at<quint32>(4),
+                        .movedBlocks = in.at<quint64>(8),
+                        .path = {}};
+        in.startStringsAt(kFileDefraggedSize);
+        if (!in.string(f.path)) {
+            m_error = StreamError::Malformed;
+            return false;
+        }
+        record = std::move(f);
+        break;
+    }
+    case TypeBlocksMoved: {
+        const quint32 fromCount = in.at<quint32>(0);
+        BlocksMoved b;
+        if (!in.runs(kBlocksMovedSize, fromCount, b.from)
+            || !in.runs(kBlocksMovedSize + qsizetype(fromCount) * kMapRunSize, in.at<quint32>(4),
+                        b.to)) {
+            m_error = StreamError::Malformed;
+            return false;
+        }
+        record = std::move(b);
         break;
     }
     case TypeRunState:
@@ -283,6 +318,19 @@ bool RecordDecoder::orderAllows(const Record &record)
         }
         if (std::holds_alternative<ReportProgress>(record)
             || std::holds_alternative<MapRuns>(record)
+            || std::holds_alternative<RunState>(record))
+            return true;
+        return malformed();
+    }
+
+    if (m_command == CommandDefrag) {
+        // § 4.12 and INV-19: moves, files and run states; OK needs the block
+        // size the runs are counted in.
+        if (finished)
+            return finished->result != ResultOk || m_blockSize != 0 ? true : malformed();
+        if (std::holds_alternative<FileDefragged>(record)
+            || std::holds_alternative<FileSkipped>(record)
+            || std::holds_alternative<BlocksMoved>(record)
             || std::holds_alternative<RunState>(record))
             return true;
         return malformed();

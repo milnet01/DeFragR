@@ -28,8 +28,12 @@
 ;   1 FS_NOT_EXT4     the filesystem type is not exactly "ext4";
 ;   2 READ_ONLY       statfs reports ST_RDONLY;
 ;   3 SSD             the device's rotational file reads 0;
-;   4 MEDIA_UNKNOWN   it cannot be read, or reads neither 0 nor 1.
+;   4 MEDIA_UNKNOWN   it cannot be read, or reads neither 0 nor 1;
+;   5 OLD_CPU         the processor lacks SSE4.2, so the checksum's crc32
+;                     instruction would stop the engine (the owner's
+;                     choice, 2026-11-18).
 ; No reason gives verdict 2, report and defrag; any reason, verdict 1.
+; defrag applies the same rules to its drive (probe_find_mount).
 ;
 ; The rotational file is /sys/dev/block/MAJ:MIN/queue/rotational, or, for
 ; a partition, its disk's at /sys/dev/block/MAJ:MIN/../queue/rotational:
@@ -112,6 +116,7 @@ dev_major:      resd 1
 dev_minor:      resd 1
 line_end:       resq 1              ; the end of probe_find_mount's line
 found_id:       resq 1              ; the id of probe_find_mount's drive
+found_reason:   resd 1              ; and its reason
 found:          resb 1              ; whether a matching line is a drive
 
 section .text
@@ -147,7 +152,7 @@ probe_run:
 ; probe_find_mount(rdi = NUL-terminated path)
 ;   -> eax = OK, NOT_A_MOUNT or MOUNTINFO; edx = errno or 0;
 ;   on OK, rcx = the mount's id, mountinfo's first field, which statx
-;   gives as stx_mnt_id.
+;   gives as stx_mnt_id, and r8d = the drive's reason, as probe sends it.
 ; The trust boundary of report (DFR-0002 INV-12): the path must be, byte
 ; for byte, a mount point in /proc/self/mountinfo, unescaped as probe
 ; sends it, and its mount a drive by the header's test, else NOT_A_MOUNT.
@@ -209,6 +214,8 @@ probe_find_mount:
     jz .line                        ; not a drive, or covered
     mov rax, [line_id]
     mov [found_id], rax
+    call drive_reason               ; before the next line's judging
+    mov [found_reason], eax
     mov byte [found], 1
     jmp .line
 .close:
@@ -221,6 +228,7 @@ probe_find_mount:
     xor eax, eax
     xor edx, edx
     mov rcx, [found_id]
+    mov r8d, [found_reason]
     jmp .return
 .not_a_mount:
     mov eax, RESULT_NOT_A_MOUNT
@@ -594,26 +602,9 @@ probe_line:
     inc rcx
     mov [devices_count], rcx
 
-    call media_of
-    mov ebx, eax                    ; ebx = media
-
-    mov r13d, REASON_FS_NOT_EXT4    ; r13d = reason, in § 4.7's order
-    lea rsi, [fs_ext4]
-    mov ecx, fs_ext4_len
-    call fs_type_is
-    test eax, eax
-    jz .judged
-    mov r13d, REASON_READ_ONLY
-    test qword [statfs_buf + kernel_statfs.flags], ST_RDONLY
-    jnz .judged
-    mov r13d, REASON_SSD
-    cmp ebx, MEDIA_SSD
-    je .judged
-    mov r13d, REASON_MEDIA_UNKNOWN
-    cmp ebx, MEDIA_UNKNOWN
-    je .judged
-    mov r13d, REASON_NONE
-.judged:
+    call drive_reason
+    mov r13d, eax                   ; r13d = reason
+    mov ebx, edx                    ; ebx = media
 
     mov edi, REC_DRIVE
     mov esi, drive_size
@@ -797,6 +788,47 @@ parse_decimal:
     ret
 .bad:
     mov rax, -1
+    ret
+
+; drive_reason() -> eax = the reason, the first of the header's rules that
+;   applies, or REASON_NONE; edx = the media. For the line judge_line last
+;   found a drive. Clobbers as probe_run.
+drive_reason:
+    push r12
+    push r13
+    sub rsp, 8
+    call media_of
+    mov r12d, eax                   ; r12d = media; cpuid leaves it alone
+    mov r13d, REASON_FS_NOT_EXT4    ; r13d = reason, in § 4.7's order
+    lea rsi, [fs_ext4]
+    mov ecx, fs_ext4_len
+    call fs_type_is
+    test eax, eax
+    jz .judged
+    mov r13d, REASON_READ_ONLY
+    test qword [statfs_buf + kernel_statfs.flags], ST_RDONLY
+    jnz .judged
+    mov r13d, REASON_SSD
+    cmp r12d, MEDIA_SSD
+    je .judged
+    mov r13d, REASON_MEDIA_UNKNOWN
+    cmp r12d, MEDIA_UNKNOWN
+    je .judged
+    mov r13d, REASON_OLD_CPU
+    push rbx                        ; cpuid writes ebx, which is the caller's
+    mov eax, CPUID_FEATURES
+    xor ecx, ecx
+    cpuid                           ; writes eax, ebx, ecx and edx
+    pop rbx
+    test ecx, CPUID_ECX_SSE4_2
+    jz .judged
+    mov r13d, REASON_NONE
+.judged:
+    mov eax, r13d
+    mov edx, r12d
+    add rsp, 8
+    pop r13
+    pop r12
     ret
 
 ; media_of() -> eax = MEDIA_SSD, MEDIA_SPINNING or MEDIA_UNKNOWN for the

@@ -148,18 +148,19 @@ message, never a guess.
 checks and swaps the blocks, one chunk per call.
 
 **Before moving a file**, `move.asm` confirms it is a regular file on
-the drive being defragged, not immutable or append-only, not a swap
-file, and in more than one extent. **The drive** must still pass `probe`'s rules at run start.
+the drive being defragged, not immutable or append-only, and in more
+than one extent; the kernel refuses a swap file. **The drive** must
+still pass `probe`'s rules at run start.
 
 **The engine checksums each file before and after its move** with
-CRC32C. A mismatch stops the run with an error naming the file. This is
-on by default; an option may turn it off.
+CRC32C, reading it from the drive, not the cache. A mismatch stops the
+run with an error naming the file. This is on by default; an option may
+turn it off. A CPU without SSE4.2 has no `crc32` instruction, so its
+drives are report only.
 
 **The donor file is created with `O_TMPFILE`**, so a crash leaves
-nothing behind. Whether `EXT4_IOC_MOVE_EXT` accepts an `O_TMPFILE` donor
-is **unverified**. The 0.3.0 image tests settle it. If it does not, the
-donor is a named file in the same folder, unlinked straight after
-`open`.
+nothing behind. `EXT4_IOC_MOVE_EXT` accepts it: the `image_defrag` test
+moves every file through one.
 
 **Pause and cancel act between chunks.** One chunk is one kernel call,
 which is atomic. A cancelled file is left valid, partly defragged.

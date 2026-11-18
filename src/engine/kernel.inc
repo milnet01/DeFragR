@@ -10,12 +10,15 @@ SYS_write           equ 1
 SYS_open            equ 2
 SYS_close           equ 3
 SYS_stat            equ 4
+SYS_pread64         equ 17
 SYS_rt_sigaction    equ 13
 SYS_ioctl           equ 16
+SYS_fdatasync       equ 75
 SYS_geteuid         equ 107
 SYS_fstatfs         equ 138
 SYS_getdents64      equ 217
 SYS_exit_group      equ 231
+SYS_fallocate       equ 285
 SYS_statx           equ 332
 SYS_openat2         equ 437
 
@@ -23,6 +26,7 @@ SYS_openat2         equ 437
 MAX_ERRNO           equ 4095
 
 ; errno values (asm-generic/errno-base.h, errno.h).
+EPERM               equ 1
 EINTR               equ 4
 EIO                 equ 5
 EXDEV               equ 18
@@ -33,12 +37,16 @@ EOPNOTSUPP          equ 95
 
 ; open flags (asm-generic/fcntl.h).
 O_RDONLY            equ 0
+O_RDWR              equ 2
 O_NONBLOCK          equ 0o4000
+O_DIRECT            equ 0o40000         ; read and write past the page cache
 O_DIRECTORY         equ 0o200000
 O_NOFOLLOW          equ 0o400000
 O_NOATIME           equ 0o1000000
 O_CLOEXEC           equ 0o2000000
 O_PATH              equ 0o10000000
+; A file with no name in the folder opened; it goes when its last fd closes.
+O_TMPFILE           equ 0o20000000 | O_DIRECTORY
 
 ; *at flags (linux/fcntl.h): act on the fd itself when the name is "".
 AT_EMPTY_PATH       equ 0x1000
@@ -50,6 +58,8 @@ struc open_how
     .resolve    resq 1
 endstruc
 RESOLVE_NO_XDEV     equ 0x01            ; cross no mount point: EXDEV
+RESOLVE_NO_SYMLINKS equ 0x04            ; follow no symbolic link: ELOOP
+RESOLVE_BENEATH     equ 0x08            ; never leave the starting folder: EXDEV
 
 ; Standard file descriptors.
 STDOUT_FD           equ 1
@@ -113,6 +123,13 @@ ST_RDONLY           equ 1
 DEV_MAJOR_LOW_MASK  equ 0xfff
 DEV_MINOR_LOW_MASK  equ 0xff
 
+; struct statx_timestamp (linux/stat.h).
+struc statx_timestamp
+    .sec        resq 1
+    .nsec       resd 1
+    .reserved   resd 1
+endstruc
+
 ; The kernel's struct statx (linux/stat.h). Only the fields the engine
 ; reads are named. stx_mask says which fields the kernel filled.
 struc kernel_statx
@@ -124,7 +141,16 @@ struc kernel_statx
     .gid        resd 1
     .mode       resw 1
     .spare0     resw 1
-    .rest1      resb 136 - 32
+    .ino        resq 1
+    .size       resq 1
+    .blocks     resq 1
+    .attributes_mask resq 1             ; which attributes bits the filesystem sets
+    .atime      resb statx_timestamp_size
+    .btime      resb statx_timestamp_size
+    .ctime      resb statx_timestamp_size
+    .mtime      resb statx_timestamp_size
+    .rdev_major resd 1
+    .rdev_minor resd 1
     .dev_major  resd 1          ; the device the file is on; always filled
     .dev_minor  resd 1
     .mnt_id     resq 1
@@ -132,7 +158,12 @@ struc kernel_statx
 endstruc
 ; stx_mask bits asked for and checked.
 STATX_TYPE          equ 0x0001
+STATX_MTIME         equ 0x0040
+STATX_SIZE          equ 0x0200
 STATX_MNT_ID        equ 0x1000
+; stx_attributes bits: the file may not be changed; may only be appended to.
+STATX_ATTR_IMMUTABLE equ 0x0010
+STATX_ATTR_APPEND   equ 0x0020
 ; stx_attributes bit: the file is the top folder of its mount (Linux 5.8,
 ; as STATX_MNT_ID).
 STATX_ATTR_MOUNT_ROOT equ 0x2000
@@ -207,5 +238,22 @@ FMR_OF_LAST             equ 0x20
 ; Special owners: free space; in use, owner not known (ext4's file data).
 FMR_OWN_FREE            equ 1
 FMR_OWN_UNKNOWN         equ 2
+
+; EXT4_IOC_MOVE_EXT: _IOWR('f', 15, struct move_extent) (linux/ext4.h).
+; Swaps len blocks of the file the ioctl is called on, from orig_start, with
+; the donor's from donor_start, copying the data; both in blocks.
+EXT4_IOC_MOVE_EXT   equ 0xC028660F
+struc move_extent
+    .reserved       resd 1
+    .donor_fd       resd 1
+    .orig_start     resq 1
+    .donor_start    resq 1
+    .len            resq 1
+    .moved_len      resq 1      ; blocks swapped, holes not counted
+endstruc
+
+; CPUID leaf 1, ECX: the CPU has SSE4.2, and with it the crc32 instruction.
+CPUID_FEATURES      equ 1
+CPUID_ECX_SSE4_2    equ 1 << 20
 
 %endif

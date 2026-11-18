@@ -40,6 +40,18 @@ add_test(NAME image_report
             $<TARGET_FILE:hold-lease>)
 set_tests_properties(image_report PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
 
+# The engine's defrag on a fragmented image, against filefrag, and on a CPU
+# without SSE4.2: DFR-0017. defrag-check decodes the engine's output on the
+# host.
+add_executable(defrag-check image/defrag-check.cpp)
+target_compile_options(defrag-check PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defrag-check PRIVATE defragr-engine-link)
+add_test(NAME image_defrag
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/image/test-defrag.sh
+            ${CMAKE_CURRENT_BINARY_DIR}/image-defrag
+            $<TARGET_FILE:defragr-engine> $<TARGET_FILE:defrag-check>)
+set_tests_properties(image_defrag PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+
 add_subdirectory(fake-engine)
 add_subdirectory(app)
 add_subdirectory(map-demo)

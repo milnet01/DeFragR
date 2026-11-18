@@ -153,6 +153,31 @@ QByteArray runState(quint32 state)
     put32(p, 0);
     return record(TypeRunState, p);
 }
+QByteArray defragged(const QByteArray &path)
+{
+    QByteArray p;
+    put32(p, 5);
+    put32(p, 1);
+    put64(p, 40);
+    putString(p, path);
+    return record(TypeFileDefragged, p);
+}
+// A BLOCKS_MOVED record, with `toCount` written in place of the real
+// number of to runs when given.
+QByteArray blocksMoved(const QList<MapRun> &from, const QList<MapRun> &to,
+                       std::optional<quint32> toCount = std::nullopt)
+{
+    QByteArray p;
+    put32(p, quint32(from.size()));
+    put32(p, toCount.value_or(quint32(to.size())));
+    for (const QList<MapRun> *runs : {&from, &to}) {
+        for (const MapRun &run : *runs) {
+            put64(p, run.start);
+            put64(p, run.length);
+        }
+    }
+    return record(TypeBlocksMoved, p);
+}
 QByteArray unknown(quint16 type, quint32 length)
 {
     return record(type, QByteArray(qsizetype(length), '\x5A'));
@@ -465,6 +490,31 @@ private slots:
     }
 
     // INV-9
+    // INV-19
+    void defragStream()
+    {
+        const QList<MapRun> from{{100, 3}, {200, 2}};
+        const QList<MapRun> to{{500, 5}};
+        const QByteArray body = blocksMoved(from, to) + defragged("a/b") + skippedFile("c", 9)
+                              + runState(2);
+        const Outcome run = decode(hello(CommandDefrag) + body + finished());
+        QCOMPARE(run.error, kNoError);
+        QCOMPARE(run.records.size(), 6);
+        QCOMPARE(std::get<BlocksMoved>(run.records[1]), (BlocksMoved{from, to}));
+        QCOMPARE(std::get<FileDefragged>(run.records[2]),
+                 (FileDefragged{.extentsBefore = 5, .extentsAfter = 1, .movedBlocks = 40,
+                                .path = "a/b"}));
+
+        // A report's record has no place in a defrag.
+        QCOMPARE(errorOf(hello(CommandDefrag) + body + summary(0, 0) + finished()), kMalformed);
+        // The same payload claiming a second to run it does not hold.
+        QCOMPARE(errorOf(hello(CommandDefrag) + blocksMoved(from, to, 2) + finished()),
+                 kMalformed);
+        // OK needs the block size its runs are counted in.
+        QCOMPARE(errorOf(hello(CommandDefrag, 0) + body + finished()), kMalformed);
+        QCOMPARE(errorOf(hello(CommandDefrag, 0) + finished(ResultRefused)), kNoError);
+    }
+
     void enumerations()
     {
         const QByteArray p = hello(CommandProbe, 0);

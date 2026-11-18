@@ -64,6 +64,19 @@ Message forResult(const Finished &finished)
                     .arg(refreshButton())};
     case ResultCancelled:
         return {Tr::tr("The run was cancelled."), {}};
+    case ResultNoFolder:
+        //: %1 is the system's own words for the error, such as "No such file or directory".
+        return {Tr::tr("DeFragR could not open that folder on the drive (%1).")
+                    .arg(errorText(finished.errnum)),
+                Tr::tr("Check the folder still exists, then choose it again. A shortcut "
+                       "to a folder (a symbolic link) cannot be defragged: choose the "
+                       "folder it leads to.")};
+    case ResultChecksumMismatch:
+        return {Tr::tr("A file read back differently after it was moved, so DeFragR "
+                       "stopped at once and moved nothing more."),
+                Tr::tr("Copy your important files off this drive and have its health "
+                       "checked before using it again. Please also report this on the "
+                       "project's GitHub page.")};
     case ResultUsage:
     case ResultBadCommand:
     case ResultInternal:
@@ -152,6 +165,10 @@ QString whyNoDefrag(const Drive &drive)
     case ReasonMediaUnknown:
         return Tr::tr("DeFragR cannot tell whether this is a solid-state drive, so it "
                       "will not defrag it, to be safe. It can still report on it.");
+    case ReasonOldCpu:
+        return Tr::tr("This computer's processor is too old for DeFragR to defrag "
+                      "safely: it lacks the instruction DeFragR uses to check that each "
+                      "file is unchanged. DeFragR can still report on this drive.");
     }
     return Tr::tr("The engine will not defrag this drive, for a reason this version of "
                   "DeFragR does not know. It can still report on it.");

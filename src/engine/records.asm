@@ -39,6 +39,8 @@ st_path_frag:       db "a/b"
 st_path_frag_len    equ $ - st_path_frag
 st_path_skip:       db "c"
 st_path_skip_len    equ $ - st_path_skip
+st_path_defragged:  db "d/e"
+st_path_defragged_len equ $ - st_path_defragged
 
 section .text
 global rec_start
@@ -46,6 +48,7 @@ global rec_string
 global rec_send
 global rec_hello
 global rec_finish
+global rec_skipped
 global rec_map_run
 global rec_map_flush
 global rec_selftest
@@ -174,6 +177,39 @@ rec_finish:
     call rec_send
     mov edi, ebx
     call sys_exit
+
+; rec_skipped(edi = errno, esi = stage, rdx = path, rcx = its length)
+;   -> rax = 0, or -1 when the path does not fit a record string; then
+;   nothing is sent. Sends FILE_SKIPPED (§ 4.6, § 4.12). Clobbers as
+;   rec_send.
+rec_skipped:
+    push rbx
+    push r12
+    push r13
+    push r14
+    sub rsp, 8
+    mov ebx, edi
+    mov r12d, esi
+    mov r13, rdx
+    mov r14, rcx
+    mov edi, REC_FILE_SKIPPED
+    mov esi, file_skipped_size
+    call rec_start
+    mov [rax + file_skipped.errno], ebx
+    mov [rax + file_skipped.stage], r12w
+    mov rdi, r13
+    mov rsi, r14
+    call rec_string
+    test rax, rax
+    jnz .return                     ; -1
+    call rec_send
+.return:
+    add rsp, 8
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
 
 ; rec_map_run(edi = a MAP_ kind, 1 to MAP_KINDS, rsi = first block,
 ;   rdx = blocks) -> rax = 0. Adds the run to its kind's batch, joined onto
@@ -318,17 +354,13 @@ rec_selftest:
     jnz .internal
     call rec_send
 
-    mov edi, REC_FILE_SKIPPED
-    mov esi, file_skipped_size
-    call rec_start
-    mov dword [rax + file_skipped.errno], 0x0A0B0C0D
-    mov word [rax + file_skipped.stage], 0x0E0F
-    lea rdi, [st_path_skip]
-    mov esi, st_path_skip_len
-    call rec_string
+    mov edi, 0x0A0B0C0D
+    mov esi, 0x0E0F
+    lea rdx, [st_path_skip]
+    mov ecx, st_path_skip_len
+    call rec_skipped
     test rax, rax
     jnz .internal
-    call rec_send
 
     mov edi, REC_REPORT_SUMMARY
     mov esi, report_summary_size
@@ -374,6 +406,42 @@ rec_selftest:
     mov esi, run_state_size
     call rec_start
     mov dword [rax + run_state.state], 0xF1F2F3F4
+    call rec_send
+
+    mov edi, REC_FILE_DEFRAGGED
+    mov esi, file_defragged_size
+    call rec_start
+    mov dword [rax + file_defragged.extents_before], 0x21222324
+    mov dword [rax + file_defragged.extents_after], 0x25262728
+    mov rcx, 0x2A2B2C2D2E2F3031
+    mov [rax + file_defragged.moved_blocks], rcx
+    lea rdi, [st_path_defragged]
+    mov esi, st_path_defragged_len
+    call rec_string
+    test rax, rax
+    jnz .internal
+    call rec_send
+
+    mov edi, REC_BLOCKS_MOVED
+    mov esi, blocks_moved_size + 3 * map_run_size
+    call rec_start
+    mov dword [rax + blocks_moved.from_count], 1
+    mov dword [rax + blocks_moved.to_count], 2
+    lea rdx, [rax + blocks_moved_size]
+    mov rcx, 0x7172737475767778
+    mov [rdx + map_run.start], rcx
+    mov rcx, 0x8182838485868788
+    mov [rdx + map_run.length], rcx
+    add rdx, map_run_size
+    mov rcx, 0x9192939495969798
+    mov [rdx + map_run.start], rcx
+    mov rcx, 0xA1A2A3A4A5A6A7A8
+    mov [rdx + map_run.length], rcx
+    add rdx, map_run_size
+    mov rcx, 0xB1B2B3B4B5B6B7B8
+    mov [rdx + map_run.start], rcx
+    mov rcx, 0xC1C2C3C4C5C6C7C8
+    mov [rdx + map_run.length], rcx
     call rec_send
 
     mov edi, RESULT_OK

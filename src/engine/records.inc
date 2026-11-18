@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 3
+PROTOCOL_MINOR      equ 4
 
 ; § 4.1 framing.
 struc rec_header
@@ -18,7 +18,7 @@ PAYLOAD_MAX         equ 65536
 STRING_MAX          equ 4096
 RECORD_ALIGN        equ 8
 
-; Record types (§ 4.4 to § 4.6).
+; Record types (§ 4.4 to § 4.6, § 4.12).
 REC_HELLO           equ 0x0001
 REC_FINISHED        equ 0x0002
 REC_DRIVE           equ 0x0010
@@ -28,6 +28,8 @@ REC_REPORT_SUMMARY  equ 0x0022
 REC_REPORT_PROGRESS equ 0x0023
 REC_MAP_RUNS        equ 0x0024
 REC_RUN_STATE       equ 0x0030
+REC_FILE_DEFRAGGED  equ 0x0040
+REC_BLOCKS_MOVED    equ 0x0041
 
 ; Fixed parts. Each size is a multiple of 8, so strings start aligned.
 struc hello
@@ -96,10 +98,22 @@ struc run_state
     .reserved       resd 1
 endstruc
 
+struc file_defragged
+    .extents_before resd 1
+    .extents_after  resd 1
+    .moved_blocks   resq 1
+endstruc
+
+struc blocks_moved
+    .from_count     resd 1
+    .to_count       resd 1
+endstruc                            ; the from runs, then the to runs, as map_run
+
 ; HELLO.command (§ 4.4).
 CMD_UNKNOWN         equ 0
 CMD_PROBE           equ 1
 CMD_REPORT          equ 2
+CMD_DEFRAG          equ 3
 CMD_SELFTEST_CRC32C equ 254
 CMD_SELFTEST        equ 255
 
@@ -118,12 +132,18 @@ MAP_WHOLE_FILE      equ 3
 MAP_FRAGMENTED_FILE equ 4
 MAP_KINDS           equ 4
 
-; FILE_SKIPPED.stage (§ 4.6).
+; FILE_SKIPPED.stage (§ 4.6; 6 to 11 in defrag only, § 4.12).
 STAGE_OPEN          equ 1
 STAGE_STAT          equ 2
 STAGE_EXTENTS       equ 3
 STAGE_READ_FOLDER   equ 4
 STAGE_PATH_TOO_LONG equ 5
+STAGE_REFUSED       equ 6
+STAGE_READ          equ 7
+STAGE_DONOR         equ 8
+STAGE_MOVE          equ 9
+STAGE_CHANGED       equ 10
+STAGE_CHECKSUM      equ 11
 
 ; Reason codes: DRIVE.reason (§ 4.7).
 REASON_NONE         equ 0
@@ -131,6 +151,7 @@ REASON_FS_NOT_EXT4  equ 1
 REASON_READ_ONLY    equ 2
 REASON_SSD          equ 3
 REASON_MEDIA_UNKNOWN equ 4
+REASON_OLD_CPU      equ 5
 
 ; Result codes: FINISHED.result and the exit status (§ 4.7).
 RESULT_OK           equ 0
@@ -143,5 +164,7 @@ RESULT_REFUSED      equ 6
 RESULT_CANCELLED    equ 7
 RESULT_BAD_COMMAND  equ 8
 RESULT_INTERNAL     equ 9
+RESULT_NO_FOLDER    equ 10
+RESULT_CHECKSUM_MISMATCH equ 11
 
 %endif

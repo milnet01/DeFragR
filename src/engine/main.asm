@@ -1,7 +1,8 @@
 ; Entry: the engine's _start. Reads the arguments, chooses the command,
 ; and ends every run with FINISHED and its result as the exit status
 ; (docs/specs/DFR-0002-engine-protocol.md § 4.3). Checks run in § 4.7's
-; order: arguments, admin rights, mount point, drive rules.
+; order: arguments, admin rights, mount point, drive rules, defrag's
+; folder.
 
 bits 64
 default rel
@@ -18,6 +19,7 @@ extern rec_string
 extern rec_send
 extern rec_hello
 extern rec_finish
+extern rec_skipped
 extern rec_map_flush
 extern rec_selftest
 extern crc32c_selftest
@@ -25,6 +27,7 @@ extern probe_run
 extern probe_find_mount
 extern unescape
 extern walk_start
+extern walk_enter
 extern walk_next
 extern walk_path
 extern walk_path_len
@@ -32,10 +35,13 @@ extern walk_names
 extern walk_estimate
 extern extents_count
 extern extents_space
+extern move_setup
+extern move_file
 
 section .rodata
 arg_probe:      db "probe", 0
 arg_report:     db "report", 0
+arg_defrag:     db "defrag", 0
 arg_selftest:   db "selftest-records", 0
 arg_selftest_crc32c: db "selftest-crc32c", 0
 
@@ -49,7 +55,8 @@ section .bss
 alignb 8
 summary:        resb report_summary_size   ; report's running totals
 progress_due:   resq 1                  ; walk_names at the next REPORT_PROGRESS
-mount_path:     resb STRING_MAX + 8     ; report's argument, decoded
+mount_path:     resb STRING_MAX + 8     ; the mount point argument, decoded
+folder_path:    resb STRING_MAX + 8     ; defrag's folder argument, decoded
 
 section .text
 global _start
@@ -81,6 +88,12 @@ _start:
     call str_equal
     test eax, eax
     jnz .report
+
+    mov rdi, rbx
+    lea rsi, [arg_defrag]
+    call str_equal
+    test eax, eax
+    jnz .defrag
 
     mov rdi, rbx
     lea rsi, [arg_selftest]
@@ -127,6 +140,26 @@ _start:
 .report_failed:                     ; edi = result
     mov ebx, edi
     mov edi, CMD_REPORT
+    xor esi, esi
+    call rec_hello
+    mov edi, ebx
+    jmp .finish
+
+.defrag:
+    ; HELLO waits for the block size, so each failure here sends it.
+    mov edi, RESULT_USAGE
+    cmp r12, 4
+    jne .defrag_failed
+    call sys_geteuid
+    mov edi, RESULT_NOT_ROOT
+    test eax, eax
+    jnz .defrag_failed
+    mov rdi, [r13 + 16]             ; argv[2], the mount point
+    mov rsi, [r13 + 24]             ; argv[3], the folder
+    call defrag_run
+.defrag_failed:                     ; edi = result
+    mov ebx, edi
+    mov edi, CMD_DEFRAG
     xor esi, esi
     call rec_hello
     mov edi, ebx
@@ -181,32 +214,8 @@ _start:
 ; size 0 and FINISHED with its result.
 report_run:
     sub rsp, 8
-    ; The argument is escaped as mountinfo writes it (DFR-0002 § 4.3), so
-    ; a name that is not UTF-8 survives Qt's text arguments.
-    ; The check and the walk both take the decoded path. A \000 ends it
-    ; early, the same as being given the shorter path.
-    mov rsi, rdi
-.measure:
-    cmp byte [rsi], 0
-    je .measured
-    inc rsi
-    jmp .measure
-.measured:
-    sub rsi, rdi                    ; rsi = the argument's length
-    lea rdx, [mount_path]
-    call unescape
-    test rax, rax
-    mov eax, RESULT_NOT_A_MOUNT     ; mov leaves the flags alone
-    mov edx, 0
-    js .failed                      ; longer than any mount point
-    lea r14, [mount_path]           ; r14 = the mount point
-    mov rdi, r14
-    call probe_find_mount
-    test eax, eax
-    jnz .failed
-    mov rdi, r14
-    mov rsi, rcx                    ; its mount id
-    call walk_start
+    mov esi, WALK_TO_READ
+    call drive_open
     test eax, eax
     jnz .failed
     mov r15d, edx                   ; r15 = the block size
@@ -293,20 +302,14 @@ report_run:
     mov edx, r12d
     mov ecx, STAGE_EXTENTS
 .skipped:                           ; edx = errno, ecx = stage
-    mov ebx, edx
-    mov r12d, ecx
     inc qword [summary + report_summary.skipped]
-    mov edi, REC_FILE_SKIPPED
-    mov esi, file_skipped_size
-    call rec_start
-    mov [rax + file_skipped.errno], ebx
-    mov [rax + file_skipped.stage], r12w
-    lea rdi, [walk_path]
-    mov rsi, [walk_path_len]
-    call rec_string
+    mov edi, edx
+    mov esi, ecx
+    lea rdx, [walk_path]
+    mov rcx, [walk_path_len]
+    call rec_skipped
     test rax, rax
     jnz .internal
-    call rec_send
     jmp .next
 
 .end:
@@ -336,6 +339,171 @@ report_run:
 .internal:                          ; a path did not fit its record
     mov edi, RESULT_INTERNAL
     xor esi, esi
+    call rec_finish
+
+; drive_open(rdi = NUL-terminated mount point, escaped, esi = a WALK_TO_
+;   mode) -> eax = OK, NOT_A_MOUNT, MOUNTINFO or DRIVE_ERROR, edx = errno
+;   or 0; on OK, edx = the block size, ecx = the top folder, open, r8d =
+;   the drive's reason (DFR-0002 § 4.7) and r9 = its mount id, with the
+;   walk started there. The mount-point check of report and defrag.
+; The argument is escaped as mountinfo writes it (DFR-0002 § 4.3), so a
+; name that is not UTF-8 survives Qt's text arguments. The check and the
+; walk both take the decoded path. A \000 ends it early, the same as
+; being given the shorter path. Clobbers rax, rcx, rdx, rsi, rdi, r8 to
+; r11.
+drive_open:
+    push rbx
+    push r12
+    push r13
+    push r14
+    sub rsp, 8
+    mov ebx, esi                    ; ebx = the walk's mode
+    mov rsi, rdi
+.measure:
+    cmp byte [rsi], 0
+    je .measured
+    inc rsi
+    jmp .measure
+.measured:
+    sub rsi, rdi                    ; rsi = the argument's length
+    lea rdx, [mount_path]
+    call unescape
+    test rax, rax
+    mov eax, RESULT_NOT_A_MOUNT     ; mov leaves the flags alone
+    mov edx, 0
+    js .return                      ; longer than any mount point
+    lea r14, [mount_path]           ; r14 = the mount point
+    mov rdi, r14
+    call probe_find_mount
+    test eax, eax
+    jnz .return
+    mov r12, rcx                    ; r12 = its mount id
+    mov r13d, r8d                   ; r13d = its reason
+    mov rdi, r14
+    mov rsi, r12
+    mov edx, ebx
+    call walk_start
+    mov r8d, r13d
+    mov r9, r12
+.return:
+    add rsp, 8
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; defrag_run(rdi = NUL-terminated mount point, rsi = NUL-terminated
+;   folder, both escaped) -> does not return. A failure before the walk
+;   starts sends HELLO with block size 0 and FINISHED with its result.
+; The rest of a defrag stream (DFR-0002 § 4.12), from the mount-point
+; check on: the drive rules, the folder, HELLO with the block size, then
+; each file's records from move_file, or a FILE_SKIPPED where the walk
+; could not reach one, then FINISHED.
+defrag_run:
+    push rbx
+    mov rbx, rsi                    ; rbx = the folder
+    mov esi, WALK_TO_MOVE
+    call drive_open
+    test eax, eax
+    jnz .failed
+    mov r15d, edx                   ; r15 = the block size
+    mov r14, r9                     ; r14 = the mount id
+    ; The top folder stays open until exit, which closes it.
+    mov eax, RESULT_REFUSED
+    xor edx, edx
+    test r8d, r8d
+    jnz .failed
+    mov rdi, rbx
+    mov rsi, rbx
+.measure:
+    cmp byte [rsi], 0
+    je .measured
+    inc rsi
+    jmp .measure
+.measured:
+    sub rsi, rdi
+    lea rdx, [folder_path]
+    call unescape
+    mov edx, EINVAL
+    test rax, rax
+    js .no_folder                   ; longer than any path
+    lea rdi, [folder_path]
+    mov rsi, rdi
+.measure_decoded:                   ; a \000 ends it early
+    cmp byte [rsi], 0
+    je .measured_decoded
+    inc rsi
+    jmp .measure_decoded
+.measured_decoded:
+    sub rsi, rdi
+    call walk_enter
+    test rax, rax
+    jz .entered
+    neg eax
+    mov edx, eax
+.no_folder:
+    mov eax, RESULT_NO_FOLDER
+    jmp .failed
+.entered:
+    mov edi, r15d
+    mov rsi, r14
+    call move_setup
+    mov edi, CMD_DEFRAG
+    mov esi, r15d
+    call rec_hello
+
+.next:
+    call walk_next
+    cmp eax, WALK_FILE
+    je .file
+    cmp eax, WALK_SKIPPED
+    je .skipped
+    cmp eax, WALK_END
+    je .end
+    mov edi, RESULT_DRIVE_ERROR     ; WALK_ERROR: the top folder failed
+    mov esi, edx
+    call rec_finish
+
+.file:
+    mov ebx, edx                    ; ebx = the file
+    mov edi, edx
+    mov esi, ecx                    ; its folder
+    lea rdx, [walk_path]
+    mov rcx, [walk_path_len]
+    call move_file
+    mov r12d, eax                   ; r12d = OK, or the run's result
+    mov edi, ebx
+    call sys_close                  ; its data is synced; a close adds nothing
+    test r12d, r12d
+    jz .next
+    mov edi, r12d
+    xor esi, esi
+    call rec_finish
+.skipped:                           ; edx = errno, ecx = stage
+    mov edi, edx
+    mov esi, ecx
+    lea rdx, [walk_path]
+    mov rcx, [walk_path_len]
+    call rec_skipped
+    test rax, rax
+    jz .next
+    mov edi, RESULT_INTERNAL        ; a path did not fit its record
+    xor esi, esi
+    call rec_finish
+.end:
+    mov edi, RESULT_OK
+    xor esi, esi
+    call rec_finish
+
+.failed:                            ; eax = result, edx = errno; no HELLO yet
+    mov ebx, eax
+    mov r12d, edx
+    mov edi, CMD_DEFRAG
+    xor esi, esi
+    call rec_hello
+    mov edi, ebx
+    mov esi, r12d
     call rec_finish
 
 ; send_progress() -> rax = 0. Sends REPORT_PROGRESS with the walk's

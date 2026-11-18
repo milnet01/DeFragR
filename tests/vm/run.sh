@@ -3,17 +3,19 @@
 # with that script's exit code. ADR-0003 says why image tests run here.
 #
 # Usage:
-#   run.sh --work DIR [--disk NAME=IMAGE[,ssd]]... [--copy FILE]... SCRIPT
+#   run.sh --work DIR [--disk NAME=IMAGE[,ssd]]... [--copy FILE]... [--cpu MODEL] SCRIPT
 #
 #   --work DIR    where the machine's boot files and console log go
 #   --disk        attach the image file IMAGE as a test disk called NAME.
 #                 It spins (rotational 1) unless ",ssd" is given. In the
 #                 machine, guard.sh's test_disk NAME finds it.
 #   --copy FILE   put FILE in the machine's /test, beside the script
+#   --cpu MODEL   give the machine QEMU's CPU MODEL, such as qemu64, which
+#                 has no SSE4.2; else the host's own CPU, or QEMU's "max"
 #   SCRIPT        run as /test/run by the machine's shell, in /test
 #
 # The machine is the host's own kernel and a small initial filesystem:
-# busybox, e2fsprogs, the kernel modules for its disks and filesystems,
+# busybox, e2fsprogs, swapon and swapoff, the kernel modules for its disks and filesystems,
 # /test/guard.sh and the files above. It has no network and no disk but the
 # ones named here.
 # Only regular files can be named, so no host drive can be attached.
@@ -36,13 +38,14 @@ cannot_boot() {
     exit 77
 }
 
-work="" script=""
+work="" script="" cpu=""
 disks=() copies=()
 while (( $# )); do
     case $1 in
         --work) work=${2:?--work needs a directory}; shift 2 ;;
         --disk) disks+=("${2:?--disk needs NAME=IMAGE}"); shift 2 ;;
         --copy) copies+=("${2:?--copy needs a file}"); shift 2 ;;
+        --cpu) cpu=${2:?--cpu needs a model}; shift 2 ;;
         -*) die "unknown option $1" ;;
         *) [[ -z $script ]] || die "one script only"; script=$1; shift ;;
     esac
@@ -79,11 +82,12 @@ for candidate in busybox-static busybox; do
 done
 [[ -n $busybox ]] || cannot_boot "no static busybox (busybox-static) installed"
 
-# e2fsprogs live in sbin, which is not on every user's PATH.
+# e2fsprogs and util-linux live in sbin, which is not on every user's PATH.
+# busybox's swapon is not in every build.
 tool_path() { PATH=$PATH:/usr/sbin:/sbin command -v "$1"; }
 guest_tools=()
-for tool in mkfs.ext4 e2fsck filefrag; do
-    path=$(tool_path "$tool") || cannot_boot "$tool is not installed (e2fsprogs)"
+for tool in mkfs.ext4 e2fsck filefrag swapon swapoff; do
+    path=$(tool_path "$tool") || cannot_boot "$tool is not installed (e2fsprogs, util-linux)"
     guest_tools+=("$path")
 done
 
@@ -176,9 +180,9 @@ done <<<"$load_order"
     >"$work/initramfs.cpio"
 
 # ── Boot ────────────────────────────────────────────────────────────────────
-accel=(-accel tcg -cpu max)
+accel=(-accel tcg -cpu "${cpu:-max}")
 if [[ -r /dev/kvm && -w /dev/kvm ]]; then
-    accel=(-accel kvm -cpu host)
+    accel=(-accel kvm -cpu "${cpu:-host}")
 fi
 printf 'test machine: kernel %s, %s, %d disk(s)\n' "$kver" "${accel[1]}" "$index" >&2
 

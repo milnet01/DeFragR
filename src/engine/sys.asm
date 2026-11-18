@@ -30,6 +30,9 @@ global sys_statx
 global sys_fstatfs
 global sys_getdents64
 global sys_ioctl
+global sys_pread64
+global sys_fdatasync
+global sys_fallocate
 global sys_geteuid
 global sys_exit
 global sys_ignore_sigpipe
@@ -104,6 +107,29 @@ sys_getdents64:
 ; request defines it, or -errno.
 sys_ioctl:
     mov eax, SYS_ioctl
+    syscall
+    ret
+
+; sys_pread64(rdi = fd, rsi = buffer, rdx = length, rcx = file offset)
+;   -> rax = bytes read, 0 at end of file, or -errno. Clobbers r10 too.
+sys_pread64:
+    mov eax, SYS_pread64
+    mov r10, rcx
+    syscall
+    ret
+
+; sys_fdatasync(rdi = fd) -> rax = 0 or -errno. Writes the file's data,
+; and what is needed to read it back, to the drive.
+sys_fdatasync:
+    mov eax, SYS_fdatasync
+    syscall
+    ret
+
+; sys_fallocate(rdi = fd, rsi = mode, rdx = offset, rcx = length)
+;   -> rax = 0 or -errno. Clobbers r10 too.
+sys_fallocate:
+    mov eax, SYS_fallocate
+    mov r10, rcx
     syscall
     ret
 

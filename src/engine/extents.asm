@@ -14,6 +14,9 @@
 ; FIEMAP is asked with no flags, as filefrag asks by default: nothing is
 ; flushed, so the drive is not written to. GETFSMAP writes nothing either.
 ;
+; extents_map lists where a range of a file's blocks lie, for defrag's
+; BLOCKS_MOVED (DFR-0002 § 4.12).
+;
 ; The map's runs (DFR-0002 § 4.6) go to rec_map_run in blocks: a run
 ; starts at the block holding its first byte and ends at the block holding
 ; its last. A file's kind is known only once its pieces are counted, so
@@ -24,6 +27,7 @@ default rel
 
 %include "kernel.inc"
 %include "records.inc"
+%include "extents.inc"
 
 extern sys_ioctl
 extern sys_statx
@@ -49,6 +53,7 @@ drive_statx: resb kernel_statx_size
 section .text
 global extents_count
 global extents_space
+global extents_map
 
 ; extents_count(edi = an open regular file, esi = the block size, not 0,
 ;   edx = a MAP_ kind to send the file's runs as, or 0 to send none)
@@ -168,6 +173,132 @@ extents_count:
     mov rdx, r13
 .return:
     add rsp, 8
+    pop rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.broken:
+    mov rax, -EIO
+    jmp .return
+
+; extents_map(edi = an open regular file, rsi = its first block asked
+;   for, rdx = how many blocks, ecx = the block size, not 0, r8 = room for
+;   r9 file_run entries) -> rax = the runs written, in the file's order,
+;   or -errno when FIEMAP fails, -EIO when its answer cannot be right or
+;   holds more runs than the room.
+; Each run is an extent cut to the blocks asked for. An extent with no
+; place of its own (flagged unknown or not aligned) is left out, as are
+; holes. Clobbers rcx, rdx, rsi, rdi, r8 to r11.
+extents_map:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    push rbp
+    sub rsp, 24
+    mov ebx, edi                    ; ebx = the file
+    mov ebp, ecx                    ; rbp = the block size
+    mov r13, rdx                    ; mul writes rdx
+    mov rax, rsi
+    mul rbp
+    mov r12, rax                    ; r12 = the next byte to ask from
+    mov [rsp + 8], rax              ; [rsp + 8] = the range's first byte
+    mov rax, r13
+    mul rbp
+    lea r13, [r12 + rax]            ; r13 = one past the range's last byte
+    mov r14, r8                     ; r14 = where the next run goes
+    mov r15, r9                     ; r15 = room left
+    mov qword [rsp], 0              ; [rsp] = runs written
+.call:
+    cmp r12, r13
+    jae .done
+    lea rdx, [fm_buf]
+    mov [rdx + fiemap.start], r12
+    mov rax, r13
+    sub rax, r12
+    mov [rdx + fiemap.length], rax
+    mov dword [rdx + fiemap.flags], 0
+    mov dword [rdx + fiemap.mapped_extents], 0
+    mov dword [rdx + fiemap.extent_count], EXTENTS_PER_CALL
+    mov dword [rdx + fiemap.reserved], 0
+    mov edi, ebx
+    mov esi, FS_IOC_FIEMAP
+    call sys_ioctl
+    cmp rax, -EINTR
+    je .call
+    cmp rax, -MAX_ERRNO
+    jae .return                     ; rax = -errno
+    lea rsi, [fm_buf]
+    mov ecx, [rsi + fiemap.mapped_extents]
+    test ecx, ecx
+    jz .done
+    cmp ecx, EXTENTS_PER_CALL
+    ja .broken                      ; more than the buffer holds
+    lea rsi, [rsi + fiemap_size]    ; rsi = this extent
+    xor r8d, r8d                    ; r8 = 1 once the last extent is seen
+.extent:
+    test dword [rsi + fiemap_extent.flags], FIEMAP_EXTENT_LAST
+    jz .not_last
+    mov r8d, 1
+.not_last:
+    test dword [rsi + fiemap_extent.flags], FIEMAP_EXTENT_UNKNOWN | FIEMAP_EXTENT_NOT_ALIGNED
+    jnz .next                       ; no blocks of its own
+    mov r9, [rsi + fiemap_extent.logical]
+    mov r10, r9
+    add r10, [rsi + fiemap_extent.length]   ; r10 = the extent's end
+    cmp r10, r13
+    cmova r10, r13                  ; cut to the range's end
+    mov r11, [rsp + 8]
+    cmp r11, r9
+    cmovb r11, r9                   ; r11 = its start, cut to the range's
+    cmp r11, r10
+    jae .next                       ; nothing of it in the range
+    test r15, r15
+    jz .broken                      ; no room
+    mov rax, r11
+    xor edx, edx
+    div rbp
+    mov [r14 + file_run.logical], rax
+    mov rax, r11
+    sub rax, r9
+    add rax, [rsi + fiemap_extent.physical]
+    xor edx, edx
+    div rbp
+    mov [r14 + file_run.physical], rax
+    mov rax, r10
+    sub rax, r11
+    add rax, rbp
+    dec rax
+    xor edx, edx
+    div rbp                         ; rounded up: a file's last block may be short
+    mov [r14 + file_run.length], rax
+    add r14, file_run_size
+    dec r15
+    inc qword [rsp]
+.next:
+    mov rax, [rsi + fiemap_extent.logical]
+    add rax, [rsi + fiemap_extent.length]
+    mov [rsp + 16], rax             ; [rsp + 16] = this extent's end
+    add rsi, fiemap_extent_size
+    dec ecx
+    jnz .extent
+    test r8d, r8d
+    jnz .done
+    ; The next call asks from the last extent's end. A call that ends no
+    ; further on would ask the same again, for ever.
+    mov rax, [rsp + 16]
+    cmp rax, r12
+    jbe .broken
+    mov r12, rax
+    jmp .call
+.done:
+    mov rax, [rsp]
+.return:
+    add rsp, 24
     pop rbp
     pop r15
     pop r14

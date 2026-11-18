@@ -1782,21 +1782,23 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Checksum.
   Blocked-by: DFR-0003.
 
-- 📋 [DFR-0017] **Engine defrag of one folder with safety checks.**
-  `move.asm`: per-file checks (regular, same drive, not immutable,
-  append-only or swap, more than one extent), donor file, `fallocate`,
+- ✅ [DFR-0017] **Engine defrag of one folder with safety checks.**
+  `move.asm`: per-file checks, donor file, `fallocate`,
   `EXT4_IOC_MOVE_EXT` in chunks, CRC32C before and after, change
-  records. Settles whether an `O_TMPFILE` donor works. Image test:
-  extents fall, every SHA-256 matches, `e2fsck -fn` clean (S7).
-  Adds defrag's arguments and records to
-  `docs/specs/DFR-0002-engine-protocol.md` by amendment, and the § 4.7
-  check-order test that REFUSED makes reachable.
-  From DFR-0016: crc32c_update checksums bytes; reading the
-  file is left to this item. The crc32 instruction needs SSE4.2, which
-  Intel's CPUs before Nehalem (2008), early Atoms, and AMD's before
-  Bulldozer (2011) lack; there the engine would crash. The owner's choice (2026-11-18):
-  on such a CPU, defrag is refused with a reason saying the processor
-  is too old; report still works.
+  records. Image test: extents fall, every SHA-256 matches, `e2fsck -fn`
+  clean (S7).
+  Done 2026-11-18. `defrag <mount-point> <folder>` moves the folder and
+  every folder below it; protocol 1.4 adds `FILE_DEFRAGGED`,
+  `BLOCKS_MOVED`, stages 6 to 11, `NO_FOLDER`, `CHECKSUM_MISMATCH` and
+  reason `OLD_CPU` (`docs/specs/DFR-0002-engine-protocol.md` § 4.12,
+  INV-19 to INV-23). The `O_TMPFILE` donor works. Each move's from and
+  to runs come from the file's map before and after, as Linux 7.3's
+  moved_len leaves out holes. The owner's choice for a CPU without
+  SSE4.2 (2026-11-18): every drive is report only, reason `OLD_CPU`;
+  `image_defrag` checks it in a test machine with QEMU's `qemu64` CPU.
+  INV-19's, INV-21's and the messages' tests went red first; the image
+  test went red against an engine whose to runs were its from runs and
+  one with no CPU rule.
   **Layman:** The engine safely defrags the files in one folder, checking each file is unchanged.
   Kind: implement.
   Source: design-2026-11-15.
@@ -1821,6 +1823,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   desktop setting is unverified. Repaint only the rows that move:
   DFR-0088 measured a four-cell change frame about 20 times cheaper so.
   A test of it must read what the screen shows, not grab().
+  From DFR-0017: a defrag stream holds no map, so the window draws it
+  from a report first; each `BLOCKS_MOVED` pairs its from and to blocks
+  in order, and the from runs are free once the file's turn ends (spec
+  § 4.12). The words for `FILE_SKIPPED` stages 6 to 11 are this item's.
   **Layman:** Choose a folder and watch its blocks join up on the map as it is defragged.
   Kind: feature.
   Source: design-2026-11-15.
@@ -1868,6 +1874,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 - 📋 [DFR-0020] **Engine whole-drive defrag with progress records.**
   `walk.asm` from the mount root, staying on one filesystem; progress
   records with blocks done and total. Overlaps DFR-0017 in `move.asm`.
+  From DFR-0017: `defrag` with the folder "" already walks the whole
+  drive. The status bar (S5) needs each file named before its moves,
+  which no 1.4 record does.
   Adds progress records to `docs/specs/DFR-0002-engine-protocol.md` by
   amendment, bumping the minor version.
   **Layman:** The engine defrags a whole drive and reports how far it has got.

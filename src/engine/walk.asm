@@ -14,10 +14,14 @@
 ;     silently. A btrfs subvolume inside the same mount is walked.
 ;   - It follows no symbolic link: every name is opened O_NOFOLLOW, and
 ;     a link is never visited.
-;   - It changes nothing: every open for reading is O_NOATIME, so
-;     reading a folder does not update its access time. O_NOATIME fails
-;     with EPERM unless the caller owns the file or is root, so the walk
-;     assumes root, as report runs.
+;   - It changes nothing: every open is O_NOATIME, so reading a folder
+;     does not update its access time. O_NOATIME fails with EPERM unless
+;     the caller owns the file or is root, so the walk assumes root, as
+;     report and defrag run. Files are opened for reading only, unless
+;     walk_start is told WALK_TO_MOVE.
+;   - walk_enter can start it in a folder below the mount point, reached
+;     with no link followed and no mount crossed. Paths stay relative to
+;     the mount point.
 ;   - It visits regular files only. A hard link is visited once per
 ;     name, as filefrag would list it.
 ;   - Each folder holds one descriptor open while it is walked. A folder
@@ -57,6 +61,9 @@ FOLDER_FLAGS    equ O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_NOATIME | O_CLOEXEC
 ; O_NONBLOCK the open fails at once with EAGAIN, and the file is skipped.
 REOPEN_FOLDER   equ O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC
 REOPEN_FILE     equ O_RDONLY | O_NONBLOCK | O_NOATIME | O_CLOEXEC
+; defrag's: EXT4_IOC_MOVE_EXT needs the file open for writing, and its
+; checksums read from the drive, not from the cache (move.asm).
+REOPEN_FILE_TO_MOVE equ O_RDWR | O_DIRECT | O_NONBLOCK | O_NOATIME | O_CLOEXEC
 FD_DIGITS_MAX   equ 10                  ; a 32-bit fd's decimal digits
 
 ; One open folder: its descriptor, how far through its entries the walk
@@ -79,6 +86,12 @@ path_only:                              ; how each name is first opened
         at open_how.mode,    dq 0
         at open_how.resolve, dq RESOLVE_NO_XDEV
     iend
+below_top:                              ; how walk_enter opens its folder
+    istruc open_how
+        at open_how.flags,   dq FOLDER_FLAGS
+        at open_how.mode,    dq 0
+        at open_how.resolve, dq RESOLVE_NO_XDEV | RESOLVE_NO_SYMLINKS | RESOLVE_BENEATH
+    iend
 
 section .bss
 alignb 8
@@ -94,16 +107,19 @@ walk_path:      resb STRING_MAX + 1 + DENTS_SIZE
 walk_path_len:  resq 1                  ; at most STRING_MAX
 walk_names:     resq 1                  ; names read, not counting . and ..
 walk_estimate:  resq 1                  ; used inodes; 0 when unknown
+file_flags:     resq 1                  ; how each file is reopened
 
 section .text
 global walk_start
+global walk_enter
 global walk_next
 global walk_path
 global walk_path_len
 global walk_names
 global walk_estimate
 
-; walk_start(rdi = NUL-terminated mount point, rsi = its mount id)
+; walk_start(rdi = NUL-terminated mount point, rsi = its mount id,
+;   edx = WALK_TO_READ or WALK_TO_MOVE)
 ;   -> eax = OK, NOT_A_MOUNT or DRIVE_ERROR; edx = errno on DRIVE_ERROR,
 ;   the drive's block size on OK, else 0; on OK, ecx = the top folder's
 ;   descriptor, open until walk_next returns WALK_END or WALK_ERROR.
@@ -118,6 +134,11 @@ walk_start:
     push r12
     push r13
     mov r12, rsi                    ; r12 = the mount id expected
+    mov eax, REOPEN_FILE
+    mov ecx, REOPEN_FILE_TO_MOVE
+    cmp edx, WALK_TO_MOVE
+    cmove eax, ecx
+    mov [file_flags], rax
     mov esi, FOLDER_FLAGS
     call sys_open
     cmp rax, -MAX_ERRNO
@@ -182,6 +203,82 @@ walk_start:
     neg eax
     mov edx, eax
     mov eax, RESULT_DRIVE_ERROR
+.return:
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; walk_enter(rdi = a folder's path relative to the mount point,
+;   NUL-terminated, rsi = its length) -> rax = 0, or -errno.
+; Call after walk_start returned OK and before walk_next. Makes the walk
+; start in that folder, opened from the top folder with no link followed,
+; no mount crossed and no way out, and closes the top folder, whose
+; descriptor walk_start returned. An empty path is the top folder itself.
+; A path with a leading, trailing or doubled "/", or a name "." or "..",
+; is -EINVAL: the paths the walk gives must be as it would write them.
+; On an error the walk is as walk_start left it. Clobbers as walk_next.
+walk_enter:
+    push rbx
+    push r12
+    push r13
+    mov rbx, rdi                    ; rbx = the path
+    mov r12, rsi                    ; r12 = its length
+    xor eax, eax
+    test r12, r12
+    jz .return                      ; the top folder: nothing to do
+    cmp r12, STRING_MAX
+    ja .invalid
+    ; Each name: not empty, not "." and not "..".
+    xor ecx, ecx                    ; rcx = this name's start
+.name:
+    mov rdx, rcx                    ; rdx = this name's end, once found
+.scan:
+    cmp rdx, r12
+    je .ended
+    cmp byte [rbx + rdx], '/'
+    je .ended
+    inc rdx
+    jmp .scan
+.ended:
+    mov rax, rdx
+    sub rax, rcx                    ; rax = the name's length
+    jz .invalid                     ; empty: a leading, trailing or double /
+    cmp byte [rbx + rcx], '.'
+    jne .named
+    cmp rax, 1
+    je .invalid                     ; "."
+    cmp rax, 2
+    jne .named
+    cmp byte [rbx + rcx + 1], '.'
+    je .invalid                     ; ".."
+.named:
+    lea rcx, [rdx + 1]
+    cmp rdx, r12
+    jb .name                        ; a / follows: another name
+
+    lea rax, [levels]
+    mov rdi, [rax + walk_level.fd]
+    mov rsi, rbx
+    lea rdx, [below_top]
+    call sys_openat2
+    cmp rax, -MAX_ERRNO
+    jae .return
+    mov r13, rax                    ; r13 = the folder
+    lea rax, [levels]
+    mov rdi, [rax + walk_level.fd]
+    call sys_close                  ; read-only; a failed close loses nothing
+    lea rax, [levels]
+    mov [rax + walk_level.fd], r13
+    mov [rax + walk_level.path_len], r12
+    lea rdi, [walk_path]            ; the start of every path the walk gives
+    mov rsi, rbx
+    mov rcx, r12
+    rep movsb
+    xor eax, eax
+    jmp .return
+.invalid:
+    mov rax, -EINVAL
 .return:
     pop r13
     pop r12
@@ -312,12 +409,13 @@ walk_next:
     je .folder
 
     mov edi, ebp
-    mov esi, REOPEN_FILE
+    mov rsi, [file_flags]
     call reopen
     cmp rax, -MAX_ERRNO
     jae .open_failed
     mov [walk_path_len], r13
     mov edx, eax
+    mov rcx, [rbx + walk_level.fd]  ; its folder
     mov eax, WALK_FILE
     jmp .return
 

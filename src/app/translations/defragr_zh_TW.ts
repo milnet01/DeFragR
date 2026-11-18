@@ -61,6 +61,23 @@
         <translation>執行已取消。</translation>
     </message>
     <message>
+        <source>DeFragR could not open that folder on the drive (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;No such file or directory&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check the folder still exists, then choose it again. A shortcut to a folder (a symbolic link) cannot be defragged: choose the folder it leads to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A file read back differently after it was moved, so DeFragR stopped at once and moved nothing more.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy your important files off this drive and have its health checked before using it again. Please also report this on the project&apos;s GitHub page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The engine stopped with an internal problem.</source>
         <translation>引擎因內部問題而停止。</translation>
     </message>
@@ -116,6 +133,10 @@
     <message>
         <source>DeFragR cannot tell whether this is a solid-state drive, so it will not defrag it, to be safe. It can still report on it.</source>
         <translation>DeFragR 無法判斷這是否為固態硬碟，為了安全起見，不會重組它。但仍可為它產生報告。</translation>
+    </message>
+    <message>
+        <source>This computer&apos;s processor is too old for DeFragR to defrag safely: it lacks the instruction DeFragR uses to check that each file is unchanged. DeFragR can still report on this drive.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>The engine will not defrag this drive, for a reason this version of DeFragR does not know. It can still report on it.</source>

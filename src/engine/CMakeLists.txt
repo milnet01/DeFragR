@@ -20,11 +20,12 @@ add_executable(defragr-engine
     crc32c.asm
     extents.asm
     main.asm
+    move.asm
     probe.asm
     records.asm
     sys.asm
     walk.asm)
-# kernel.inc, records.inc and walk.inc are included by name from this folder.
+# kernel.inc, records.inc, walk.inc and extents.inc are included by name from this folder.
 target_include_directories(defragr-engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # Every NASM warning, as an error: the C++ side builds with warnings as
 # errors in the gate, and the engine is held to the same bar. Less one:

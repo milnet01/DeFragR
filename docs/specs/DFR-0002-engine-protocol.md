@@ -58,6 +58,14 @@ There is no such spec. Without it:
 - **A hidden command checks the engine's checksum (1.3, DFR-0016).**
   Claude's choice. It tests the shipped engine itself, as
   `selftest-records` does.
+- **`defrag` moves the files in one folder and every folder below it
+  (1.4, DFR-0017).** Claude's choices: the folder includes its
+  sub-folders on the same drive, so a whole drive is the folder `""`; each
+  move of up to `MOVE_CHUNK_BLOCKS` blocks (`src/engine/move.asm`) sends
+  where its blocks came from and went, so the map can show each journey;
+  a file written by someone else during its move is skipped, not a
+  checksum failure. The owner's choice (2026-11-18): a CPU without
+  SSE4.2 cannot checksum, so its drives are report only.
 
 ## 4. Design
 
@@ -101,8 +109,9 @@ Padding bytes and `flags` are not checked.
 ### 4.2 Versioning
 
 The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
-defines **1.3**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
-(§ 4.6), and `selftest-crc32c` in 1.3 (§ 4.11).
+defines **1.4**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
+(§ 4.6), `selftest-crc32c` in 1.3 (§ 4.11), and `defrag` in 1.4
+(§ 4.12).
 
 - **Minor** changes add, and never change: a new record or command type,
   a field appended to a payload, a new value of an enumerated field. An
@@ -122,6 +131,8 @@ A reader handles a value it does not know in an enumerated field as
 ```
 defragr-engine probe                  list drives; no root needed
 defragr-engine report <mount-point>   report on one drive; needs root
+defragr-engine defrag <mount-point> <folder>
+                                      defrag a folder and below (§ 4.12); needs root
 defragr-engine selftest-records       fixed records (§ 4.9); hidden
 defragr-engine selftest-crc32c        checksum test (§ 4.11); hidden
 ```
@@ -134,6 +145,10 @@ Standard error is for a crash only.
 a backslash and three octal digits stand for one byte. The engine
 decodes it before any check (INV-15). Qt starts the engine with text
 arguments, so this is how a name that is not UTF-8 reaches it.
+`defrag`'s mount point is written the same way, and so is its folder:
+a path relative to the mount point, its names joined by single `/`, with
+no leading or trailing `/` and no name `.` or `..`. The empty folder is
+the mount point's own.
 
 The stream is:
 
@@ -159,9 +174,9 @@ command, then `FINISHED` with `USAGE`.
 ```
 offset  size  field
 0       2     major        1
-2       2     minor        3
-4       4     command      0 unknown, 1 probe, 2 report, 254 selftest-crc32c, 255 selftest-records
-8       4     block_size   the drive's statfs f_bsize in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
+2       2     minor        4
+4       4     command      0 unknown, 1 probe, 2 report, 3 defrag, 254 selftest-crc32c, 255 selftest-records
+8       4     block_size   the drive's statfs f_bsize in bytes; non-zero in a report or defrag whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
 ```
 
@@ -227,8 +242,9 @@ Sent for each file or folder the engine could not read. The run goes on.
 
 ```
 offset  size  field
-0       4     errno     signed, positive
-4       2     stage     1 open, 2 stat, 3 extents, 4 read folder, 5 path too long
+0       4     errno     signed; the failing call's errno, positive; 0 for stages 10 and 11
+4       2     stage     1 open, 2 stat, 3 extents, 4 read folder, 5 path too long;
+                        in defrag also 6 to 11 (§ 4.12)
 6       2     reserved  0
 8       str   path      relative to the mount point; its first 4096 bytes
 ```
@@ -326,11 +342,14 @@ offset  size  field
 | 7 | `CANCELLED` | Cancelled by command or by a closed standard input |
 | 8 | `BAD_COMMAND` | A malformed command arrived on standard input |
 | 9 | `INTERNAL` | The engine broke one of its own limits, could not ignore `SIGPIPE` (§ 4.3), got a wrong checksum in `selftest-crc32c` (§ 4.11), or a write failed with an error other than `EPIPE` (exit status only, § 6) |
+| 10 | `NO_FOLDER` | `defrag`'s folder is not written as § 4.3 says (`errno` 22, `EINVAL`), or cannot be opened on that drive without following a link or crossing a mount; `errno` says why |
+| 11 | `CHECKSUM_MISMATCH` | A file read back after its move differs from before; the run stopped. The `FILE_SKIPPED` just before `FINISHED` names it |
 
-Each of those causes is a bug to report, so they share one code.
+`INTERNAL`'s causes are each a bug to report, so they share one code.
 
 The engine checks in this order, and reports the first that fails:
-arguments, admin rights, mount point, drive rules.
+arguments, admin rights, mount point, drive rules, then `defrag`'s
+folder.
 
 **Reason codes** (`DRIVE.reason`), in the order the engine picks one:
 
@@ -341,6 +360,9 @@ arguments, admin rights, mount point, drive rules.
 | 2 | `READ_ONLY` | Mounted read-only |
 | 3 | `SSD` | The drive is solid-state |
 | 4 | `MEDIA_UNKNOWN` | The engine cannot tell whether it is solid-state |
+| 5 | `OLD_CPU` | The processor lacks SSE4.2, whose `crc32` instruction the checksum needs (§ 4.12) |
+
+`defrag` on a drive whose reason is not 0 finishes `REFUSED`.
 
 ### 4.8 Commands
 
@@ -356,7 +378,8 @@ Commands go from the window to the engine's standard input, framed as
 A closed standard input is `CANCEL`. An unknown command type is skipped.
 A malformed command ends the run with `BAD_COMMAND`. A pause while paused,
 or a resume while running, sends nothing. In a report, the safe point is
-between files. DFR-0023 builds the engine's half.
+between files; in a defrag, between moves (§ 4.12). DFR-0023 builds the
+engine's half.
 
 ### 4.9 `selftest-records`
 
@@ -364,11 +387,11 @@ Emits, in this order, one record of every engine type with these values,
 then exits 0. Each multi-byte value has distinct bytes, so a swapped,
 misplaced or mis-sized field shows. The exceptions are fixed by meaning:
 `HELLO`'s major, minor and command, `MAP_RUNS`' count, and `FINISHED`'s
-result and errno.
+result and errno, and `BLOCKS_MOVED`' counts.
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 3, command 255, block_size `0x01020304` |
+| `HELLO` | major 1, minor 4, command 255, block_size `0x01020304` |
 | `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
 | `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
@@ -376,14 +399,17 @@ result and errno.
 | `REPORT_PROGRESS` | names `0xE1E2E3E4E5E6E7E8`, estimate `0xF1F2F3F4F5F6F7F8` |
 | `MAP_RUNS` | kind `0x13141516`, count 2, run 0 start `0x3132333435363738` and length `0x4142434445464748`, run 1 start `0x5152535455565758` and length `0x6162636465666768` |
 | `RUN_STATE` | state `0xF1F2F3F4` |
+| `FILE_DEFRAGGED` | extents_before `0x21222324`, extents_after `0x25262728`, moved_blocks `0x2A2B2C2D2E2F3031`, path `d/e` |
+| `BLOCKS_MOVED` | from_count 1, to_count 2, from run start `0x7172737475767778` and length `0x8182838485868788`, to run 0 start `0x9192939495969798` and length `0xA1A2A3A4A5A6A7A8`, to run 1 start `0xB1B2B3B4B5B6B7B8` and length `0xC1C2C3C4C5C6C7C8` |
 | `FINISHED` | result 0, errno 0 |
 
-All reserved fields, flags and padding are 0. The `HELLO` record is
-these 24 bytes:
+All reserved fields, flags and padding are 0. `BLOCKS_MOVED`' lengths
+break § 4.12's equal-blocks rule on purpose: the decoder does not check
+it. The `HELLO` record is these 24 bytes:
 
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
-01 00 03 00 ff 00 00 00   major 1, minor 3, command 255
+01 00 04 00 ff 00 00 00   major 1, minor 4, command 255
 04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
@@ -414,8 +440,8 @@ public:
 `Record` is a `std::variant` of the record structs plus an `Unknown`
 type that keeps the type number. The decoder checks stream-order rules
 too, at `FINISHED` or at `finish()`. `HELLO.command` picks them:
-§ 4.5's for 1, § 4.6's and INV-8 for 2, and only § 4.3's for any other
-value. An `Unknown` record may sit anywhere between `HELLO` and
+§ 4.5's for 1, § 4.6's and INV-8 for 2, § 4.12's and INV-19 for 3, and
+only § 4.3's for any other value. An `Unknown` record may sit anywhere between `HELLO` and
 `FINISHED`, and no order or count rule counts it.
 
 ### 4.11 `selftest-crc32c`
@@ -437,6 +463,80 @@ its result.
 
 `123456789` is also checked in two pieces, the second continuing from
 the first, and from an address that is not a multiple of 8.
+
+### 4.12 Defrag records
+
+The defrag stream is `HELLO`, then `FILE_DEFRAGGED`, `FILE_SKIPPED`,
+`BLOCKS_MOVED` and `RUN_STATE` in any order, then `FINISHED`. Added in
+1.4.
+
+The engine visits each regular file in the folder and the folders below
+it, on that drive only, as `report` walks (`src/engine/walk.asm`). A file
+in one piece gets no record. A file in two or more:
+
+1. is checked: still a regular file, on the drive's own mount, not
+   immutable or append-only. The kernel refuses a swap file at the move;
+2. is synced, so data not yet written has its blocks;
+3. is read whole from the drive, bypassing the cache, for its CRC32C;
+4. gets a donor: a file with no name (`O_TMPFILE`) in the same folder,
+   given the file's size in one `fallocate`. A donor in no fewer pieces
+   than the file ends the file's turn: it is left as it was;
+5. swaps blocks with the donor (`EXT4_IOC_MOVE_EXT`), one move of up to
+   `MOVE_CHUNK_BLOCKS` blocks at a time;
+6. is synced and read back from the drive. It must have the same size,
+   modification time and CRC32C as at step 3.
+
+A crash leaves the file readable as it was: the kernel swaps blocks and
+writes their data in one journal transaction per page
+(`mext_move_extent`, the kernel's `fs/ext4/move_extent.c`, Linux 7.3),
+and frees a donor with no name when the drive is next mounted.
+Unverified by any test here.
+
+**`FILE_DEFRAGGED`** — type `0x0040`, fixed part 16 bytes, then one
+string. Sent for each file in two or more pieces that the engine
+finished with and did not skip.
+
+```
+offset  size  field
+0       4     extents_before  pieces before, counted as FRAGMENTED_FILE counts them
+4       4     extents_after   pieces after
+8       8     moved_blocks    blocks whose place changed; 0 when no free space would
+                              hold the file in fewer pieces, and it was left as it was
+16      str   path            relative to the mount point
+```
+
+**`BLOCKS_MOVED`** — type `0x0041`, fixed part 8 bytes, then
+`from_count` runs, then `to_count` runs, each laid out as a `MAP_RUNS`
+run (§ 4.6). Sent after each move that changed where any block of the
+file lies.
+
+```
+offset                   size  field
+0                        4     from_count  runs the blocks left
+4                        4     to_count    runs they went to
+8 + 16 × i               16    from run i
+8 + 16 × (from_count + j) 16   to run j
+```
+
+Both lists hold the same number of blocks, in the file's order: block k
+of the from runs went to block k of the to runs. The from runs are free
+once the file's turn ends. A file's `BLOCKS_MOVED` all come straight
+before its `FILE_DEFRAGGED` or `FILE_SKIPPED`. A count whose runs pass
+the payload's end is malformed.
+
+**`FILE_SKIPPED`** in a defrag adds these stages:
+
+| Stage | Name | When |
+|---|---|---|
+| 6 | refused | Step 1 failed: `errno` is `EPERM` for immutable or append-only, `EXDEV` for another mount, `EINVAL` for not a regular file |
+| 7 | read | A checksum read failed |
+| 8 | donor | The donor could not be made or measured; `ENOSPC` when the drive lacks the room |
+| 9 | move | A sync or a move failed. Blocks moved before it are in `BLOCKS_MOVED` records, and the file still reads as it did |
+| 10 | changed | The file's size or modification time changed during its turn: someone wrote to it. `errno` 0 |
+| 11 | checksum differs | Step 6's CRC32C differs, with size and time unchanged. `errno` 0; `FINISHED` follows with `CHECKSUM_MISMATCH` |
+
+A drive whose `DRIVE.reason` is `OLD_CPU` gets no defrag: the `crc32`
+instruction would stop the engine.
 
 ## 5. Invariants
 
@@ -626,6 +726,61 @@ isolates.
   *Breaks when:* `src/engine/crc32c.asm` gives any § 4.11 value wrong,
   including when bytes come in pieces or start unaligned.
 
+- **INV-19** — A defrag stream (`HELLO.command` 3) accepts
+  `FILE_DEFRAGGED`, `FILE_SKIPPED`, `BLOCKS_MOVED` and `RUN_STATE`
+  between `HELLO` and `FINISHED`, and with result `OK` needs a non-zero
+  `HELLO.block_size`. Any other known record there is malformed, as is a
+  `BLOCKS_MOVED` whose counts pass its payload's end.
+  *Test:* `tests/app/tst_records.cpp::defragStream` — a valid stream
+  holding one of each; the same with a `REPORT_SUMMARY` added; then its
+  `BLOCKS_MOVED` with `to_count` one higher in the same payload, whose
+  length stays valid, so only the count rule can reject it.
+  *Breaks when:* the decoder reads `0x0040` or `0x0041` as `Unknown`,
+  trusts the counts, or lets a report's records into a defrag.
+
+- **INV-20** — On ext4, a `defrag` that finishes `OK` leaves every file's
+  SHA-256 as it was and `e2fsck -fn` clean. Each file with a
+  `FILE_DEFRAGGED` whose `moved_blocks` is not 0 is in fewer pieces by
+  `filefrag`, and `extents_after` is `filefrag`'s count. Its
+  `BLOCKS_MOVED` from runs cover exactly the blocks `filefrag -v` listed
+  before, and its to runs those it lists after, each in the file's
+  order. No file outside the folder moves, and no new name appears.
+  *Test:* `tests/image/defrag-check.cpp`, the `image_defrag` test, on
+  `build_image`'s files plus one big enough for two moves. Run once on
+  the folder `deep`, then on the whole drive.
+  *Breaks when:* the engine damages data, moves a file outside the
+  folder, leaves a named donor, reports runs in bytes or in the wrong
+  order, or reports a move of blocks that did not move.
+
+- **INV-21** — `defrag` checks in § 4.7's order. Without root it
+  finishes `USAGE` for a wrong argument count and `NOT_ROOT` otherwise.
+  As root: a sub-folder of a drive that would refuse is `NOT_A_MOUNT`;
+  that drive is `REFUSED`, even with a folder that does not exist; on a
+  drive that allows defrag, a folder that does not exist, one written
+  with `..`, and one that is a symbolic link are each `NO_FOLDER`.
+  *Test:* `tests/app/tst_records_conformance.cpp` for the first two;
+  `tests/image/check-defrag.sh`, the `image_defrag` test, for the rest,
+  on an SSD test disk and a spinning one.
+  *Breaks when:* the drive rules run before the mount-point check, the
+  folder before the drive rules, or a folder is followed through a link
+  or out of the drive.
+
+- **INV-22** — On a CPU without SSE4.2, `probe` gives an ext4 drive that
+  would otherwise allow defrag verdict 1 and reason `OLD_CPU`; `defrag`
+  on it finishes `REFUSED`, and `report` finishes `OK`.
+  *Test:* `tests/image/check-old-cpu.sh`, the `image_defrag` test, in a
+  test machine started with QEMU's `qemu64` CPU, which has no SSE4.2.
+  *Breaks when:* the engine runs `crc32` anyway and dies, or refuses
+  `report` too.
+
+- **INV-23** — `defrag` moves no file it must not. A file in one piece
+  gets no record. An immutable file and a swap file in use each get a
+  `FILE_SKIPPED`, and keep their extents and SHA-256.
+  *Test:* `tests/image/check-defrag.sh`, the `image_defrag` test, with
+  both made fragmented on purpose.
+  *Breaks when:* the engine moves a file its checks should stop, or
+  the kernel's swap-file refusal goes unreported.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -660,6 +815,12 @@ isolates.
   decodes it with `QFile::decodeName` for display.
 - **A mount point is not UTF-8.** The window sends it to `report`
   escaped (§ 4.3, INV-15).
+- **A file is written during its move.** Its time or size changes, so
+  it is skipped at stage 10, not taken for damage (§ 4.12).
+- **A file reads back different after its move.** The run stops with
+  `CHECKSUM_MISMATCH`, naming the file, so no more files are touched.
+- **The drive fills during a defrag.** The donor's `fallocate` fails
+  with `ENOSPC`; that file is skipped at stage 8 and the run goes on.
 
 ## 7. Tests
 
@@ -669,15 +830,18 @@ fail against an engine that accepts any folder under a mount point.
 
 | Test | Locks | Needs root |
 |---|---|---|
-| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13, INV-16 | No |
-| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11, INV-18 | No |
+| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13, INV-16, INV-19 | No |
+| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11, INV-18, INV-21 without root | No |
 | `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
 | `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
 | `tests/image/report-check.cpp` | INV-14, INV-17 | Yes, its input comes from the test machine |
+| `tests/image/check-defrag.sh` | INV-21 as root, INV-23 | Yes, inside the test machine |
+| `tests/image/defrag-check.cpp` | INV-20, INV-22's probe record | Yes, its input comes from the test machine |
+| `tests/image/check-old-cpu.sh` | INV-22 | Yes, inside a test machine with no SSE4.2 |
 
 DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
-DFR-0011 does the same for INV-16's and INV-17's, and DFR-0016 for
-INV-18's.
+DFR-0011 does the same for INV-16's and INV-17's, DFR-0016 for INV-18's,
+and DFR-0017 for INV-19's to INV-23's.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -699,9 +863,10 @@ engine. The conformance and image tests read real engine output.
 
 ## 9. Out of scope
 
-- Defrag's arguments and records: file moved, blocks changed, checksum
-  failure — tracked by DFR-0017.
-- Defrag's progress records — tracked by DFR-0020.
+- Defrag's progress records, and naming a file before its move —
+  tracked by DFR-0020.
+- A defrag stream holds no map: the window takes it from a report —
+  tracked by DFR-0018.
 - The engine reading commands — tracked by DFR-0023.
 - The window's session log format — deferred; not yet queued.
 
@@ -709,12 +874,17 @@ engine. The conformance and image tests read real engine output.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 to INV-9, INV-13, INV-16 | `tests/app/tst_records.cpp` |
+| INV-1 to INV-9, INV-13, INV-16, INV-19 | `tests/app/tst_records.cpp` |
 | INV-10, INV-11, INV-18 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
 | INV-14, INV-17 | `tests/image/report-check.cpp` (`image_report`) |
 | INV-15 | `tests/image/check-report.sh` (`image_report`); `tests/app/tst_engineprocess.cpp::pathArgument` |
-| § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
+| INV-20 | `tests/image/defrag-check.cpp` (`image_defrag`) |
+| INV-21 | `tests/app/tst_records_conformance.cpp`; `tests/image/check-defrag.sh` (`image_defrag`) |
+| INV-22 | `tests/image/check-old-cpu.sh` and `tests/image/defrag-check.cpp` (`image_defrag`) |
+| INV-23 | `tests/image/check-defrag.sh` (`image_defrag`) |
+| § 4.7 check order | INV-11 and INV-21 |
+| § 4.12 stages 7 to 11, `CHECKSUM_MISMATCH`, a donor in no fewer pieces | **nothing**: each needs a failing drive, a writer racing the move, or a full drive |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |
 | § 6 failed write | INV-11's `failedWriteIsInternal` and `closedPipeIsCancelled` |
@@ -730,6 +900,8 @@ engine. The conformance and image tests read real engine output.
 - `tests/CMakeLists.txt`: `engine_runs` runs the bare engine and passes
   only on exit 0. Under § 4.3 that run exits 1 (`USAGE`), so DFR-0003
   replaces it with INV-11's conformance test.
+- `docs/design.md` § Safety: 1.4 settles the `O_TMPFILE` donor that it
+  marks unverified.
 - `docs/design.md` § Units: unchanged. `HELLO.block_size` is how "its
   first record states the block size" holds; it is 0 for `probe`, whose
   `DRIVE` records state their own.

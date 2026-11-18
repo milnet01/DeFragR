@@ -27,6 +27,8 @@ QString commandWord(Command command)
         return QStringLiteral("probe");
     case CommandReport:
         return QStringLiteral("report");
+    case CommandDefrag:
+        return QStringLiteral("defrag");
     case CommandSelftestCrc32c:
         return QStringLiteral("selftest-crc32c");
     case CommandSelftest:

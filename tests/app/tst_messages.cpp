@@ -49,9 +49,13 @@ private slots:
 
     void everyResultHasWords()
     {
-        for (qint32 result = ResultUsage; result <= ResultInternal; ++result) {
+        // A known code has words of its own, not those for a code this
+        // version does not know.
+        const Message unknown = messages::forRun(finishedWith(99));
+        for (qint32 result = ResultUsage; result <= ResultChecksumMismatch; ++result) {
             const Message message = messages::forRun(finishedWith(result));
             QVERIFY2(!message.what.isEmpty(), qPrintable(QString::number(result)));
+            QVERIFY2(message != unknown, qPrintable(QString::number(result)));
         }
     }
 
@@ -180,8 +184,8 @@ private slots:
         allowed.verdict = VerdictReportAndDefrag;
         QCOMPARE(messages::whyNoDefrag(allowed), QString());
 
-        QSet<QString> seen;
-        for (quint16 reason = ReasonFsNotExt4; reason <= ReasonMediaUnknown; ++reason) {
+        QSet<QString> seen{messages::whyNoDefrag(reportOnly(200))};  // a reason not known
+        for (quint16 reason = ReasonFsNotExt4; reason <= ReasonOldCpu; ++reason) {
             const QString why = messages::whyNoDefrag(reportOnly(reason));
             QVERIFY2(!why.isEmpty(), qPrintable(QString::number(reason)));
             QVERIFY2(!seen.contains(why), qPrintable(why));

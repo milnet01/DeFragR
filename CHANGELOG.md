@@ -12,6 +12,17 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Added
+- The engine can defrag a folder and every folder below it on an ext4
+  drive. It checks each file reads the same after its move, and stops at
+  once if one does not. The window's button for it comes next
+  (DFR-0017).
+
+### Changed
+- On a processor without SSE4.2, such as Intel's before 2008, early
+  Atoms and AMD's before 2011, every drive is report only, and the drive list says the
+  processor is too old to defrag safely (DFR-0017).
+
 ## [0.2.1] - 2026-11-18
 
 **Theme:** Packages on OBS

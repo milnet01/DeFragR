@@ -22,7 +22,7 @@ inline constexpr quint32 kStringMax = 4096;
 // The protocol major this window reads (§ 4.2).
 inline constexpr quint16 kMajor = 1;
 
-// Record types (§ 4.4 to § 4.6).
+// Record types (§ 4.4 to § 4.6, § 4.12).
 enum RecordType : quint16 {
     TypeHello = 0x0001,
     TypeFinished = 0x0002,
@@ -33,6 +33,8 @@ enum RecordType : quint16 {
     TypeReportProgress = 0x0023,
     TypeMapRuns = 0x0024,
     TypeRunState = 0x0030,
+    TypeFileDefragged = 0x0040,
+    TypeBlocksMoved = 0x0041,
 };
 
 // HELLO.command (§ 4.4).
@@ -40,6 +42,7 @@ enum Command : quint32 {
     CommandUnknown = 0,
     CommandProbe = 1,
     CommandReport = 2,
+    CommandDefrag = 3,
     CommandSelftestCrc32c = 254,
     CommandSelftest = 255,
 };
@@ -56,6 +59,8 @@ enum Result : qint32 {
     ResultCancelled = 7,
     ResultBadCommand = 8,
     ResultInternal = 9,
+    ResultNoFolder = 10,
+    ResultChecksumMismatch = 11,
 };
 
 // DRIVE.media (§ 4.5).
@@ -71,6 +76,7 @@ enum Reason : quint16 {
     ReasonReadOnly = 2,
     ReasonSsd = 3,
     ReasonMediaUnknown = 4,
+    ReasonOldCpu = 5,
 };
 
 // MAP_RUNS.kind (§ 4.6).
@@ -164,6 +170,21 @@ struct RunState {
     bool operator==(const RunState &) const = default;
 };
 
+struct FileDefragged {
+    quint32 extentsBefore = 0;
+    quint32 extentsAfter = 0;
+    quint64 movedBlocks = 0;  // 0: no free space held it in fewer pieces; left as it was
+    QByteArray path;          // relative to the mount point
+    bool operator==(const FileDefragged &) const = default;
+};
+
+// One move: block k of `from` went to block k of `to`.
+struct BlocksMoved {
+    QList<MapRun> from;
+    QList<MapRun> to;
+    bool operator==(const BlocksMoved &) const = default;
+};
+
 // A record of a type this window does not know; its payload is skipped.
 struct Unknown {
     quint16 type = 0;
@@ -171,7 +192,8 @@ struct Unknown {
 };
 
 using Record = std::variant<Hello, Finished, Drive, FragmentedFile, FileSkipped,
-                            ReportSummary, ReportProgress, MapRuns, RunState, Unknown>;
+                            ReportSummary, ReportProgress, MapRuns, RunState,
+                            FileDefragged, BlocksMoved, Unknown>;
 
 enum class StreamError { Malformed, VersionMismatch };
 
