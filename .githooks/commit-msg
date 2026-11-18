@@ -43,6 +43,9 @@ id_one='[A-Za-z0-9_-]*[A-Za-z][A-Za-z0-9_-]*-S?[0-9]+(-[0-9]+)*'
 suggest() {
     [ "${ANTS_COMMIT_MSG_NO_SUGGEST:-}" = 1 ] && return 0
     local s try
+    # One rewrite per wrong shape: a trailing period; an id written `[ID] -`,
+    # `ID —` or `ID:` with odd spacing, rewritten `ID: `; a category with a
+    # scope or `!`, `fix(ui)!: `, rewritten `fix: `.
     s=$(printf '%s' "$subject" | sed -E \
         -e 's/\.+$//' \
         -e "s/^\\[?(${id_one})\\]?( +[-—]| *:)? +/\\1: /" \
@@ -137,21 +140,21 @@ if printf '%s' "$subject" | grep -qE "$id_form"; then
     # of the low end is kept, so `CFG-0597..0599` rebuilds zero-padded.
     case "$group" in
         *..*)
-            _low=${group%%..*}
-            _hi=${group##*..}
-            _pre=${_low%-*}
-            _lo=${_low##*-}
+            _low_id=${group%%..*}
+            _high_num=${group##*..}
+            _pre=${_low_id%-*}
+            _low_num=${_low_id##*-}
             # A synthesised id (`RETR-S0068`, roadmap-format.md 3.5.1) keeps
             # its `S` on every member the range rebuilds.
-            _s=""; case "$_lo" in S*) _s=S; _lo=${_lo#S} ;; esac
+            _s=""; case "$_low_num" in S*) _s=S; _low_num=${_low_num#S} ;; esac
             # A range runs between two SINGLE-NUMBER ids. `PASS-3-1..5` names
             # no unambiguous prefix, so refuse the form instead of guessing.
             if [ "$_pre" != "${_pre##*-}" ] && is_num "${_pre##*-}"; then
                 fail "a range runs between two single-number ids; a multi-segment scheme uses the comma list" "1.1"
             fi
-            group="$group, $_pre-$_s$_hi"
-            if is_num "$_lo" && is_num "$_hi"; then
-                _i=$((10#$_lo)); _end=$((10#$_hi)); _w=${#_lo}
+            group="$group, $_pre-$_s$_high_num"
+            if is_num "$_low_num" && is_num "$_high_num"; then
+                _i=$((10#$_low_num)); _end=$((10#$_high_num)); _w=${#_low_num}
                 # The cap guards against a typo, not a rule: enumerating
                 # hundreds would hang the commit. Past it, only the ends.
                 [ $((_end - _i)) -le 200 ] && while [ "$_i" -le "$_end" ]; do

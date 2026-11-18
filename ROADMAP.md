@@ -851,7 +851,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Build.
 
-- 📋 [DFR-0083] **Copy the fixed hooks and gate passages in from the template, once claude-config fixes them.**
+- ✅ [DFR-0083] **Copy the fixed hooks and gate passages in from the template, once claude-config fixes them.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   .githooks/commit-msg, pre-commit and pre-push are byte-identical to
   ~/.claude/skeleton/files (cmp, 2026-11-18). scripts/local-ci.sh is not,
@@ -892,6 +892,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   or exits 1. The shared log is fixed by each step writing a temporary
   file and renaming it into place, not by a log per worktree. Links are
   checked with git ls-files --cached, and fenced code is skipped.
+  Shipped 2026-11-18. .githooks/commit-msg, pre-commit and pre-push copied
+  from the skeleton at 7746100; cmp says each is byte-identical. From the
+  template's local-ci.sh: need() records a skip and finish() names it,
+  failing the run unless ANTS_GATE_SKIPPED takes it (checked with
+  shellcheck hidden from PATH: rc 1, and rc 0 with the skip written to the
+  hook's file); run() writes each log to a temporary file and renames it
+  into place; the pin comment says "versions, or names where the runner
+  supplies the version". The build and test steps sit under one need
+  chain, so a missing cmake, nasm or ninja skips both by name.
   **Layman:** The shared project template's safety-check scripts have small faults; once they are fixed there, copy the fixed versions here.
   Kind: review-fix.
   Source: review-readability-2026-11-18.

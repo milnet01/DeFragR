@@ -33,7 +33,8 @@ cd "$(dirname "$0")/.."
 # copy. After editing it, re-run ./scripts/setup-hooks.sh in every clone.
 DOCS_GLOB='docs/*|*.md|LICENSE'
 
-# Tool versions are pinned HERE, and a CI workflow installs them from here. A
+# Tool versions, or names where the runner supplies the version, are pinned
+# HERE, and a CI workflow installs them from here. A
 # version pinned only in the workflow is a second copy: this script would take
 # whatever happened to be on PATH, so the same commit could pass locally and
 # fail on GitHub. Measured case: ruff's default rule set changed between
@@ -75,37 +76,61 @@ esac
 # Measured 2026-09-26 on a fresh scaffold.
 CONFIGURED=1
 
-step() { printf '\n=== %s ===\n' "$1" >&2; }
+STEP=''
+step() { STEP=$1; printf '\n=== %s ===\n' "$1" >&2; }
 
-# A check whose tool is absent SAYS SO and stops the gate: a check that did
-# not run must not look like one that passed. Call it on its own line, never
-# as `need X && ...`: set -e ignores a failure on the left of &&.
+# A check whose tool is absent SAYS SO and is never silently dropped: a check
+# that did not run must not look like one that passed. `need X && run ...`
+# skips that step and the gate goes on; finish() then names every skip, and
+# declares it to the pre-push hook or fails (`local-gate.md` § 7.1).
+SKIPPED=()
 need() {
     command -v "$1" >/dev/null 2>&1 && return 0
     printf 'local-ci: %s is not installed — that check did NOT run\n' "$1" >&2
+    SKIPPED+=("$STEP ($1 not installed)")
     return 1
+}
+
+# The last word of every run. A skip is declared where the hook asked for it
+# (ANTS_GATE_SKIPPED), and fails the run where nothing can hear it.
+finish() {
+    local s
+    (( ${#SKIPPED[@]} )) || { printf '%s\n' "$1" >&2; exit 0; }
+    printf '\nlocal-ci: these checks did NOT run:\n' >&2
+    printf '  %s\n' "${SKIPPED[@]}" >&2
+    if [[ -n ${ANTS_GATE_SKIPPED:-} ]]; then
+        for s in "${SKIPPED[@]}"; do printf '%s\n' "$s" >>"$ANTS_GATE_SKIPPED"; done
+        exit 0
+    fi
+    exit 1
 }
 
 # run NAME CMD... — one line for a green step, the log's tail for a red one.
 # The full output goes to .git/local-ci/NAME.log, so nothing is lost; a full
 # run's output cost each agent session that pushed (CFG-0776). On CI it
 # streams, so the workflow's own log keeps everything. A red step still
-# stops the gate. A step that skips itself says so with need(), which
-# prints directly.
+# stops the gate.
+#
+# The log lives in the main .git, so it outlives the pre-push hook's
+# throwaway worktree. Each run writes its own file and renames it into place
+# at the end, so two gates at once never mix their output.
 LOG_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo .)/local-ci"
 run() {
-    local name=$1 log rc=0
+    local name=$1 log tmp rc=0
     shift
     if [[ ${CI:-} == true ]]; then "$@"; return; fi
     mkdir -p "$LOG_DIR"
     log="$LOG_DIR/$name.log"
-    "$@" >"$log" 2>&1 || rc=$?
+    tmp=$(mktemp "$log.XXXXXX")
+    "$@" >"$tmp" 2>&1 || rc=$?
     if (( rc == 0 )); then
+        mv -f "$tmp" "$log"
         printf 'ok    %s\n' "$name" >&2
         return 0
     fi
     printf 'FAIL  %s (exit %d) — last 40 lines; full log: %s\n' "$name" "$rc" "$log" >&2
-    tail -n 40 "$log" >&2
+    tail -n 40 "$tmp" >&2
+    mv -f "$tmp" "$log"
     return "$rc"
 }
 
@@ -113,8 +138,7 @@ run() {
 # Anything not needing a compiler or a full environment belongs here.
 
 step 'documentation'
-need python3
-run links python3 -I scripts/check-links.py
+need python3 && run links python3 -I scripts/check-links.py
 # SET THIS TO 1 once the documentation step runs a real check. CONFIGURED
 # covers the script as a whole, so a project with lint and tests filled in
 # still had --docs report a pass that checked nothing (Deedbox, 2026-09-28).
@@ -137,12 +161,11 @@ shell_files() {
 
 step 'lint'
 mapfile -t SHELL_FILES < <(shell_files)
-need shellcheck
-run shellcheck shellcheck "${SHELL_FILES[@]}"
+need shellcheck && run shellcheck shellcheck "${SHELL_FILES[@]}"
 
 if (( DOCS_ONLY )); then
     if (( CONFIGURED && DOCS_CONFIGURED )); then
-        printf '\nlocal-ci: --docs passed; build and test legs skipped by design.\n' >&2
+        finish $'\nlocal-ci: --docs passed; build and test legs skipped by design.'
     elif (( CONFIGURED )); then
         printf '\nlocal-ci: --docs ran NO documentation check (none configured) — nothing was verified.\n' >&2
         printf 'local-ci: fill in the documentation step, then set DOCS_CONFIGURED=1.\n' >&2
@@ -196,43 +219,45 @@ JOBS=${DEFRAGR_CI_JOBS:-$(( cpu_jobs < mem_jobs ? cpu_jobs : mem_jobs ))}
 BUILD_DIR=build/ci
 step 'build'
 rm -rf "$BUILD_DIR"
-# Without these there is no build, so a missing one stops the gate.
-need cmake; need nasm; need ninja
-# ccache, where installed, makes the fresh tree cheap to rebuild. It only
-# saves time: a miss compiles as normal, so a run without it checks the
-# same. CCACHE_BASEDIR lets the pre-push hook's worktree, at another
-# path, reuse this checkout's results. GitHub does not install it.
-CONFIGURE_ARGS=(-DCMAKE_COMPILE_WARNING_AS_ERROR=ON)
-if command -v ccache >/dev/null 2>&1; then
-    CONFIGURE_ARGS+=(-DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
-    export CCACHE_BASEDIR=$PWD
-fi
-run configure cmake -S . -B "$BUILD_DIR" -G Ninja "${CONFIGURE_ARGS[@]}"
-run build "${GENTLE[@]}" cmake --build "$BUILD_DIR" -j "$JOBS"
-
-step 'test'
-# The gate must boot the test machine: a host that cannot fails the vm_smoke
-# test here instead of skipping it, so a skip never reads as a pass.
-export DEFRAGR_VM_REQUIRED=1
-# CTest counts a skipped test as no failure, so the run fails on CTest's
-# list of tests that did not run.
-every_test() {
-    local out rc=0
-    out=$("${GENTLE[@]}" ctest "$@" 2>&1) || rc=$?
-    printf '%s\n' "$out"
-    (( rc == 0 )) || return "$rc"
-    if grep -q 'The following tests did not run' <<<"$out"; then
-        printf 'local-ci: a test did not run, so the gate fails.\n'
-        return 1
+# Without all three there is no build and so no test: a missing one skips
+# both, and finish() names the skip.
+if need cmake && need nasm && need ninja; then
+    # ccache, where installed, makes the fresh tree cheap to rebuild. It only
+    # saves time: a miss compiles as normal, so a run without it checks the
+    # same. CCACHE_BASEDIR lets the pre-push hook's worktree, at another
+    # path, reuse this checkout's results. GitHub does not install it.
+    CONFIGURE_ARGS=(-DCMAKE_COMPILE_WARNING_AS_ERROR=ON)
+    if command -v ccache >/dev/null 2>&1; then
+        CONFIGURE_ARGS+=(-DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+        export CCACHE_BASEDIR=$PWD
     fi
-}
-# Side by side on the same jobs: measured 2026-11-18 on 12 cores, 4 at
-# once took 4 to 5 s against 13 to 14 s one at a time (DFR-0059).
-run test every_test --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error -j "$JOBS"
+    run configure cmake -S . -B "$BUILD_DIR" -G Ninja "${CONFIGURE_ARGS[@]}"
+    run build "${GENTLE[@]}" cmake --build "$BUILD_DIR" -j "$JOBS"
+
+    step 'test'
+    # The gate must boot the test machine: a host that cannot fails the vm_smoke
+    # test here instead of skipping it, so a skip never reads as a pass.
+    export DEFRAGR_VM_REQUIRED=1
+    # CTest counts a skipped test as no failure, so the run fails on CTest's
+    # list of tests that did not run.
+    every_test() {
+        local out rc=0
+        out=$("${GENTLE[@]}" ctest "$@" 2>&1) || rc=$?
+        printf '%s\n' "$out"
+        (( rc == 0 )) || return "$rc"
+        if grep -q 'The following tests did not run' <<<"$out"; then
+            printf 'local-ci: a test did not run, so the gate fails.\n'
+            return 1
+        fi
+    }
+    # Side by side on the same jobs: measured 2026-11-18 on 12 cores, 4 at
+    # once took 4 to 5 s against 13 to 14 s one at a time (DFR-0059).
+    run test every_test --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error -j "$JOBS"
+fi
 
 # ci-container.sh matches this pass line exactly; change both together.
 if (( CONFIGURED )); then
-    printf '\nlocal-ci: all checks passed.\n' >&2
+    finish $'\nlocal-ci: all checks passed.'
 else
     printf '\nlocal-ci: NO CHECKS ARE CONFIGURED YET — this run verified nothing.\n' >&2
     printf 'local-ci: fill in the steps above, then set CONFIGURED=1.\n' >&2
