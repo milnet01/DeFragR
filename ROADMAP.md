@@ -780,7 +780,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   passages.
   Found by review-readability lane 05 and review-code lane 05.
   Priority: 3.
-  Waiting-on: claude-config session (template fix, asked 2026-11-18).
+  Unblocked 2026-11-18: claude-config fixed all ten in the skeleton,
+  commit 7746100. Copy .githooks/* in byte for byte and merge the
+  template's local-ci.sh passages. Two differ from the fixes above:
+  need() did not stop the gate, it let a skipped step end in "all
+  checks passed"; need() now records the skip and finish() declares it
+  or exits 1. The shared log is fixed by each step writing a temporary
+  file and renaming it into place, not by a log per worktree. Links are
+  checked with git ls-files --cached, and fenced code is skipped.
   **Layman:** The shared project template's safety-check scripts have small faults; once they are fixed there, copy the fixed versions here.
   Kind: review-fix.
   Source: review-readability-2026-11-18.
