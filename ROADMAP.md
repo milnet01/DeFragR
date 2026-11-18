@@ -815,7 +815,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-perf-2026-11-16.
   Lanes: Report view, Report.
 
-- 📋 [DFR-0062] **Gate and container: smaller build costs.**
+- ✅ [DFR-0062] **Gate and container: smaller build costs.**
   - local-ci.sh:164 builds a fresh tree every push; median 4.7 s against
     DFR-0037's 1.7 s warm-ccache figure; NASM, moc and links are never
     cached. Measure with ccache -z/-s and .ninja_log first.
@@ -824,6 +824,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   - ci.yml:62: man-db's trigger could be turned off (from the lane's
     memory of Ubuntu; check first).
   Found by review-code --performance lane 03.
+  Done 2026-11-18: all three measured and dismissed; no code changed.
+  (1) Fresh build/ci: configure 0.8 to 1.3 s; build with a warm ccache
+  3.9 to 7.9 s over five runs, 50 of 52 compiles cached. What is left is
+  moc, NASM and links, which ccache cannot cache, so the fresh tree stays.
+  (2) ci-container.sh's module copy: 218 MB, 0.5 s warm and 2.3 s cold,
+  against a 65 s container gate; copying only what run.sh loads would
+  save under 1% and add a list to keep in step. (3) man-db: GitHub run
+  44185535843's log reads "Not building database; man-db/auto-update is
+  not 'true'", so the runner already skips it.
   **Layman:** Small savings in how long the safety checks take to build.
   Kind: perf.
   Source: review-code-perf-2026-11-16.
