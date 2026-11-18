@@ -7,6 +7,8 @@
 
 #include <limits>
 
+#include <malloc.h>
+
 using namespace defragr::engine;
 using defragr::model::CellState;
 using defragr::model::DriveMap;
@@ -159,6 +161,29 @@ private slots:
         clock.start();
         QCOMPARE(map.cells(20'000).size(), 20'000);
         QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+    }
+
+    // DFR-0074: a local user who can write to the drive chooses how many
+    // runs there are, so the map's memory must not grow with them. Four
+    // million runs held as they came would take 64 MiB. Where a sanitizer
+    // replaces malloc, mallinfo2 counts nothing and this proves nothing.
+    void manyRunsHoldBoundedMemory()
+    {
+        DriveMap map;
+        const size_t before = mallinfo2().uordblks;
+        for (quint64 batch = 0; batch < 40; ++batch) {
+            MapRuns some{MapFragmentedFile, {}};
+            some.runs.reserve(100'000);
+            for (quint64 i = 0; i < 100'000; ++i)
+                some.runs.append({(batch * 100'000 + i) * 2, 1});
+            map.add(some);
+        }
+        const size_t held = mallinfo2().uordblks - before;
+        QVERIFY2(held < 16 * 1024 * 1024, qPrintable(QString::number(held)));
+        QCOMPARE(map.blocks(), quint64(8'000'000 - 1));
+        // Half of every block pair is fragmented, half unnamed: a tie,
+        // which goes to the later kind.
+        QCOMPARE(map.cells(4), QList<CellState>(4, CellState::Fragmented));
     }
 };
 

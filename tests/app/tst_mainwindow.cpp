@@ -19,6 +19,7 @@
 #include <QStackedWidget>
 #include <QTableView>
 #include <QTest>
+#include <QTextDocument>
 #include <QTimer>
 
 #include <memory>
@@ -57,6 +58,21 @@ bool showsAsWritten(const QLabel *shown, const QString &literal)
         return false;
     return shown->textFormat() == Qt::PlainText
            || (shown->textFormat() == Qt::AutoText && !Qt::mightBeRichText(shown->text()));
+}
+
+// True when `widget`'s tooltip reaches the eye with `literal` in it, tags
+// and all. Qt draws a tooltip as markup when Qt::mightBeRichText says so.
+bool tipShowsAsWritten(const QWidget *widget, const QString &literal)
+{
+    if (!widget)
+        return false;
+    QString shown = widget->toolTip();
+    if (Qt::mightBeRichText(shown)) {
+        QTextDocument markup;
+        markup.setHtml(shown);
+        shown = markup.toPlainText();
+    }
+    return shown.contains(literal);
 }
 
 }  // namespace
@@ -208,6 +224,7 @@ private slots:
                  "the found file was not shown within a tick");
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Report on")), kMarkupDrive));
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Latest:")), kMarkupFile));
+        QVERIFY(tipShowsAsWritten(label(reportView(), QStringLiteral("Latest:")), kMarkupFile));
 
         // The end: the figures replace the progress, and the file is listed.
         QVERIFY2(QTest::qWaitFor([&] { return button(reportView(), QStringLiteral("Back to drives"))->isEnabled(); },

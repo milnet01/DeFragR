@@ -119,6 +119,31 @@ private slots:
         QCOMPARE(cell(0, Report::ColumnSize), QLocale().formattedDataSize(4096000));
     }
 
+    // DFR-0074: at its memory limit the list keeps the worst files, and
+    // says how many it left out; the running count still counts them all.
+    void listKeepsTheWorstWithinItsLimit()
+    {
+        // Room for games/big.iso and games/tie.pak, the two worst, only.
+        Report report(fake("pass-through.sh"), 2 * Report::kFileEntryBytes + 13 + 13);
+        QList<quint64> counts;
+        connect(&report, &Report::found, this,
+                [&](quint64 count, const QByteArray &) { counts.append(count); });
+        const Load load = run(report, "/mnt/fake");
+        QCOMPARE(load.loaded, 1);
+        QCOMPARE(report.rowCount(), 2);
+        QCOMPARE(report.index(0, Report::ColumnFile).data().toString(),
+                 QStringLiteral(u"\u2066/mnt/fake/games/big.iso\u2069"));
+        QCOMPARE(report.index(1, Report::ColumnFile).data().toString(),
+                 QStringLiteral(u"\u2066/mnt/fake/games/tie.pak\u2069"));
+        QCOMPARE(report.unlisted(), quint64(1));
+        QVERIFY(!counts.isEmpty());
+        QCOMPARE(counts.last(), quint64(3));
+        QCOMPARE(filesHeading(1), QStringLiteral("Fragmented files, worst first. To save "
+                                                 "memory, the 1 least fragmented file is "
+                                                 "not listed:"));
+        QCOMPARE(filesHeading(0), QStringLiteral("Fragmented files, worst first:"));
+    }
+
     // S3: the figures come from REPORT_SUMMARY.
     void figuresFromTheSummary()
     {

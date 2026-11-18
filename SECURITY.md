@@ -33,7 +33,8 @@ Each line names what crosses and what is checked where it crosses.
   malformed stream ends the run with an error.
 - **User input: names from the drive are untrusted text.** The window
   shows every drive and file name as plain text, so a name that looks
-  like markup is shown as written. The user types nothing else; they
+  like markup is shown as written. A character in a name that would
+  change the reading direction shows as its code. The user types nothing else; they
   pick a drive and a command.
 - **Network: none.** Neither half opens a socket; a search of `src/`
   for socket and Qt network calls finds none.

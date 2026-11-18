@@ -258,6 +258,17 @@
         </translation>
     </message>
     <message>
+        <source>Fragmented files, worst first:</source>
+        <translation>已片段化的檔案（最嚴重的在前）：</translation>
+    </message>
+    <message numerus="yes">
+        <source>Fragmented files, worst first. To save memory, the %1 least fragmented file(s) are not listed:</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Pieces</source>
         <translation>片段數</translation>
     </message>
@@ -326,10 +337,6 @@
     <message>
         <source>Back to drives</source>
         <translation>返回磁碟清單</translation>
-    </message>
-    <message>
-        <source>Fragmented files, worst first:</source>
-        <translation>已片段化的檔案（最嚴重的在前）：</translation>
     </message>
     <message>
         <source>Report on %1</source>

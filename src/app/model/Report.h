@@ -25,14 +25,28 @@ int percentChecked(quint64 names, quint64 estimate);
 // The same as a sentence for the running report.
 QString progressLine(quint64 names, quint64 estimate);
 
+// The heading above the file list, which says how many files the list
+// left out to keep within its memory limit.
+QString filesHeading(quint64 unlisted);
+
 class Report : public QAbstractTableModel {
     Q_OBJECT
 
 public:
     enum Column { ColumnPieces, ColumnSize, ColumnFile, ColumnCount };
 
-    // launcher is the program that gains admin rights; tests pass a fake.
-    explicit Report(QString launcher = QStringLiteral("pkexec"), QObject *parent = nullptr);
+    // The file list's memory limit: each file's path, and kFileEntryBytes
+    // more for the entry around it. A local user who can write to the
+    // drive chooses how many fragmented files there are, so the list is
+    // bounded; this one holds over three million files whose paths are
+    // 100 bytes long.
+    static constexpr qsizetype kFileEntryBytes = 64;
+    static constexpr qsizetype kFileListBytes = qsizetype(512) * 1024 * 1024;
+
+    // launcher is the program that gains admin rights; tests pass a fake,
+    // and a small listBytes to reach the limit.
+    explicit Report(QString launcher = QStringLiteral("pkexec"),
+                    qsizetype listBytes = kFileListBytes, QObject *parent = nullptr);
 
     // Empties the report, then runs the engine's report on the drive
     // mounted there; ends in loaded() or failed(). Ignored while a run is
@@ -42,6 +56,9 @@ public:
 
     const QByteArray &mountPoint() const { return m_mountPoint; }
     const engine::ReportSummary &summary() const { return m_summary; }
+    // Fragmented files found but left out of the list at its limit. The
+    // list keeps the worst.
+    quint64 unlisted() const { return m_unlisted; }
     const DriveMap &map() const { return m_map; }
 
     int rowCount(const QModelIndex &parent = {}) const override;
@@ -51,8 +68,8 @@ public:
                         int role = Qt::DisplayRole) const override;
 
 signals:
-    // While a run goes: the fragmented files found so far, and the path
-    // of the latest, relative to the mount point.
+    // While a run goes: the fragmented files found so far, listed or not,
+    // and the path of the latest, relative to the mount point.
     void found(quint64 count, const QByteArray &latestPath);
     // While a run goes: names the engine has read, of about `estimate`.
     void progressed(quint64 names, quint64 estimate);
@@ -61,6 +78,7 @@ signals:
 
 private:
     void collect(const QList<engine::Record> &records);
+    void keep(const engine::FragmentedFile &file);
     void runEnded(const engine::RunOutcome &outcome);
     void clear();
 
@@ -69,11 +87,16 @@ private:
     quint32 m_blockSize = 0;
     engine::ReportSummary m_summary;
     QList<engine::FragmentedFile> m_files;
+    quint64 m_unlisted = 0;
     DriveMap m_map;
+    qsizetype m_listBytes;
     // The running report's records so far; shown only once it succeeds.
     quint32 m_incomingBlockSize = 0;
     engine::ReportSummary m_incomingSummary;
     QList<engine::FragmentedFile> m_incoming;
+    qsizetype m_incomingBytes = 0;  // counted as kFileListBytes says
+    bool m_incomingIsHeap = false;  // least bad first, once at the limit
+    quint64 m_incomingUnlisted = 0;
     DriveMap m_incomingMap;
 };
 

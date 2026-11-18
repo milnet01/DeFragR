@@ -28,6 +28,19 @@ double rounded(double value, int decimals)
     return std::round(value * scale) / scale;
 }
 
+// S3's order: the most pieces first; of two in as many pieces, the bigger.
+bool worse(const FragmentedFile &a, const FragmentedFile &b)
+{
+    if (a.extents != b.extents)
+        return a.extents > b.extents;
+    return a.sizeBlocks > b.sizeBlocks;
+}
+
+qsizetype bytesOf(const FragmentedFile &file)
+{
+    return file.path.size() + Report::kFileEntryBytes;
+}
+
 // With no trailing zeros: "2.1", "100".
 QString shortest(double value)
 {
@@ -112,8 +125,18 @@ QString progressLine(quint64 names, quint64 estimate)
         .arg(QLocale().toString(names), QLocale().toString(estimate), percentText(percent));
 }
 
-Report::Report(QString launcher, QObject *parent)
-    : QAbstractTableModel(parent), m_engine(std::move(launcher))
+QString filesHeading(quint64 unlisted)
+{
+    if (unlisted == 0)
+        return Report::tr("Fragmented files, worst first:");
+    //: %1 is a count of files, more than zero.
+    return Report::tr("Fragmented files, worst first. To save memory, the %1 least "
+                      "fragmented file(s) are not listed:", nullptr, pluralOf(unlisted))
+        .arg(QLocale().toString(unlisted));
+}
+
+Report::Report(QString launcher, qsizetype listBytes, QObject *parent)
+    : QAbstractTableModel(parent), m_engine(std::move(launcher)), m_listBytes(listBytes)
 {
     connect(&m_engine, &EngineProcess::recordsReceived, this, &Report::collect);
     connect(&m_engine, &EngineProcess::ended, this, &Report::runEnded);
@@ -128,18 +151,22 @@ void Report::run(const QByteArray &mountPoint)
     m_incomingBlockSize = 0;
     m_incomingSummary = {};
     m_incoming.clear();
+    m_incomingBytes = 0;
+    m_incomingIsHeap = false;
+    m_incomingUnlisted = 0;
     m_incomingMap.clear();
     m_engine.start(CommandReport, {EngineProcess::pathArgument(mountPoint)});
 }
 
 void Report::collect(const QList<Record> &records)
 {
-    const qsizetype before = m_incoming.size();
+    const FragmentedFile *latest = nullptr;
     std::optional<ReportProgress> progress;
     for (const Record &record : records) {
-        if (const auto *file = std::get_if<FragmentedFile>(&record))
-            m_incoming.append(*file);
-        else if (const auto *latest = std::get_if<ReportProgress>(&record))
+        if (const auto *file = std::get_if<FragmentedFile>(&record)) {
+            keep(*file);
+            latest = file;
+        } else if (const auto *latest = std::get_if<ReportProgress>(&record))
             progress = *latest;
         else if (const auto *runs = std::get_if<MapRuns>(&record))
             m_incomingMap.add(*runs);
@@ -148,10 +175,30 @@ void Report::collect(const QList<Record> &records)
         else if (const auto *hello = std::get_if<Hello>(&record))
             m_incomingBlockSize = hello->blockSize;
     }
-    if (m_incoming.size() > before)
-        emit found(quint64(m_incoming.size()), m_incoming.last().path);
+    if (latest)
+        emit found(quint64(m_incoming.size()) + m_incomingUnlisted, latest->path);
     if (progress)
         emit progressed(progress->names, progress->estimate);
+}
+
+// Lists the file. At the limit, the list becomes a heap with its least
+// bad file on top, and drops that file until the list fits again.
+void Report::keep(const FragmentedFile &file)
+{
+    m_incoming.append(file);
+    m_incomingBytes += bytesOf(file);
+    if (m_incomingIsHeap) {
+        std::ranges::push_heap(m_incoming, worse);
+    } else if (m_incomingBytes > m_listBytes) {
+        std::ranges::make_heap(m_incoming, worse);
+        m_incomingIsHeap = true;
+    }
+    while (m_incomingBytes > m_listBytes && !m_incoming.isEmpty()) {
+        std::ranges::pop_heap(m_incoming, worse);
+        m_incomingBytes -= bytesOf(m_incoming.last());
+        m_incoming.removeLast();
+        ++m_incomingUnlisted;
+    }
 }
 
 void Report::runEnded(const RunOutcome &outcome)
@@ -160,19 +207,21 @@ void Report::runEnded(const RunOutcome &outcome)
     if (!problem.what.isEmpty()) {
         // A broken run's figures are never shown: a message, never a guess.
         m_incoming.clear();
+        m_incomingBytes = 0;
+        m_incomingIsHeap = false;
+        m_incomingUnlisted = 0;
         m_incomingMap.clear();
         emit failed(problem);
         return;
     }
-    std::ranges::stable_sort(m_incoming, [](const FragmentedFile &a, const FragmentedFile &b) {
-        if (a.extents != b.extents)
-            return a.extents > b.extents;
-        return a.sizeBlocks > b.sizeBlocks;
-    });
+    std::ranges::stable_sort(m_incoming, worse);
     beginResetModel();
     m_blockSize = m_incomingBlockSize;
     m_summary = m_incomingSummary;
     m_files = std::exchange(m_incoming, {});
+    m_unlisted = std::exchange(m_incomingUnlisted, 0);
+    m_incomingBytes = 0;
+    m_incomingIsHeap = false;
     m_map = std::exchange(m_incomingMap, {});
     endResetModel();
     emit loaded();
@@ -185,6 +234,7 @@ void Report::clear()
     m_blockSize = 0;
     m_summary = {};
     m_files.clear();
+    m_unlisted = 0;
     m_map.clear();
     endResetModel();
 }

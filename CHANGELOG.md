@@ -24,6 +24,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - Another user on the same computer can no longer stall a report, stop
   the drives being listed, or make a report read only part of a drive
   (DFR-0073).
+- A file or drive name can no longer change how the window shows text:
+  not through a tooltip, and not with hidden characters that reverse the
+  reading direction, which now show as codes such as [U+202E]. A report's
+  memory is capped, so a drive crowded with fragmented files cannot use
+  up the computer's memory; past the cap, the list keeps the worst files
+  and says how many it left out (DFR-0074).
 
 ### Added
 - A "Refresh drives" button lists the drives again, and the window says

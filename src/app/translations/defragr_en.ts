@@ -41,5 +41,13 @@
             <numerusform>Checked %1 of about %2 files and folders (%3).</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Fragmented files, worst first. To save memory, the %1 least fragmented file(s) are not listed:</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation>
+            <numerusform>Fragmented files, worst first. To save memory, the %1 least fragmented file is not listed:</numerusform>
+            <numerusform>Fragmented files, worst first. To save memory, the %1 least fragmented files are not listed:</numerusform>
+        </translation>
+    </message>
 </context>
 </TS>

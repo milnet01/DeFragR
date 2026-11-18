@@ -47,7 +47,7 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     m_mapKey = mapKey(theme);
     m_map = new DriveMapView(theme);
 
-    m_filesHeading = new QLabel(tr("Fragmented files, worst first:"));
+    m_filesHeading = new QLabel(model::filesHeading(0));
 
     m_table = readOnlyTable(&m_report);
 
@@ -96,6 +96,7 @@ void ReportView::start(const QByteArray &mountPoint)
 void ReportView::showReport()
 {
     m_figures->setText(model::summaryLines(m_report.summary()).join(QLatin1Char('\n')));
+    m_filesHeading->setText(model::filesHeading(m_report.unlisted()));
     m_map->showMap(&m_report.map());
     setRunning(false);
 }
@@ -131,7 +132,9 @@ void ReportView::showLatestFound()
     //: %1 is the path of the file found most recently.
     const QString latest = tr("Latest: %1").arg(model::messages::path(m_latestPath));
     m_latest->setText(fontMetrics().elidedText(latest, Qt::ElideMiddle, m_latest->width()));
-    m_latest->setToolTip(latest);
+    // Qt draws a tooltip as markup when it looks like markup. Escaped
+    // inside a paragraph, a file name shows as written.
+    m_latest->setToolTip(QStringLiteral("<p>%1</p>").arg(latest.toHtmlEscaped()));
 }
 
 void ReportView::showProgress(quint64 names, quint64 estimate)

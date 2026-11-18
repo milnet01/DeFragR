@@ -268,6 +268,19 @@
         </translation>
     </message>
     <message>
+        <source>Fragmented files, worst first:</source>
+        <translation>Pofragmentowane pliki, od najgorszego:</translation>
+    </message>
+    <message numerus="yes">
+        <source>Fragmented files, worst first. To save memory, the %1 least fragmented file(s) are not listed:</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Pieces</source>
         <translation>Części</translation>
     </message>
@@ -336,10 +349,6 @@
     <message>
         <source>Back to drives</source>
         <translation>Wróć do dysków</translation>
-    </message>
-    <message>
-        <source>Fragmented files, worst first:</source>
-        <translation>Pofragmentowane pliki, od najgorszego:</translation>
     </message>
     <message>
         <source>Report on %1</source>

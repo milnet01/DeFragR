@@ -263,6 +263,18 @@
         </translation>
     </message>
     <message>
+        <source>Fragmented files, worst first:</source>
+        <translation>Κατακερματισμένα αρχεία, τα χειρότερα πρώτα:</translation>
+    </message>
+    <message numerus="yes">
+        <source>Fragmented files, worst first. To save memory, the %1 least fragmented file(s) are not listed:</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Pieces</source>
         <translation>Κομμάτια</translation>
     </message>
@@ -331,10 +343,6 @@
     <message>
         <source>Back to drives</source>
         <translation>Πίσω στους δίσκους</translation>
-    </message>
-    <message>
-        <source>Fragmented files, worst first:</source>
-        <translation>Κατακερματισμένα αρχεία, τα χειρότερα πρώτα:</translation>
     </message>
     <message>
         <source>Report on %1</source>

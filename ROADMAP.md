@@ -453,7 +453,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Walk, Probe.
 
-- 📋 [DFR-0074] **Window: file names cannot spoof the screen, and a report's memory is bounded.**
+- ✅ [DFR-0074] **Window: file names cannot spoof the screen, and a report's memory is bounded.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - Two places where a file or drive name from the drive can change how
     the window shows text, against SECURITY.md's "a name that looks like
@@ -473,6 +473,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     DriveMap::cells can still re-bin on resize (S4). (MEDIUM.)
   Found by review-code lanes 03 and 04.
   Priority: 1 — names on a drive are untrusted (SECURITY.md).
+  Shipped 2026-11-18. Both name fixes have a test seen to fail first
+  (tst_mainwindow's tooltip check; tst_messages' direction-control and
+  fsType checks). The owner chose on 2026-11-18 to list every file up to
+  a memory ceiling, then say how many more were found: Report keeps the
+  worst files within 512 MiB (path plus 64 bytes each) and filesHeading
+  names the rest. DriveMap no longer keeps runs: it tallies blocks per
+  kind into at most 2^18 bins, 8 MiB, exact up to that many blocks, so no
+  per-run measurement on /mnt/Games was needed. tst_report and
+  tst_drivemap's new checks failed before the change (3 rows; 64 MB held).
   **Layman:** A file's name can never disguise itself or scramble what the screen says, and a huge drive cannot use up the computer's memory.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.

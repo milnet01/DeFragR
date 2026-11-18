@@ -22,8 +22,13 @@ namespace messages {
 
 // A path as the window shows it, marked to read left to right. In a
 // right-to-left window an unmarked "/mnt/Games" shows as "mnt/Games/".
+// A character in it that steers text direction shows as its code, such
+// as [U+202E], so a name cannot reorder the sentence around it.
 QString path(const QString &path);
 QString path(const QByteArray &path);  // decoded with QFile::decodeName
+
+// A filesystem's name, shown as a path is: FUSE lets anyone choose one.
+QString fsType(const QByteArray &fsType);
 
 // DRIVE.media, as a column entry: "SSD", "Spinning drive" or "Unknown".
 QString media(quint8 media);

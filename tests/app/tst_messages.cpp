@@ -118,6 +118,23 @@ private slots:
             QStringLiteral(u"\u2066/opt/defragr/defragr-engine\u2069")));
     }
 
+    // DFR-0074: a name from the drive cannot reorder the sentence around
+    // it. Each direction control in it shows as a visible code, so only
+    // the isolate path() adds is real.
+    void pathShowsDirectionControls()
+    {
+        const QString shown = messages::path(QStringLiteral(u"a\u2069\u202Eb\u200Fc\u061C"));
+        QCOMPARE(shown, QStringLiteral(u"\u2066a[U+2069][U+202E]b[U+200F]c[U+061C]\u2069"));
+    }
+
+    // DFR-0074: a filesystem's name is anybody's to choose (a FUSE
+    // subtype), so it is shown as a path is.
+    void fsTypeShowsAsAPath()
+    {
+        QCOMPARE(messages::fsType(QByteArrayLiteral("fuse.\xE2\x80\xAEx")),
+                 QStringLiteral(u"\u2066fuse.[U+202E]x\u2069"));
+    }
+
     // A failing call's errno is shown as words, never as its number.
     void errnoIsWords()
     {

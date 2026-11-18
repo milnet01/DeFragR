@@ -77,14 +77,35 @@ Message forResult(const Finished &finished)
 
 QString path(const QString &path)
 {
+    // A name holding its own POP DIRECTIONAL ISOLATE could end the isolate
+    // early, and a RIGHT-TO-LEFT OVERRIDE after it reorder the sentence.
+    // So every character that steers text direction shows as its code.
+    QString shown;
+    shown.reserve(path.size() + 2);
     // LEFT-TO-RIGHT ISOLATE and POP DIRECTIONAL ISOLATE: the path reads
     // left to right inside any sentence, and leaves the sentence alone.
-    return QChar(0x2066) + path + QChar(0x2069);
+    shown += QChar(0x2066);
+    for (const QChar c : path) {
+        const char16_t u = c.unicode();
+        const bool steers = u == 0x061C || u == 0x200E || u == 0x200F
+                            || (u >= 0x202A && u <= 0x202E) || (u >= 0x2066 && u <= 0x2069);
+        if (steers)
+            shown += QStringLiteral("[U+%1]").arg(uint(u), 4, 16, QLatin1Char('0')).toUpper();
+        else
+            shown += c;
+    }
+    shown += QChar(0x2069);
+    return shown;
 }
 
 QString path(const QByteArray &path)
 {
     return messages::path(QFile::decodeName(path));
+}
+
+QString fsType(const QByteArray &fsType)
+{
+    return path(fsType);
 }
 
 QString media(quint8 media)
@@ -121,7 +142,7 @@ QString whyNoDefrag(const Drive &drive)
         //: %1 is a filesystem's name, such as btrfs. Keep "ext4" as it is.
         return Tr::tr("This drive uses %1. DeFragR defrags ext4 drives only, "
                       "but it can still report on this one.")
-            .arg(QFile::decodeName(drive.fsType));
+            .arg(fsType(drive.fsType));
     case ReasonReadOnly:
         return Tr::tr("This drive is read-only, so nothing on it can be moved. "
                       "DeFragR can still report on it.");

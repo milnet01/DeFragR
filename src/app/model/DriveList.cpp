@@ -1,6 +1,5 @@
 #include "model/DriveList.h"
 
-#include <QFile>
 #include <QLocale>
 
 #include <utility>
@@ -93,7 +92,7 @@ QVariant DriveList::data(const QModelIndex &index, int role) const
     case ColumnSize:
         return QLocale().formattedDataSize(qint64(drive.totalBlocks * drive.blockSize));
     case ColumnFileSystem:
-        return QFile::decodeName(drive.fsType);
+        return messages::fsType(drive.fsType);
     case ColumnMedia:
         return messages::media(drive.media);
     case ColumnActions:

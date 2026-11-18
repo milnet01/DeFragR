@@ -113,7 +113,7 @@ private slots:
         // DFR-0069: marked left to right, so a right-to-left window keeps its slashes.
         QCOMPARE(cell(DriveList::ColumnDrive), QStringLiteral(u"\u2066/mnt/Games\u2069"));
         QCOMPARE(cell(DriveList::ColumnSize), QLocale().formattedDataSize(4096000));
-        QCOMPARE(cell(DriveList::ColumnFileSystem), QStringLiteral("ext4"));
+        QCOMPARE(cell(DriveList::ColumnFileSystem), QStringLiteral(u"\u2066ext4\u2069"));
         QCOMPARE(cell(DriveList::ColumnMedia), messages::media(MediaSpinning));
         QCOMPARE(cell(DriveList::ColumnActions), messages::verdict(VerdictReportAndDefrag));
     }
