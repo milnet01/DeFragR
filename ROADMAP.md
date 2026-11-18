@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=89 -->
+<!-- ants-roadmap-id-high-water: DFR=90 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1147,6 +1147,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: perf.
   Source: code-quality-review-2026-11-18.
   Lanes: Map view, Theme.
+
+- 📋 [DFR-0090] **Build optimised by default when no build type is given.**
+  Nothing in the tree sets CMAKE_BUILD_TYPE (searched 2026-11-18), so a
+  plain `cmake -S . -B build` compiles with no optimisation. DFR-0088's
+  timings used RelWithDebInfo; the default build is slower than what was
+  measured. Change: in the top CMakeLists.txt, default an unset build type
+  to RelWithDebInfo on single-config generators, leaving a packager's
+  choice alone. Decide whether local-ci.sh's build/ci keeps its own type.
+  Priority: 4.
+  **Layman:** Make a copy built from source run at full speed without the builder having to ask for it.
+  Kind: fix.
+  Source: dfr-0088-session-2026-11-18.
+  Lanes: Build.
 
 - 📋 [DFR-0015] **Release 0.2.0.**
   **Layman:** Publishes the version that shows the drive map.
