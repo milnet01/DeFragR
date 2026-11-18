@@ -63,13 +63,16 @@ quint64 deviceKey(quint32 major, quint32 minor)
 }
 
 // Each mounted block device, by device number, with the name Qt gives it.
+// A squashfs mount is left out, as probe.asm's rules leave it out: it is a
+// snap package's image, never a drive.
 QHash<quint64, QByteArray> mountedBlockDevices()
 {
     QHash<quint64, QByteArray> devices;
     for (const QStorageInfo &volume : QStorageInfo::mountedVolumes()) {
         const QByteArray device = volume.device();
         struct stat node {};
-        if (!device.startsWith("/dev/") || stat(device.constData(), &node) != 0
+        if (volume.fileSystemType() == "squashfs" || !device.startsWith("/dev/")
+            || stat(device.constData(), &node) != 0
             || !S_ISBLK(node.st_mode))
             continue;
         devices.insert(deviceKey(major(node.st_rdev), minor(node.st_rdev)), device);

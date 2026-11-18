@@ -1726,7 +1726,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-18.
   Lanes: Build.
 
-- 📋 [DFR-0094] **tst_probe expects drives the probe is meant to leave out.**
+- ✅ [DFR-0094] **tst_probe expects drives the probe is meant to leave out.**
   listsEveryDrive requires every mounted block device that Qt sees to be
   in the probe's list. The probe deliberately leaves some out, such as
   snap disk images (DFR-0056). CI run 44320090496 on the 0.2.1 commit
@@ -1734,6 +1734,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   no loop0 in its log. Fix: compare against the devices the probe's rules
   admit, or exclude what § 4.7's rules exclude, so the test checks the
   rules rather than the runner.
+  Done 2026-11-18: mountedBlockDevices skips squashfs, as
+  probe.asm's rules do. Seen red first on this PC with
+  tests/image/snap.squashfs mounted (/dev/loop0 missing, as on CI), then
+  green with it still mounted; local gate green. No CHANGELOG entry: a
+  test-only change.
   **Layman:** A test fails on a machine with a snap package mounted, though DeFragR is right to skip it.
   Kind: test.
   Source: ci-run-44320090496-2026-11-18.
