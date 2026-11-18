@@ -25,6 +25,11 @@ int percentChecked(quint64 names, quint64 estimate);
 // The same as a sentence for the running report.
 QString progressLine(quint64 names, quint64 estimate);
 
+// How long a report has run, such as "2 min 5 s".
+QString elapsedText(qint64 seconds);
+// While a report runs: how many fragmented files it has found.
+QString foundLine(quint64 count);
+
 // The heading above the file list, which says how many files the list
 // left out to keep within its memory limit.
 QString filesHeading(quint64 unlisted);

@@ -7,7 +7,6 @@
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLocale>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTableView>
@@ -127,8 +126,7 @@ void ReportView::showLatestFound()
     if (m_foundShown)
         return;
     m_foundShown = true;
-    m_found->setText(tr("Fragmented files found so far: %1")
-                         .arg(QLocale().toString(m_foundCount)));
+    m_found->setText(model::foundLine(m_foundCount));
     //: %1 is the path of the file found most recently.
     const QString latest = tr("Latest: %1").arg(model::messages::path(m_latestPath));
     m_latest->setText(fontMetrics().elidedText(latest, Qt::ElideMiddle, m_latest->width()));
@@ -150,19 +148,8 @@ void ReportView::showProgress(quint64 names, quint64 estimate)
 
 void ReportView::showElapsed()
 {
-    const qint64 seconds = m_clock.elapsed() / 1000;
-    QString text;
-    if (seconds >= 3600)
-        //: Hours and minutes, short.
-        text = tr("%1 h %2 min").arg(seconds / 3600).arg(seconds % 3600 / 60);
-    else if (seconds >= 60)
-        //: Minutes and seconds, short.
-        text = tr("%1 min %2 s").arg(seconds / 60).arg(seconds % 60);
-    else
-        //: Seconds, short.
-        text = tr("%1 s").arg(seconds);
     //: %1 is a time, such as "2 min 5 s".
-    m_elapsed->setText(tr("Running for %1").arg(text));
+    m_elapsed->setText(tr("Running for %1").arg(model::elapsedText(m_clock.elapsed() / 1000)));
 }
 
 void ReportView::setRunning(bool running)

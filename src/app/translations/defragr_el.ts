@@ -221,6 +221,11 @@
         <translation>κάτω από %1</translation>
     </message>
     <message>
+        <source>over %1</source>
+        <extracomment>%1 is the largest percentage shown short of all, 99.9%.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR found no files on this drive.</source>
         <translation>Το DeFragR δεν βρήκε αρχεία σε αυτόν τον δίσκο.</translation>
     </message>
@@ -269,6 +274,28 @@
         <translation>
             <numerusform>Αρχεία και φάκελοι που ελέγχθηκαν: %1 από περίπου %2 (%3).</numerusform>
             <numerusform>Αρχεία και φάκελοι που ελέγχθηκαν: %1 από περίπου %2 (%3).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 ώρ. %2 λεπ.</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 λεπ. %2 δευτ.</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 δευτ.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>Κατακερματισμένα αρχεία που βρέθηκαν μέχρι τώρα: %1</numerusform>
+            <numerusform>Κατακερματισμένα αρχεία που βρέθηκαν μέχρι τώρα: %1</numerusform>
         </translation>
     </message>
     <message>
@@ -371,28 +398,9 @@
         <translation>Δεν βρέθηκαν ακόμα κατακερματισμένα αρχεία.</translation>
     </message>
     <message>
-        <source>Fragmented files found so far: %1</source>
-        <translation>Κατακερματισμένα αρχεία που βρέθηκαν μέχρι τώρα: %1</translation>
-    </message>
-    <message>
         <source>Latest: %1</source>
         <extracomment>%1 is the path of the file found most recently.</extracomment>
         <translation>Τελευταίο: %1</translation>
-    </message>
-    <message>
-        <source>%1 h %2 min</source>
-        <extracomment>Hours and minutes, short.</extracomment>
-        <translation>%1 ώρ. %2 λεπ.</translation>
-    </message>
-    <message>
-        <source>%1 min %2 s</source>
-        <extracomment>Minutes and seconds, short.</extracomment>
-        <translation>%1 λεπ. %2 δευτ.</translation>
-    </message>
-    <message>
-        <source>%1 s</source>
-        <extracomment>Seconds, short.</extracomment>
-        <translation>%1 δευτ.</translation>
     </message>
     <message>
         <source>Running for %1</source>

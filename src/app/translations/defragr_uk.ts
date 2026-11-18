@@ -221,6 +221,11 @@
         <translation>менше %1</translation>
     </message>
     <message>
+        <source>over %1</source>
+        <extracomment>%1 is the largest percentage shown short of all, 99.9%.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR found no files on this drive.</source>
         <translation>DeFragR не знайшов файлів на цьому диску.</translation>
     </message>
@@ -274,6 +279,29 @@
             <numerusform>Перевірено файлів і тек: %1 з приблизно %2 (%3).</numerusform>
             <numerusform>Перевірено файлів і тек: %1 з приблизно %2 (%3).</numerusform>
             <numerusform>Перевірено файлів і тек: %1 з приблизно %2 (%3).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 год %2 хв</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 хв %2 с</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 с</translation>
+    </message>
+    <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>Знайдено фрагментованих файлів: %1</numerusform>
+            <numerusform>Знайдено фрагментованих файлів: %1</numerusform>
+            <numerusform>Знайдено фрагментованих файлів: %1</numerusform>
         </translation>
     </message>
     <message>
@@ -377,28 +405,9 @@
         <translation>Фрагментованих файлів поки не знайдено.</translation>
     </message>
     <message>
-        <source>Fragmented files found so far: %1</source>
-        <translation>Знайдено фрагментованих файлів: %1</translation>
-    </message>
-    <message>
         <source>Latest: %1</source>
         <extracomment>%1 is the path of the file found most recently.</extracomment>
         <translation>Останній: %1</translation>
-    </message>
-    <message>
-        <source>%1 h %2 min</source>
-        <extracomment>Hours and minutes, short.</extracomment>
-        <translation>%1 год %2 хв</translation>
-    </message>
-    <message>
-        <source>%1 min %2 s</source>
-        <extracomment>Minutes and seconds, short.</extracomment>
-        <translation>%1 хв %2 с</translation>
-    </message>
-    <message>
-        <source>%1 s</source>
-        <extracomment>Seconds, short.</extracomment>
-        <translation>%1 с</translation>
     </message>
     <message>
         <source>Running for %1</source>

@@ -62,6 +62,10 @@ QString percentFragmented(quint64 fragmented, quint64 files)
     if (percent < 0.05)
         //: %1 is the smallest percentage shown, 0.1%.
         return Report::tr("under %1").arg(percentText(0.1));
+    // Nor is one with a few whole files among millions at 100%.
+    if (fragmented < files && rounded(percent, 1) >= 100)
+        //: %1 is the largest percentage shown short of all, 99.9%.
+        return Report::tr("over %1").arg(percentText(99.9));
     return percentText(rounded(percent, 1));
 }
 
@@ -123,6 +127,26 @@ QString progressLine(quint64 names, quint64 estimate)
     return Report::tr("Checked %1 of about %2 file(s) and folder(s) (%3).", nullptr,
                       pluralOf(estimate))
         .arg(QLocale().toString(names), QLocale().toString(estimate), percentText(percent));
+}
+
+QString elapsedText(qint64 seconds)
+{
+    // QString::arg(int) writes ASCII digits, so each number is QLocale's.
+    const auto number = [](qint64 n) { return QLocale().toString(n); };
+    if (seconds >= 3600)
+        //: Hours and minutes, short.
+        return Report::tr("%1 h %2 min").arg(number(seconds / 3600), number(seconds % 3600 / 60));
+    if (seconds >= 60)
+        //: Minutes and seconds, short.
+        return Report::tr("%1 min %2 s").arg(number(seconds / 60), number(seconds % 60));
+    //: Seconds, short.
+    return Report::tr("%1 s").arg(number(seconds));
+}
+
+QString foundLine(quint64 count)
+{
+    return Report::tr("Found %1 fragmented file(s) so far.", nullptr, pluralOf(count))
+        .arg(QLocale().toString(count));
 }
 
 QString filesHeading(quint64 unlisted)

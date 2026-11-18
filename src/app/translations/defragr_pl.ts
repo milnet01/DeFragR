@@ -221,6 +221,11 @@
         <translation>poniżej %1</translation>
     </message>
     <message>
+        <source>over %1</source>
+        <extracomment>%1 is the largest percentage shown short of all, 99.9%.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR found no files on this drive.</source>
         <translation>DeFragR nie znalazł na tym dysku żadnych plików.</translation>
     </message>
@@ -274,6 +279,29 @@
             <numerusform>Sprawdzono %1 z około %2 pliku lub katalogu (%3).</numerusform>
             <numerusform>Sprawdzono %1 z około %2 plików i katalogów (%3).</numerusform>
             <numerusform>Sprawdzono %1 z około %2 plików i katalogów (%3).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 godz. %2 min</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 min %2 s</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 s</translation>
+    </message>
+    <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>Pofragmentowane pliki znalezione do tej pory: %1</numerusform>
+            <numerusform>Pofragmentowane pliki znalezione do tej pory: %1</numerusform>
+            <numerusform>Pofragmentowane pliki znalezione do tej pory: %1</numerusform>
         </translation>
     </message>
     <message>
@@ -377,28 +405,9 @@
         <translation>Na razie nie znaleziono pofragmentowanych plików.</translation>
     </message>
     <message>
-        <source>Fragmented files found so far: %1</source>
-        <translation>Pofragmentowane pliki znalezione do tej pory: %1</translation>
-    </message>
-    <message>
         <source>Latest: %1</source>
         <extracomment>%1 is the path of the file found most recently.</extracomment>
         <translation>Ostatni: %1</translation>
-    </message>
-    <message>
-        <source>%1 h %2 min</source>
-        <extracomment>Hours and minutes, short.</extracomment>
-        <translation>%1 godz. %2 min</translation>
-    </message>
-    <message>
-        <source>%1 min %2 s</source>
-        <extracomment>Minutes and seconds, short.</extracomment>
-        <translation>%1 min %2 s</translation>
-    </message>
-    <message>
-        <source>%1 s</source>
-        <extracomment>Seconds, short.</extracomment>
-        <translation>%1 s</translation>
     </message>
     <message>
         <source>Running for %1</source>

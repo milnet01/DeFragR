@@ -221,6 +221,11 @@
         <translation>低於 %1</translation>
     </message>
     <message>
+        <source>over %1</source>
+        <extracomment>%1 is the largest percentage shown short of all, 99.9%.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR found no files on this drive.</source>
         <translation>DeFragR 在此磁碟上找不到任何檔案。</translation>
     </message>
@@ -264,6 +269,27 @@
         <extracomment>%3 is a percentage, such as 50%.</extracomment>
         <translation>
             <numerusform>已檢查約 %2 個檔案和資料夾中的 %1 個（%3）。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 小時 %2 分</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 分 %2 秒</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 秒</translation>
+    </message>
+    <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>目前發現的已片段化檔案：%1</numerusform>
         </translation>
     </message>
     <message>
@@ -365,28 +391,9 @@
         <translation>尚未發現已片段化的檔案。</translation>
     </message>
     <message>
-        <source>Fragmented files found so far: %1</source>
-        <translation>目前發現的已片段化檔案：%1</translation>
-    </message>
-    <message>
         <source>Latest: %1</source>
         <extracomment>%1 is the path of the file found most recently.</extracomment>
         <translation>最新：%1</translation>
-    </message>
-    <message>
-        <source>%1 h %2 min</source>
-        <extracomment>Hours and minutes, short.</extracomment>
-        <translation>%1 小時 %2 分</translation>
-    </message>
-    <message>
-        <source>%1 min %2 s</source>
-        <extracomment>Minutes and seconds, short.</extracomment>
-        <translation>%1 分 %2 秒</translation>
-    </message>
-    <message>
-        <source>%1 s</source>
-        <extracomment>Seconds, short.</extracomment>
-        <translation>%1 秒</translation>
     </message>
     <message>
         <source>Running for %1</source>

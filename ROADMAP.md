@@ -719,7 +719,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Map view.
 
-- 📋 [DFR-0080] **Window: numbers and counts read correctly in every language.**
+- ✅ [DFR-0080] **Window: numbers and counts read correctly in every language.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `src/app/ui/ReportView.cpp:154-160` — `tr("%1 min %2 s").arg(seconds
     / 60)…` uses QString::arg(int), which writes C-locale digits, against
@@ -736,6 +736,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     reaches 100.
   Found by review-code lane 04 and review-readability lane 03.
   Priority: 3.
+  Shipped 2026-11-18. The elapsed time and found count move from ReportView
+  into model::elapsedText and model::foundLine, so tst_report can check
+  them. Times use QLocale's digits (an Egyptian Arabic locale gave ASCII
+  digits before). The count is a plural sentence, "Found 1 fragmented
+  file so far."; each language's old label-style translation fits any
+  count, so it fills every plural form. A share that rounds to 100% while
+  some files are whole reads "over 99.9%" (it read 100% before). The
+  moved time strings keep their finished translations; "over %1" is
+  English-only until translated.
   **Layman:** Times, counts and percentages read naturally in each language, and 100% shows only when it really is all.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.

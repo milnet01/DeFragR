@@ -263,6 +263,12 @@ private slots:
             << QStringList{QStringLiteral("2 of 5,000,000 files checked are fragmented (under "
                                           "0.1%)."),
                            QStringLiteral("On average a file is in 1 piece.")};
+        // Nearly all is not all: 100% is kept for a drive with no whole file.
+        QTest::newRow("nearly all")
+            << summary(1000000, 999999, 2000000)
+            << QStringList{QStringLiteral("999,999 of 1,000,000 files checked are fragmented "
+                                          "(over 99.9%)."),
+                           QStringLiteral("On average a file is in 2 pieces.")};
         QTest::newRow("empty drive")
             << summary(0, 0, 0)
             << QStringList{QStringLiteral("DeFragR found no files on this drive.")};
@@ -273,6 +279,22 @@ private slots:
         QFETCH(ReportSummary, summary);
         QFETCH(QStringList, lines);
         QCOMPARE(summaryLines(summary), lines);
+    }
+
+    // DFR-0080: times are written in the user's own digits, and a count
+    // takes the plural form that fits it.
+    void elapsedAndFoundWording()
+    {
+        QCOMPARE(elapsedText(5), QStringLiteral("5 s"));
+        QCOMPARE(elapsedText(125), QStringLiteral("2 min 5 s"));
+        QCOMPARE(elapsedText(3725), QStringLiteral("1 h 2 min"));
+        QCOMPARE(foundLine(1), QStringLiteral("Found 1 fragmented file so far."));
+        QCOMPARE(foundLine(1234), QStringLiteral("Found 1,234 fragmented files so far."));
+        // Eastern Arabic digits, as an Egyptian Arabic desktop writes them.
+        QLocale::setDefault(QLocale(QLocale::Arabic, QLocale::Egypt));
+        const QString arabic = elapsedText(125);
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        QCOMPARE(arabic, QStringLiteral(u"\u0662 min \u0665 s"));
     }
 
     void progressWording_data()

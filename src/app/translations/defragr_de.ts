@@ -221,6 +221,11 @@
         <translation>unter %1</translation>
     </message>
     <message>
+        <source>over %1</source>
+        <extracomment>%1 is the largest percentage shown short of all, 99.9%.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR found no files on this drive.</source>
         <translation>DeFragR hat auf diesem Laufwerk keine Dateien gefunden.</translation>
     </message>
@@ -269,6 +274,28 @@
         <translation>
             <numerusform>%1 von etwa %2 Datei oder Ordner geprüft (%3).</numerusform>
             <numerusform>%1 von etwa %2 Dateien und Ordnern geprüft (%3).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 Std. %2 Min.</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 Min. %2 Sek.</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 Sek.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>Bisher gefundene fragmentierte Dateien: %1</numerusform>
+            <numerusform>Bisher gefundene fragmentierte Dateien: %1</numerusform>
         </translation>
     </message>
     <message>
@@ -371,28 +398,9 @@
         <translation>Noch keine fragmentierten Dateien gefunden.</translation>
     </message>
     <message>
-        <source>Fragmented files found so far: %1</source>
-        <translation>Bisher gefundene fragmentierte Dateien: %1</translation>
-    </message>
-    <message>
         <source>Latest: %1</source>
         <extracomment>%1 is the path of the file found most recently.</extracomment>
         <translation>Zuletzt: %1</translation>
-    </message>
-    <message>
-        <source>%1 h %2 min</source>
-        <extracomment>Hours and minutes, short.</extracomment>
-        <translation>%1 Std. %2 Min.</translation>
-    </message>
-    <message>
-        <source>%1 min %2 s</source>
-        <extracomment>Minutes and seconds, short.</extracomment>
-        <translation>%1 Min. %2 Sek.</translation>
-    </message>
-    <message>
-        <source>%1 s</source>
-        <extracomment>Seconds, short.</extracomment>
-        <translation>%1 Sek.</translation>
     </message>
     <message>
         <source>Running for %1</source>

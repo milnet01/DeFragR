@@ -42,6 +42,13 @@
         </translation>
     </message>
     <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>Found %1 fragmented file so far.</numerusform>
+            <numerusform>Found %1 fragmented files so far.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>Fragmented files, worst first. To save memory, the %1 least fragmented file(s) are not listed:</source>
         <extracomment>%1 is a count of files, more than zero.</extracomment>
         <translation>

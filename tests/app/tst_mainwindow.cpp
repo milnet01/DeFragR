@@ -219,7 +219,7 @@ private slots:
         // What it has found shows on the view's next 1 s tick (DFR-0061),
         // well inside the engine's 2 s wait.
         QVERIFY2(QTest::qWaitFor(
-                     [&] { return label(reportView(), QStringLiteral("Fragmented files found so far: 1")); },
+                     [&] { return label(reportView(), QStringLiteral("Found 1 fragmented file so far.")); },
                      1500),
                  "the found file was not shown within a tick");
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Report on")), kMarkupDrive));

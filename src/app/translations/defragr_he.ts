@@ -221,6 +221,11 @@
         <translation>פחות מ־%1</translation>
     </message>
     <message>
+        <source>over %1</source>
+        <extracomment>%1 is the largest percentage shown short of all, 99.9%.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR found no files on this drive.</source>
         <translation>DeFragR לא מצא קבצים בכונן הזה.</translation>
     </message>
@@ -269,6 +274,28 @@
         <translation>
             <numerusform>קבצים ותיקיות שנבדקו: %1 מתוך כ־%2 (%3).</numerusform>
             <numerusform>קבצים ותיקיות שנבדקו: %1 מתוך כ־%2 (%3).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation>%1 שע׳ %2 דק׳</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <extracomment>Minutes and seconds, short.</extracomment>
+        <translation>%1 דק׳ %2 שנ׳</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <extracomment>Seconds, short.</extracomment>
+        <translation>%1 שנ׳</translation>
+    </message>
+    <message numerus="yes">
+        <source>Found %1 fragmented file(s) so far.</source>
+        <translation>
+            <numerusform>קבצים מקוטעים שנמצאו עד כה: %1</numerusform>
+            <numerusform>קבצים מקוטעים שנמצאו עד כה: %1</numerusform>
         </translation>
     </message>
     <message>
@@ -371,28 +398,9 @@
         <translation>עדיין לא נמצאו קבצים מקוטעים.</translation>
     </message>
     <message>
-        <source>Fragmented files found so far: %1</source>
-        <translation>קבצים מקוטעים שנמצאו עד כה: %1</translation>
-    </message>
-    <message>
         <source>Latest: %1</source>
         <extracomment>%1 is the path of the file found most recently.</extracomment>
         <translation>האחרון: %1</translation>
-    </message>
-    <message>
-        <source>%1 h %2 min</source>
-        <extracomment>Hours and minutes, short.</extracomment>
-        <translation>%1 שע׳ %2 דק׳</translation>
-    </message>
-    <message>
-        <source>%1 min %2 s</source>
-        <extracomment>Minutes and seconds, short.</extracomment>
-        <translation>%1 דק׳ %2 שנ׳</translation>
-    </message>
-    <message>
-        <source>%1 s</source>
-        <extracomment>Seconds, short.</extracomment>
-        <translation>%1 שנ׳</translation>
     </message>
     <message>
         <source>Running for %1</source>
