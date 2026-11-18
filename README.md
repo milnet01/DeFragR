@@ -3,7 +3,7 @@
 > A defragmenter for spinning ext4 drives on the Linux desktop, in a
 > window that shows the drive as a map.
 
-Version 0.1.0. [CHANGELOG.md](CHANGELOG.md) says what shipped;
+Version 0.2.0. [CHANGELOG.md](CHANGELOG.md) says what shipped;
 [ROADMAP.md](ROADMAP.md) says what comes next.
 
 ## Status

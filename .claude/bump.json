@@ -6,6 +6,11 @@
       "path": "CMakeLists.txt",
       "pattern": "VERSION {OLD}\n    DESCRIPTION",
       "replace": "VERSION {NEW}\n    DESCRIPTION"
+    },
+    {
+      "path": "README.md",
+      "pattern": "Version {OLD}. [CHANGELOG.md]",
+      "replace": "Version {NEW}. [CHANGELOG.md]"
     }
   ],
   "tag": "v{NEW}"

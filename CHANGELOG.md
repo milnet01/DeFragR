@@ -12,6 +12,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-18
+
+**Theme:** Drive map
+
 ### Security
 - A report refuses a folder that is not a real drive, such as a system
   area, a memory-only folder or a network share, instead of reading it
@@ -38,7 +42,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   Greek, Spanish, Portuguese (Brazil and Portugal), Chinese (Simplified
   and Traditional), Japanese, Russian, Polish, French or Ukrainian, with
   English otherwise. These are AI drafts not yet checked by native
-  speakers; corrections are welcome (DFR-0067).
+  speakers; corrections are welcome. A few of the newest messages still
+  show in English (part of DFR-0067).
 - Headings are a step larger than the rest of the text, and text is
   never smaller than 10 points, even on a desktop set smaller
   (DFR-0013).
