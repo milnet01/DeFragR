@@ -757,7 +757,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-perf-2026-11-16.
   Lanes: Engine link.
 
-- 📋 [DFR-0059] **Run the gate's tests in parallel, if it measures faster.**
+- ✅ [DFR-0059] **Run the gate's tests in parallel, if it measures faster.**
   local-ci.sh:183 runs ctest with no -j, so the three test-machine tests
   run one after another. Serial total 63.95 s, longest test 30.85 s
   (2026-11-16), so -j saves at most about 33 s, less once the 30 s wait
@@ -765,6 +765,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Measure ctest -j against serial, alternating, same nice/ionice. DFR-0037
   declined -j before the VM tests existed. Do after the tst_engineprocess
   item. Found by review-code --performance lane 03.
+  Done 2026-11-18: measured build/ci's ctest serial against -j4, alternating
+  three times each at nice 10 and idle I/O on 12 cores: serial 13.0 to
+  14.2 s, -j4 3.9 to 5.0 s, all green. local-ci.sh now runs ctest with
+  -j "$JOBS", the build's job count (half the cores locally, all in CI).
   **Layman:** Try running the pre-push tests side by side, and keep it only if it is really quicker.
   Kind: perf.
   Source: review-code-perf-2026-11-16.

@@ -193,7 +193,10 @@ step 'test'
 # The gate must boot the test machine: a host that cannot fails the vm_smoke
 # test here instead of skipping it, so a skip never reads as a pass.
 export DEFRAGR_VM_REQUIRED=1
-run test "${GENTLE[@]}" ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error
+# Side by side on the same jobs: measured 2026-11-18 on 12 cores, 4 at
+# once took 4 to 5 s against 13 to 14 s one at a time (DFR-0059).
+run test "${GENTLE[@]}" ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error \
+    -j "$JOBS"
 
 # ci-container.sh matches this pass line exactly; change both together.
 if (( CONFIGURED )); then
