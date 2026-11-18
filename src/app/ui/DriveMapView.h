@@ -89,6 +89,9 @@ private:
     int pitch() const;
     int columns() const;
     QRect cellRect(qsizetype index) const;
+    // Empties the painted cells unless they were painted at this size
+    // and ratio.
+    void keepPaintedFor(int side, qreal ratio);
     const QPixmap &tile(model::CellState state);
     const QPixmap &glow(model::CellState state);
 
@@ -101,7 +104,10 @@ private:
     QElapsedTimer m_elapsed;
     std::function<qint64()> m_now;
     QTimer m_frame;
-    // Each state's cell, painted once per size and pixel ratio.
+    // Each state's cell, painted once per size and pixel ratio: the ones
+    // held, m_paintedSide and m_paintedRatio.
+    int m_paintedSide = -1;
+    qreal m_paintedRatio = 0;
     std::array<QPixmap, 4> m_tiles;
     // Each state's cell at the peak of its glow, painted once per size and
     // pixel ratio.

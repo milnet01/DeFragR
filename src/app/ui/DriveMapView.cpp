@@ -8,6 +8,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QtMath>
 
 #include <algorithm>
 
@@ -17,10 +18,19 @@ namespace defragr::ui {
 
 namespace {
 
+// Device pixels for `side` at `ratio`, rounded up so the cell fits.
+QSize devicePixels(int side, qreal ratio)
+{
+    const int pixels = qCeil(side * ratio);
+    return {pixels, pixels};
+}
+
 QPixmap paintedCell(const Theme &theme, CellState state, int side, qreal ratio)
 {
-    QPixmap pixmap(QSize(side, side) * ratio);
+    QPixmap pixmap(devicePixels(side, ratio));
     pixmap.setDevicePixelRatio(ratio);
+    // Rounding up can leave device pixels past the cell; they show the map.
+    pixmap.fill(theme.mapBackground());
     QPainter painter(&pixmap);
     theme.paintCell(painter, QRect(0, 0, side, side), state);
     return pixmap;
@@ -33,7 +43,7 @@ QPixmap paintedCell(const Theme &theme, CellState state, int side, qreal ratio)
 QPixmap paintedGlow(const Theme &theme, CellState state, int side, qreal ratio)
 {
     const int across = 3 * side;
-    QPixmap pixmap(QSize(across, across) * ratio);
+    QPixmap pixmap(devicePixels(across, ratio));
     pixmap.setDevicePixelRatio(ratio);
     pixmap.fill(Qt::transparent);
     const bool dark = theme.mapBackground().lightness() < 128;
@@ -291,27 +301,60 @@ QRect DriveMapView::cellRect(qsizetype index) const
     return {x, int(index / across) * pitch(), side, side};
 }
 
+void DriveMapView::keepPaintedFor(int side, qreal ratio)
+{
+    // Compared as painted, not by the pixmaps' sizes: rounding to whole
+    // device pixels changes those, and every paint would paint them anew.
+    if (side == m_paintedSide && ratio == m_paintedRatio)
+        return;
+    m_tiles = {};
+    m_glows = {};
+    m_paintedSide = side;
+    m_paintedRatio = ratio;
+}
+
 const QPixmap &DriveMapView::tile(CellState state)
 {
+    keepPaintedFor(m_theme.cellSide(), devicePixelRatioF());
     QPixmap &pixmap = m_tiles[size_t(state)];
-    const qreal ratio = devicePixelRatioF();
-    const int side = m_theme.cellSide();
-    if (pixmap.isNull() || pixmap.devicePixelRatio() != ratio
-        || pixmap.deviceIndependentSize() != QSizeF(side, side))
-        pixmap = paintedCell(m_theme, state, side, ratio);
+    if (pixmap.isNull())
+        pixmap = paintedCell(m_theme, state, m_paintedSide, m_paintedRatio);
     return pixmap;
 }
 
 const QPixmap &DriveMapView::glow(CellState state)
 {
+    keepPaintedFor(m_theme.cellSide(), devicePixelRatioF());
     QPixmap &pixmap = m_glows[size_t(state)];
-    const qreal ratio = devicePixelRatioF();
-    const int side = m_theme.cellSide();
-    if (pixmap.isNull() || pixmap.devicePixelRatio() != ratio
-        || pixmap.deviceIndependentSize() != QSizeF(3 * side, 3 * side))
-        pixmap = paintedGlow(m_theme, state, side, ratio);
+    if (pixmap.isNull())
+        pixmap = paintedGlow(m_theme, state, m_paintedSide, m_paintedRatio);
     return pixmap;
 }
+
+namespace {
+
+// One pattern in the map's key, painted at every paint, so it stays sharp
+// on a screen of any scale, and when the window moves to another.
+class Swatch : public QWidget {
+public:
+    Swatch(const Theme &theme, CellState state) : m_theme(theme), m_state(state)
+    {
+        setFixedSize(theme.cellSide(), theme.cellSide());
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        m_theme.paintCell(painter, rect(), m_state);
+    }
+
+private:
+    const Theme &m_theme;
+    CellState m_state;
+};
+
+}  // namespace
 
 QWidget *mapKey(const Theme &theme, QWidget *parent)
 {
@@ -325,8 +368,7 @@ QWidget *mapKey(const Theme &theme, QWidget *parent)
         {CellState::Free, DriveMapView::tr("Free space")},
     };
     for (const auto &[state, name] : entries) {
-        auto *swatch = new QLabel;
-        swatch->setPixmap(paintedCell(theme, state, theme.cellSide(), key->devicePixelRatioF()));
+        auto *swatch = new Swatch(theme, state);
         auto *label = new QLabel(name);
         label->setBuddy(swatch);
         layout->addWidget(swatch);

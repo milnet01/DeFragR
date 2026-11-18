@@ -51,6 +51,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0014, DFR-0071).
 
 ### Fixed
+- On a screen scaled to a size such as 125% or 150%, the drive map no
+  longer redraws every block from scratch, and its key stays sharp
+  (DFR-0079).
 - A report on a drive that was moved onto another drive's folder is no
   longer refused, and a strange answer from the system about a file's
   pieces or the free space can no longer hang a report (DFR-0078).

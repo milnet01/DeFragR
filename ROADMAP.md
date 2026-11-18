@@ -685,7 +685,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Probe, Extents, Entry.
 
-- 📋 [DFR-0079] **Map view paints correctly and cheaply at fractional display scaling.**
+- ✅ [DFR-0079] **Map view paints correctly and cheaply at fractional display scaling.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `src/app/ui/DriveMapView.cpp:271-273` and `:282-284` — tile() and
     glow() test `deviceIndependentSize() != QSizeF(side, side)`, but
@@ -706,6 +706,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   before and after.
   Found by review-code lane 04 and review-readability lane 04.
   Priority: 2.
+  Shipped 2026-11-18. Cell and glow pixmaps are sized qCeil(side * ratio)
+  and cached on a stored (side, ratio) key; a cell's pixmap is filled with
+  the map background before its pattern. Measured offscreen with a
+  temporary counter and QT_SCALE_FACTOR: before, at 1.1 and 1.3, 40
+  pixmaps per paint (one per cell, every paint), and 4 once at 1, 1.25,
+  1.5 (the test font's side times those is whole); after, 4 once at all
+  five. The key's swatches paint their pattern at every paint, so they
+  stay sharp at any scale. Not checked on a real 150% display.
   **Layman:** On screens set to 125% or 150% size, the drive map stops redrawing every block from scratch, and its key stays sharp.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.
