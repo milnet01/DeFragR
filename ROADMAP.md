@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=94 -->
+<!-- ants-roadmap-id-high-water: DFR=95 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1738,6 +1738,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: test.
   Source: ci-run-44320090496-2026-11-18.
   Lanes: Window tests.
+
+- 📋 [DFR-0095] **The release recipe bumps the OBS packaging's version too.**
+  packaging/obs/ hard-codes the version in _service (revision and
+  versionformat), defragr.spec, PKGBUILD, defragr.dsc and
+  debian.changelog; .claude/bump.json lists none of them. Add them to its
+  files, add todos for the defragr.changes and debian.changelog entries,
+  and a step that uploads to OBS and waits for every repository to read
+  succeeded. Reset Arch's pkgrel per release.
+  **Layman:** Each new release reaches the OBS packages without anyone remembering to update them by hand.
+  Kind: chore.
+  Source: dfr-0092-session-2026-11-18.
+  Lanes: Packaging, Build.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 
