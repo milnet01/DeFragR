@@ -425,14 +425,11 @@ judge_line:
     test rax, rax
     js .not_a_drive
     mov [fs_len], rax
-    cmp rax, fs_squashfs_len
-    jne .not_squashfs
-    lea rdi, [fs_buf]
     lea rsi, [fs_squashfs]
     mov ecx, fs_squashfs_len
-    repe cmpsb
-    je .not_a_drive
-.not_squashfs:
+    call fs_type_is
+    test eax, eax
+    jnz .not_a_drive
 
     mov rdi, [fld_dev]
     mov rsi, [fld_dev + 8]
@@ -443,40 +440,14 @@ judge_line:
     jne .have_device
     ; Major 0 is no block device. btrfs shows it for every mount, so its
     ; source names the device; no other source is trusted (header).
-    cmp qword [fs_len], fs_btrfs_len
-    jne .not_a_drive
-    lea rdi, [fs_buf]
     lea rsi, [fs_btrfs]
     mov ecx, fs_btrfs_len
-    repe cmpsb
-    jne .not_a_drive
-    cmp byte [source_buf], '/'      ; a relative source is not a path
-    jne .not_a_drive
-    lea rdi, [source_buf]
-    lea rsi, [stat_buf]
-    call sys_stat
-    cmp rax, -MAX_ERRNO
-    jae .not_a_drive
-    mov eax, [stat_buf + kernel_stat.mode]
-    and eax, S_IFMT
-    cmp eax, S_IFBLK
-    jne .not_a_drive
-    mov rax, [stat_buf + kernel_stat.rdev]
-    mov rcx, rax
-    shr rcx, 8
-    and ecx, DEV_MAJOR_LOW_MASK
-    mov rdx, rax
-    shr rdx, 32
-    and edx, ~DEV_MAJOR_LOW_MASK
-    or ecx, edx
-    mov [dev_major], ecx
-    mov ecx, eax
-    and ecx, DEV_MINOR_LOW_MASK
-    mov rdx, rax
-    shr rdx, 12
-    and edx, ~DEV_MINOR_LOW_MASK
-    or ecx, edx
-    mov [dev_minor], ecx
+    call fs_type_is
+    test eax, eax
+    jz .not_a_drive
+    call device_of_source
+    test eax, eax
+    jz .not_a_drive
 
 .have_device:
     ; The mount point, by path, finds whichever mount is on top there.
@@ -531,6 +502,62 @@ judge_line:
     pop rbx
     ret
 
+; fs_type_is(rsi = a name, ecx = its length, non-zero)
+;   -> eax = 1 when fs_buf holds exactly that name, else 0.
+; Clobbers rcx, rsi, rdi.
+fs_type_is:
+    xor eax, eax
+    cmp [fs_len], rcx
+    jne .return
+    lea rdi, [fs_buf]
+    repe cmpsb
+    jne .return
+    inc eax
+.return:
+    ret
+
+; device_of_source() -> eax = 1 when source_buf is an absolute path to a
+;   block device, with dev_major and dev_minor set to its number, else 0.
+; The number is stat's st_rdev, split by kernel.inc's formula (above
+; DEV_MAJOR_LOW_MASK). Clobbers as probe_run.
+device_of_source:
+    sub rsp, 8
+    xor eax, eax
+    cmp byte [source_buf], '/'      ; a relative source is not a path
+    jne .return
+    lea rdi, [source_buf]
+    lea rsi, [stat_buf]
+    call sys_stat
+    cmp rax, -MAX_ERRNO
+    jae .not_a_device
+    mov eax, [stat_buf + kernel_stat.mode]
+    and eax, S_IFMT
+    cmp eax, S_IFBLK
+    jne .not_a_device
+    mov rax, [stat_buf + kernel_stat.rdev]
+    mov rcx, rax
+    shr rcx, 8
+    and ecx, DEV_MAJOR_LOW_MASK
+    mov rdx, rax
+    shr rdx, 32
+    and edx, ~DEV_MAJOR_LOW_MASK
+    or ecx, edx
+    mov [dev_major], ecx
+    mov ecx, eax
+    and ecx, DEV_MINOR_LOW_MASK
+    mov rdx, rax
+    shr rdx, 12
+    and edx, ~DEV_MINOR_LOW_MASK
+    or ecx, edx
+    mov [dev_minor], ecx
+    mov eax, 1
+    jmp .return
+.not_a_device:
+    xor eax, eax
+.return:
+    add rsp, 8
+    ret
+
 ; probe_line(rdi = line start, rsi = line end, before any newline)
 ;   -> eax = result code, edx = errno or 0, as probe_run.
 ; Judges one mountinfo line and sends its DRIVE record if it is a drive.
@@ -571,11 +598,11 @@ probe_line:
     mov ebx, eax                    ; ebx = media
 
     mov r13d, REASON_FS_NOT_EXT4    ; r13d = reason, in § 4.7's order
-    cmp qword [fs_len], fs_ext4_len
-    jne .judged
-    mov eax, [fs_buf]               ; fs_ext4 is 4 bytes: one load holds it
-    cmp eax, [fs_ext4]
-    jne .judged
+    lea rsi, [fs_ext4]
+    mov ecx, fs_ext4_len
+    call fs_type_is
+    test eax, eax
+    jz .judged
     mov r13d, REASON_READ_ONLY
     test qword [statfs_buf + kernel_statfs.flags], ST_RDONLY
     jnz .judged
@@ -779,12 +806,12 @@ media_of:
     sub rsp, 8
     lea rdx, [rot_disk]
     mov ecx, rot_disk_len
-    call rotational
+    call read_rotational_byte
     cmp eax, -1
     jne .judge
     lea rdx, [rot_part]
     mov ecx, rot_part_len
-    call rotational
+    call read_rotational_byte
 .judge:
     mov edx, eax
     mov eax, MEDIA_SSD
@@ -798,10 +825,10 @@ media_of:
     add rsp, 8
     ret
 
-; rotational(rdx = path suffix, ecx = its length with its NUL)
+; read_rotational_byte(rdx = path suffix, ecx = its length with its NUL)
 ;   -> eax = the first byte of /sys/dev/block/MAJ:MIN<suffix> when the
 ;   file holds one byte and a newline, else -1. Clobbers as probe_run.
-rotational:
+read_rotational_byte:
     push rbx
     push r12
     sub rsp, 8

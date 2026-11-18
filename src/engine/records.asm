@@ -197,7 +197,7 @@ rec_map_run:
     test ecx, ecx
     jz .append
     lea eax, [rcx - 1]
-    shl rax, 4                      ; map_run_size
+    imul eax, eax, map_run_size
     lea rax, [rbx + map_runs_size + rax]    ; rax = the last run
     mov rdx, [rax + map_run.start]
     add rdx, [rax + map_run.length]
@@ -212,7 +212,7 @@ rec_map_run:
     call send_batch
     xor ecx, ecx
 .append:                            ; ecx = runs in the batch
-    shl rcx, 4                      ; map_run_size
+    imul ecx, ecx, map_run_size
     lea rax, [rbx + map_runs_size + rcx]
     mov [rax + map_run.start], r12
     mov [rax + map_run.length], r13
@@ -253,13 +253,11 @@ send_batch:
     push rbx
     mov rbx, rdi
     mov esi, [rbx + map_runs.count]
-    shl esi, 4                      ; map_run_size
-    add esi, map_runs_size          ; a multiple of 8, as rec_start needs
+    imul esi, esi, map_run_size
+    add esi, map_runs_size          ; esi = payload size, 8-aligned for rec_start
     mov edi, REC_MAP_RUNS
-    call rec_start
-    mov ecx, [rbx + map_runs.count]
-    shl ecx, 4
-    add ecx, map_runs_size
+    call rec_start                  ; keeps rsi
+    mov ecx, esi                    ; the whole payload, from the batch
     mov rdi, rax
     mov rsi, rbx
     rep movsb

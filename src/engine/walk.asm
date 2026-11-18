@@ -1,6 +1,7 @@
 ; Walk: visits every regular file under a mount point, the engine side of
 ; S3's "which files". One file at a time: walk_next hands each to its
-; caller, so walk calls nothing but sys.asm (docs/design.md).
+; caller, so walk calls nothing but sys.asm; docs/design.md allows
+; records.asm too.
 ;
 ; The rules:
 ;   - It looks before it opens. Each name is first opened as a path only
@@ -62,8 +63,8 @@ FD_DIGITS_MAX   equ 10                  ; a 32-bit fd's decimal digits
 ; is, and its path's length in walk_path.
 struc walk_level
     .fd         resq 1
-    .pos        resq 1
-    .len        resq 1
+    .pos        resq 1                  ; the next entry's offset in dents
+    .dents_len  resq 1                  ; bytes the last getdents64 read
     .path_len   resq 1
 endstruc
 
@@ -155,7 +156,7 @@ walk_start:
     lea rax, [levels]
     mov [rax + walk_level.fd], rbx
     mov qword [rax + walk_level.pos], 0
-    mov qword [rax + walk_level.len], 0
+    mov qword [rax + walk_level.dents_len], 0
     mov qword [rax + walk_level.path_len], 0
     xor eax, eax
     mov edx, r13d
@@ -194,10 +195,12 @@ walk_start:
 ; WALK_ERROR. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
 walk_next:
     push rbx
+    push rbp
     push r12
     push r13
     push r14
     push r15
+    sub rsp, 8
 .next:
     mov rax, [depth]
     imul rbx, rax, walk_level_size
@@ -207,7 +210,7 @@ walk_next:
     lea rcx, [dents]
     add r12, rcx                    ; r12 = its entries
     mov rax, [rbx + walk_level.pos]
-    cmp rax, [rbx + walk_level.len]
+    cmp rax, [rbx + walk_level.dents_len]
     jb .entry
 .read:
     mov rdi, [rbx + walk_level.fd]
@@ -222,20 +225,20 @@ walk_next:
     jz .folder_done
     cmp rax, DENTS_SIZE
     ja .bad_entries
-    mov [rbx + walk_level.len], rax
+    mov [rbx + walk_level.dents_len], rax
     mov qword [rbx + walk_level.pos], 0
     xor eax, eax
 
 .entry:                             ; rax = this entry's offset
     lea rdx, [rax + linux_dirent64_size]
-    cmp rdx, [rbx + walk_level.len]
+    cmp rdx, [rbx + walk_level.dents_len]
     jae .bad_entries                ; no room for the fixed part and a name
     lea r14, [r12 + rax]            ; r14 = this entry
     movzx ecx, word [r14 + linux_dirent64.reclen]
     cmp ecx, linux_dirent64_size
     jbe .bad_entries                ; no room for a name
     lea rdx, [rax + rcx]
-    cmp rdx, [rbx + walk_level.len]
+    cmp rdx, [rbx + walk_level.dents_len]
     ja .bad_entries                 ; runs past what was read
     mov [rbx + walk_level.pos], rdx
     lea rdi, [r14 + linux_dirent64.name]
@@ -289,8 +292,8 @@ walk_next:
     je .next                        ; another mount: left out silently
     cmp rax, -MAX_ERRNO
     jae .open_failed
-    mov r12, rax                    ; r12 = the name, as a path only
-    mov edi, r12d
+    mov rbp, rax                    ; rbp = the name, as a path only
+    mov edi, ebp
     lea rsi, [empty_name]
     mov edx, AT_EMPTY_PATH
     call statx_of
@@ -308,6 +311,7 @@ walk_next:
     cmp eax, S_IFDIR
     je .folder
 
+    mov edi, ebp
     mov esi, REOPEN_FILE
     call reopen
     cmp rax, -MAX_ERRNO
@@ -322,6 +326,7 @@ walk_next:
     inc rax
     cmp rax, WALK_DEPTH_MAX
     jae .too_long_close             ; cannot happen: the path is bounded
+    mov edi, ebp
     mov esi, REOPEN_FOLDER
     call reopen
     cmp rax, -MAX_ERRNO
@@ -330,24 +335,23 @@ walk_next:
     add rbx, walk_level_size
     mov [rbx + walk_level.fd], rax
     mov qword [rbx + walk_level.pos], 0
-    mov qword [rbx + walk_level.len], 0
+    mov qword [rbx + walk_level.dents_len], 0
     mov [rbx + walk_level.path_len], r13
     jmp .next
 
 .not_visited_close:
-    mov edi, r12d
+    mov edi, ebp
     call sys_close                  ; read-only; a failed close loses nothing
     jmp .next
 .too_long_close:
-    mov edi, r12d
+    mov edi, ebp
     call sys_close
     jmp .too_long
 .stat_failed_close:
     neg rax
-    mov r15, rax                    ; r15 = errno
-    mov edi, r12d
-    call sys_close
-    mov edx, r15d
+    mov edx, eax                    ; edx = errno
+    mov edi, ebp
+    call close_keeping_rdx
     mov ecx, STAGE_STAT
     jmp .skipped
 .open_failed:
@@ -372,21 +376,19 @@ walk_next:
     mov rax, -EIO
 .read_failed:                       ; rax = -errno
     neg rax
-    mov r15, rax                    ; r15 = errno
+    mov edx, eax                    ; edx = errno
     mov rdi, [rbx + walk_level.fd]
-    call sys_close
+    call close_keeping_rdx
     cmp qword [depth], 0
     je .top_failed
     mov rax, [rbx + walk_level.path_len]
     mov [walk_path_len], rax        ; the folder's own path, still in place
     dec qword [depth]
     mov eax, WALK_SKIPPED
-    mov edx, r15d
     mov ecx, STAGE_READ_FOLDER
     jmp .return
 .top_failed:
     mov eax, WALK_ERROR
-    mov edx, r15d
     jmp .return
 .folder_done:
     mov rdi, [rbx + walk_level.fd]
@@ -398,22 +400,35 @@ walk_next:
 .end:
     mov eax, WALK_END
 .return:
+    add rsp, 8
     pop r15
     pop r14
     pop r13
     pop r12
+    pop rbp
     pop rbx
     ret
 
-; reopen(r12 = a path-only fd, esi = open flags) -> rax = a new fd on
-;   the very file r12 holds, or -errno. Opens it through /proc/self/fd,
+; close_keeping_rdx(edi = fd) closes it and keeps rdx, the errno a
+;   failure carries past the close. Clobbers rax, rcx, rsi, rdi, r8 to r11.
+close_keeping_rdx:
+    push rdx
+    call sys_close                  ; read-only; a failed close loses nothing
+    pop rdx
+    ret
+
+; reopen(edi = a path-only fd, esi = open flags) -> rax = a new fd on
+;   the very file edi holds, or -errno. Opens it through /proc/self/fd,
 ;   so nothing swapped in under its name since is opened instead. Closes
-;   r12 either way. Clobbers as walk_next.
-; Writes r12's digits itself: walk may call only sys.asm and records.asm
+;   edi's fd either way. Clobbers as walk_next.
+; Writes the fd's digits itself: walk may call only sys.asm and records.asm
 ; (docs/design.md), so probe's write_decimal is out of reach.
 reopen:
     push rbx
+    push r12
+    sub rsp, 8
     mov ebx, esi                    ; ebx = the flags
+    mov r12d, edi                   ; r12d = the path-only fd
     lea rdi, [reopen_path + PROC_FD_LEN + FD_DIGITS_MAX]
     mov byte [rdi], 0
     mov eax, r12d
@@ -438,6 +453,8 @@ reopen:
     mov edi, r12d
     call sys_close                  ; read-only; a failed close loses nothing
     mov rax, rbx
+    add rsp, 8
+    pop r12
     pop rbx
     ret
 

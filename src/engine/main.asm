@@ -151,9 +151,12 @@ _start:
 
 ; report_run(rdi = NUL-terminated mount point, escaped) -> does not return.
 ; The rest of a report stream (DFR-0002 § 4.6), from the mount-point
-; check on: HELLO with the block size, a FRAGMENTED_FILE for each file in
-; two or more pieces, a FILE_SKIPPED for each it could not measure, the
-; map's MAP_RUNS, then REPORT_SUMMARY and FINISHED. REPORT_PROGRESS comes
+; check on: HELLO with the block size; then, interleaved, a
+; FRAGMENTED_FILE for each file in two or more pieces, a FILE_SKIPPED for
+; each it could not measure, the map's MAP_RUNS and REPORT_PROGRESS; then
+; REPORT_SUMMARY and FINISHED. The free and filesystem runs are gathered
+; before any file and the files' runs during the walk; each kind's batch
+; goes out when it fills, and the rest at the end. REPORT_PROGRESS comes
 ; straight after HELLO, every PROGRESS_EVERY names, and straight before
 ; REPORT_SUMMARY. A failure before the walk starts sends HELLO with block
 ; size 0 and FINISHED with its result.

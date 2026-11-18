@@ -962,7 +962,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-tests-2026-11-18.
   Lanes: Engine link, Drives, Screens, Map view, Build.
 
-- 📋 [DFR-0085] **Engine code a stranger can change safely.**
+- ✅ [DFR-0085] **Engine code a stranger can change safely.**
   Confirmed by review-readability's orchestrator 2026-11-18 at 6e9b702;
   do not re-review (review-cost.md § 4).
   - `src/engine/main.asm:156` — the header lists the report stream as an
@@ -994,6 +994,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     Rename (dents_len) or describe it.
   Found by review-readability lanes 01 and 02.
   Priority: 4.
+  Shipped 2026-11-18. All nine. report_run's header says which records
+  interleave; CMakeLists says it enforces the NASM floor and names the
+  copies; probe's three name compares share fs_type_is; the btrfs
+  source-to-device step is device_of_source; rotational is
+  read_rotational_byte; records.asm takes map_run_size from the struct
+  and send_batch computes it once; walk gives each register one role
+  (the path-only fd in rbp, reopen's fd in edi, errno kept in edx by
+  close_keeping_rdx); walk's header and dents_len say what they hold.
+  Differential: probe output identical with free_blocks masked,
+  selftest-records identical, objdump .text identical for extents, main
+  and sys, and differs elsewhere only where the code was meant to;
+  vm_smoke, image_build and image_report green.
   **Layman:** Tidy the engine's code and notes so the next person to change it is not misled.
   Kind: refactor.
   Source: review-readability-2026-11-18.

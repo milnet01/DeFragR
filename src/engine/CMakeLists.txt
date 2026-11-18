@@ -3,7 +3,9 @@
 set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)
 
 # NASM 3.02 is the floor (the assembly standard, languages/asm.md). This
-# is its one home: configure stops on an older assembler.
+# file enforces it: configure stops on an older assembler. README.md,
+# scripts/local-ci.sh and .github/workflows/ci.yml repeat the number;
+# change them with it.
 set(DEFRAGR_NASM_MIN 3.02)
 execute_process(COMMAND ${CMAKE_ASM_NASM_COMPILER} -v
     OUTPUT_VARIABLE _nasm_v RESULT_VARIABLE _nasm_rc)
