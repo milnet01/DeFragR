@@ -2,6 +2,7 @@
 // verdict alone (S12, ADR-0002; docs/specs/DFR-0002-engine-protocol.md
 // § 4.5 names this test). The real engine comes from DEFRAGR_ENGINE;
 // fakes, such as a crashing one, from DEFRAGR_FAKES.
+#include "engine/EngineProcess.h"
 #include "model/DriveList.h"
 
 #include <QDir>
@@ -9,6 +10,8 @@
 #include <QLocale>
 #include <QTest>
 #include <QTextDocument>
+
+#include <algorithm>
 
 using namespace defragr::engine;
 using namespace defragr::model;
@@ -44,6 +47,24 @@ Load refresh(DriveList &list)
     if (!QTest::qWaitFor([&] { return load.loaded + load.failures.size() > 0; }, 10000))
         qWarning("the probe did not end");
     return load;
+}
+
+// The drives the engine's own probe lists, asked directly, so a list
+// that drops them cannot hide that it did.
+qsizetype drivesTheEngineLists()
+{
+    EngineProcess engine;
+    qsizetype drives = 0;
+    bool ended = false;
+    QObject::connect(&engine, &EngineProcess::recordsReceived, [&](const QList<Record> &records) {
+        drives += std::ranges::count_if(
+            records, [](const Record &record) { return std::holds_alternative<Drive>(record); });
+    });
+    QObject::connect(&engine, &EngineProcess::ended, [&] { ended = true; });
+    engine.start(CommandProbe);
+    if (!QTest::qWaitFor([&] { return ended; }, 10000))
+        qWarning("the probe did not end");
+    return drives;
 }
 
 }  // namespace
@@ -144,6 +165,9 @@ private slots:
         const Load load = refresh(list);
         QCOMPARE(load.failures.size(), 0);
         QCOMPARE(load.loaded, 1);
+        if (drivesTheEngineLists() == 0)
+            QSKIP("this machine has no drives the probe lists");
+        QVERIFY(list.rowCount() > 0);
         for (int row = 0; row < list.rowCount(); ++row)
             QVERIFY(list.drive(row).mountPoint.startsWith('/'));
         qInfo("the list shows %d drives", list.rowCount());

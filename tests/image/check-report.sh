@@ -71,6 +71,7 @@ estimate=$((total - free))
 echo "$(stat -f -c %f /mnt/img) $(( $(cat "/sys/class/block/${dev##*/}/size") / 8 ))" \
     >/tmp/space
 before=$(disk_sum)
+check "the disk's sum is read" "$(echo "$before" | grep -cxE '[0-9a-f]{64}')" 1
 /test/defragr-engine report /mnt/img >/tmp/report.bin
 check "report exits OK" $? 0
 # INV-12: a folder that exists, run as root, but is not a mount point.

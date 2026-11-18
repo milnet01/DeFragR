@@ -117,6 +117,7 @@ private slots:
     void noRecordingIsBroken()
     {
         const Run probe = run(CommandProbe);
+        QVERIFY(probe.ended);  // an outcome left at its default reads as Broken
         QCOMPARE(probe.outcome.end, RunEnd::Broken);
         QVERIFY(probe.records.isEmpty());
     }

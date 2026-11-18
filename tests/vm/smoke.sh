@@ -45,6 +45,7 @@ check "mkfs.ext4" $? 0
 mount -t ext4 "$spin" /mnt
 check "mount" $? 0
 dd if=/dev/urandom of=/mnt/file bs=64k count=16 2>/dev/null
+check "the file is written whole" "$(stat -c %s /mnt/file)" 1048576
 sum=$(sha256sum /mnt/file)
 umount /mnt
 mount -t ext4 "$spin" /mnt

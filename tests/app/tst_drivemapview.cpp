@@ -203,16 +203,24 @@ private slots:
         QVERIFY(!view->isMoving());
     }
 
-    // In a right-to-left language the first block is top right.
+    // In a right-to-left language the first block is top right. Here the
+    // first block alone is fragmented, so it cannot be mistaken for the
+    // rest of its row.
     void rightToLeftStartsTopRight()
     {
+        DriveMap map;
+        map.add({MapFragmentedFile, {{0, 1}}});
+        map.add({MapWholeFile, {{1, 9}}});
+        map.add({MapFragmentedFile, {{10, 10}}});
+        map.add({MapFilesystem, {{20, 10}}});
+        map.add({MapFree, {{30, 10}}});
         const auto view = makeView();
         view->setLayoutDirection(Qt::RightToLeft);
-        view->showMap(&m_map);
+        view->showMap(&map);
         m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
         const QImage shot = view->grab().toImage();
         const QPoint topRight(view->width() - m_theme.cellSide(), 0);
-        QVERIFY(samePixels(shot, topRight, cellImage(m_theme, CellState::Whole)));
+        QVERIFY(samePixels(shot, topRight, cellImage(m_theme, CellState::Fragmented)));
         QVERIFY(samePixels(shot, QPoint(0, 0), cellImage(m_theme, CellState::Whole)));
         QVERIFY(samePixels(shot, QPoint(0, pitch()), cellImage(m_theme, CellState::Fragmented)));
     }

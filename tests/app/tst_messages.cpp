@@ -142,6 +142,8 @@ private slots:
         outcome.finished.errnum = 13;  // EACCES
         const Message message = messages::forRun(outcome);
         QVERIFY2(!hasDigit(message.what), qPrintable(message.what));
+        QVERIFY2(message.what.contains(QString::fromLocal8Bit(std::strerror(13))),
+                 qPrintable(message.what));
     }
 
     // DFR-0051: an errno the system has no words for is not shown as a

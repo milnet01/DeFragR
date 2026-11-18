@@ -524,7 +524,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-readability-2026-11-18.
   Lanes: Map view.
 
-- 📋 [DFR-0076] **Tests that pass when the behaviour they check is broken.**
+- ✅ [DFR-0076] **Tests that pass when the behaviour they check is broken.**
   Confirmed by review-tests' orchestrator 2026-11-18 at 6e9b702 (mutations
   M1–M6, reading or a run); do not re-review (review-cost.md § 4).
   - `tests/app/tst_engineprocess.cpp:119` (also :126, :142;
@@ -565,6 +565,24 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   DFR-0063's record claims each check was seen to fail; :267 was not.
   Found by review-tests lanes 1-3.
   Priority: 2 — fixes after this are proven by these tests.
+  Shipped 2026-11-18. Each fix was seen red with its behaviour broken:
+  - tst_engineprocess (126, crash, wrong command) asserts ends == 1;
+    tst_replay noRecordingIsBroken asserts ended. Red with ended() not
+    emitted for a broken run.
+  - launcherRunsTheEngine asserts ResultNotRoot (QSKIP as root). Red with
+    the arguments dropped on the launcher path.
+  - loadsFromTheEngine asserts rowCount() > 0; it skips only when the
+    engine's own probe, asked directly, lists no drives. Red with
+    probeEnded showing no drives.
+  - rightToLeftStartsTopRight uses a map whose first block alone is
+    fragmented. Red with cellRect's right-to-left branch removed.
+  - refreshIsGreyedWhileListing picks drive 0 before Refresh drives. Red
+    with the listing branch's m_report->setEnabled(false) removed (M2).
+  - errnoIsWords asserts strerror(13)'s words. Red with errorText
+    falling back, and with %1 dropped.
+  - smoke.sh checks /mnt/file is 1 MiB. Red with dd writing nothing.
+  - check-report.sh checks $before is 64 hex characters. Red with
+    disk_sum's drop_caches step failing.
   **Layman:** Some automatic checks would still say all is well if the thing they check broke; make each one catch its break.
   Kind: review-fix.
   Source: review-tests-2026-11-18.
@@ -1438,7 +1456,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Record corrected 2026-11-18 (review-tests): not every check was seen to
   fail. With the listing branch's m_report->setEnabled(false) removed
   (mutation M2), the View report check at tst_mainwindow.cpp:267 stayed
-  green, because no row is selected. Fixed by DFR-0076.
+  green, because no row is selected. Fixed by DFR-0076: the test picks
+  a drive before Refresh drives, and with M2 applied it was seen to fail.
   **Layman:** An automatic check that presses the window's own buttons, so a break between the screen and the engine is caught before release.
   Kind: test.
   Source: verify-delivery-2026-11-16.

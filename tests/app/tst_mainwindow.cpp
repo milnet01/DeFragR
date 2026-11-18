@@ -277,7 +277,10 @@ private slots:
         waitForDrives();
         QVERIFY(!label(m_window.get(), QStringLiteral("Listing drives…")));
 
-        // And again when the user asks.
+        // And again when the user asks, with a drive picked: picked, it
+        // could be reported on, but not while the list is replaced.
+        selectRow(0);
+        QVERIFY(button(m_window.get(), QStringLiteral("View report"))->isEnabled());
         refresh->click();
         QVERIFY(!refresh->isEnabled());
         QVERIFY(label(m_window.get(), QStringLiteral("Listing drives…")));

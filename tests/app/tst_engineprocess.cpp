@@ -9,6 +9,8 @@
 #include <QTest>
 #include <QThread>
 
+#include <unistd.h>
+
 using namespace defragr::engine;
 
 namespace {
@@ -20,7 +22,9 @@ struct Run {
     int endsDuringStart = 0;  // ended() emitted before start() returned
 };
 
-// Once per engine: its connections outlive the Run they write to.
+// Once per engine: its connections outlive the Run they write to. An
+// outcome left at its default reads as Broken, so a test of a broken end
+// also checks that ended() came.
 Run run(EngineProcess &engine, Command command, const QStringList &arguments = {})
 {
     Run result;
@@ -88,6 +92,10 @@ private slots:
         const Run report = run(engine, CommandReport, {QStringLiteral("/")});
         QCOMPARE(report.outcome.end, RunEnd::Finished);
         QCOMPARE(hello(report.records).value_or(Hello{}).command, quint32(CommandReport));
+        // The engine got its folder: without one it would answer USAGE.
+        if (geteuid() == 0)
+            QSKIP("runs as root, so the admin-rights check passes");
+        QCOMPARE(report.outcome.finished.result, qint32(ResultNotRoot));
     }
 
     // § 6: pkexec exiting 126 or 127 with no stream is refused admin
@@ -116,14 +124,18 @@ private slots:
     {
         useEngine(fake("exit-126.sh"));
         EngineProcess engine;
-        QCOMPARE(run(engine, CommandProbe).outcome.end, RunEnd::Broken);
+        const Run probe = run(engine, CommandProbe);
+        QCOMPARE(probe.ends, 1);
+        QCOMPARE(probe.outcome.end, RunEnd::Broken);
     }
 
     void crashIsBroken()
     {
         useEngine(fake("crash.sh"));
         EngineProcess engine;
-        QCOMPARE(run(engine, CommandProbe).outcome.end, RunEnd::Broken);
+        const Run probe = run(engine, CommandProbe);
+        QCOMPARE(probe.ends, 1);
+        QCOMPARE(probe.outcome.end, RunEnd::Broken);
     }
 
     void wrongMajor()
@@ -139,7 +151,9 @@ private slots:
     {
         useEngine(fake("wrong-command.sh"));
         EngineProcess report(fake("pass-through.sh"));
-        QCOMPARE(run(report, CommandReport, {QStringLiteral("/")}).outcome.end, RunEnd::Broken);
+        const Run reported = run(report, CommandReport, {QStringLiteral("/")});
+        QCOMPARE(reported.ends, 1);
+        QCOMPARE(reported.outcome.end, RunEnd::Broken);
         EngineProcess probe;
         QCOMPARE(run(probe, CommandProbe).outcome.end, RunEnd::Finished);
     }
