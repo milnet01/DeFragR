@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=72 -->
+<!-- ants-roadmap-id-high-water: DFR=88 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -376,7 +376,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Recorded runs, Engine link.
   Blocked-by: DFR-0011.
 
-- ✅ [DFR-0013] **High-contrast theme with symbols as well as colours.**
+- ✅ [DFR-0013] **High-contrast themes with symbols as well as colours, built; a user can choose one once DFR-0021's menu lands.**
   `ui/Theme`: palette, one symbol per map cell state, text and cell
   sizes, all asked of one place (S10). Readable without relying on
   colour.
@@ -388,7 +388,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Desktop, Dark and Light high contrast, Yellow on black, Ocean, Ember,
   Aurora. tst_theme checks contrast, patterns read with no colour, and
   the text floor.
-  **Layman:** Makes the map and text clear for a partially sighted user, using shapes as well as colours.
+  Record corrected 2026-11-18 (verify-delivery; owner ruling): the seven
+  themes exist in src/app/ui/Theme.cpp, but src/app/main.cpp:18 always
+  builds Theme::Id::Desktop and nothing lets a user choose, so no user can
+  get a high-contrast theme until DFR-0021's menu (0.4.0). No code change
+  now.
+  **Layman:** The map shows shapes as well as colours now; the high-contrast colour themes for a partially sighted user can be chosen once the menu arrives.
   Kind: accessibility.
   Source: design-2026-11-15.
   Lanes: Theme.
@@ -427,6 +432,535 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Map, Map view.
   Blocked-by: DFR-0011, DFR-0012, DFR-0013.
+
+- 📋 [DFR-0073] **Engine: an ordinary user cannot stall or block a report.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  Robustness and security fixes: a local user without admin rights can
+  hold up, break or mislead the root engine's report. Three defects in
+  src/engine/walk.asm and src/engine/probe.asm, two MEDIUM and one LOW.
+  Per SECURITY.md, their locations, causes and fix shapes are not on this
+  public page; the fixer reads them in .claude/private/security-2026-11-18.md
+  on the owner's machine (untracked). Each fix is proven in the test
+  machine, seen red first.
+  Found by review-code lane 02.
+  Priority: 1 — any local user can deny reports to everyone.
+  **Layman:** Stops another user on the same computer from freezing or breaking a drive report.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Walk, Probe.
+
+- 📋 [DFR-0074] **Window: file names cannot spoof the screen, and a report's memory is bounded.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - Two places where a file or drive name from the drive can change how
+    the window shows text, against SECURITY.md's "a name that looks like
+    markup is shown as written": one in src/app/ui/ReportView.cpp
+    (MEDIUM) and one in src/app/model/Messages.cpp with
+    src/app/model/DriveList.cpp (LOW). Per SECURITY.md, the locations
+    and fix shapes are not on this public page; the fixer reads them in
+    .claude/private/security-2026-11-18.md on the owner's machine
+    (untracked). Each fix gets a test seen red first.
+  - `src/app/model/Report.cpp:141` and `:145` — every FRAGMENTED_FILE (a
+    path up to 4 KiB) and every MAP_RUNS run is kept for the whole run,
+    uncapped, and a local user who can write to the drive chooses how
+    many. Files: the owner chose to list every file (DFR-0051,
+    2026-11-17); this review adds that a local user can grow that list,
+    so ask the owner again before changing it. Map runs: measure memory
+    per run on /mnt/Games, then hold them in a bounded form that
+    DriveMap::cells can still re-bin on resize (S4). (MEDIUM.)
+  Found by review-code lanes 03 and 04.
+  Priority: 1 — names on a drive are untrusted (SECURITY.md).
+  **Layman:** A file's name can never disguise itself or scramble what the screen says, and a huge drive cannot use up the computer's memory.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Report view, Messages, Report, Drives.
+
+- 📋 [DFR-0075] **Map view enforces the three-flashes-a-second limit itself.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `src/app/ui/DriveMapView.h:7` says "nothing flashes more than three
+    times a second", but `changeCells` (DriveMapView.cpp:128-151)
+    enforces nothing: a change mid-glow restarts it
+    (`next.append({shown, cells[i], now, kChangeMs})`). The glow peaks at
+    180 ms and glowAt is about 0.8 by 100 ms, so a cell changed every
+    100 ms brightens about 10 times a second.
+  - `DriveMapView.cpp:214` — resizeEvent calls sortMap, which re-indexes
+    the cells against the old m_sweepStart, so dragging the window edge
+    during the 2.5 s sweep restarts glows at the same screen spot.
+  Owner ruling 2026-11-18: enforce WCAG 2.2 SC 2.3.1's limit inside
+  DriveMapView, so it holds for any caller (DFR-0018 will feed engine
+  changes straight in). Fix shape: keep each cell's last glow start; a
+  change within 334 ms of it changes the state without a new glow, or
+  defers the glow; a resize re-sort starts no glow. Test in
+  tst_drivemapview on the view's own clock: change one cell every 100 ms
+  and count glow starts per second (at most 3). Latent today: changeCells
+  has no caller in src/ (map-demo at 700 ms and the tests only).
+  DFR-0071's record says "One glow per change keeps S10's limit"; once
+  this lands, that record must say the view enforces it.
+  Found by review-readability lane 04 (HIGH) and review-code lane 04
+  (MEDIUM, calibrated LOW: no caller in src/).
+  Priority: 1 — a safety limit the view claims and does not keep.
+  **Layman:** The drive map can never flash fast enough to harm someone sensitive to flashing light, whatever later feeds it.
+  Kind: review-fix.
+  Source: review-readability-2026-11-18.
+  Lanes: Map view.
+
+- 📋 [DFR-0076] **Tests that pass when the behaviour they check is broken.**
+  Confirmed by review-tests' orchestrator 2026-11-18 at 6e9b702 (mutations
+  M1–M6, reading or a run); do not re-review (review-cost.md § 4).
+  - `tests/app/tst_engineprocess.cpp:119` (also :126, :142;
+    tst_replay.cpp:120) — RunOutcome::end defaults to RunEnd::Broken and
+    the run() helpers only qWarning when ended() never comes
+    (tst_engineprocess.cpp:35, tst_replay.cpp:41), so the 126, crash,
+    wrong-command (report half) and no-recording tests pass if ended()
+    never fires. Fix: make each helper's wait a hard check, or assert
+    ends == 1 as launcherRefusal does. (MEDIUM, calibrated from HIGH.)
+  - `tst_engineprocess.cpp:89` — launcherRunsTheEngine checks only that
+    the run finished and HELLO says report; a launcher dropping the `/`
+    still passes. Fix: also assert finished.result == ResultNotRoot, with
+    a reasoned QSKIP as root (as tst_records_conformance.cpp:122). (LOW.)
+  - `tests/app/tst_drivelist.cpp:147` — the loop runs zero times if
+    loaded() brings no rows. Fix: assert rowCount() > 0, with a reasoned
+    QSKIP when the host has none (as tst_probe.cpp:107). (LOW.)
+  - `tests/app/tst_drivemapview.cpp:214` — each rowsMap() row is one
+    state, so top right equals left-to-right cell 9; deleting cellRect's
+    right-to-left branch stays green. Fix: a map whose first block differs
+    from its row; assert it is drawn top right, not top left. (HIGH.)
+  - `tests/app/tst_mainwindow.cpp:267` — no row is selected, and
+    updateActions disables View report with no selection, so the listing
+    branch is untested (mutation M2 stayed green). Fix: select row 0
+    before refresh->click(). Trap (verify-delivery 2026-11-18): in a
+    right-to-left window QTableView::selectRow() does not select the row
+    (mouse and keyboard do), so a Hebrew variant must select by click or
+    key. (MEDIUM.)
+  - `tests/app/tst_messages.cpp:127` — checks only that no digit shows;
+    errorText falling back to "no details given", or a dropped %1, both
+    pass. Fix: also assert `what` contains
+    QString::fromLocal8Bit(std::strerror(13)). (MEDIUM.)
+  - `tests/vm/smoke.sh:47` — dd's status is unchecked; an empty /mnt/file
+    passes the hash and "extents found" checks (lines 51-53). Fix: check
+    dd's status, or that the file is 1 MiB. (LOW.)
+  - `tests/image/check-report.sh:26` — a failing step in disk_sum prints
+    nothing (sh, no pipefail), so line 78's "disk unchanged" compares two
+    empty strings. Fix: require $before to be 64 hex characters. (LOW.)
+  DFR-0063's record claims each check was seen to fail; :267 was not.
+  Found by review-tests lanes 1-3.
+  Priority: 2 — fixes after this are proven by these tests.
+  **Layman:** Some automatic checks would still say all is well if the thing they check broke; make each one catch its break.
+  Kind: review-fix.
+  Source: review-tests-2026-11-18.
+  Lanes: Engine link, Drives, Map view, Screens, Messages, Build.
+
+- 📋 [DFR-0077] **Window: the engine link ends each run once, promptly and truthfully.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `src/app/engine/EngineProcess.cpp:110`, `src/app/model/Report.cpp:124`
+    and `Report.h:41` — with the engine missing, ended() is queued
+    (QTimer::singleShot(0)) while isRunning() (m_process.state()) is
+    already false, so a second start() resets m_outcome and queues a
+    second ended(); Report::run's guard lets it through and failed() fires
+    twice. EngineProcess.h:48 and Report.h:37-39 promise "Ignored while a
+    run is going"; DriveList.cpp:25-27 keeps m_listing for this reason.
+    Fix: isRunning() stays true until ended() is emitted (m_pendingEnd),
+    which fixes Report too. One cause, three findings.
+  - `src/app/engine/EngineProcess.h:39` — "Lets go of a running engine"
+    reads as instant; ~QProcess (EngineProcess.cpp:59-63) waits up to 30 s
+    for a root engine it cannot kill, so closing the window mid-report
+    freezes it. A non-root child dies at once (destroyedMidRun, 0.62 s).
+    Fix: say so in the header; call m_process.closeWriteChannel() first,
+    which becomes cancel with DFR-0023 (§ 4.8).
+  - `EngineProcess.cpp:128` — after the decoder flags Malformed or
+    VersionMismatch (possible at the first HELLO) the run ends only when
+    the engine exits, so a root report walks the whole drive under a
+    "running" screen. Fix: once m_decoder.error() is set, end at once;
+    kill a probe run, close the write channel on a pkexec run.
+  - `EngineProcess.cpp:52` — FailedToStart reads as EngineMissing or
+    LauncherMissing, but :107 already found the file present and
+    executable, so ENOEXEC, a noexec mount or a bad interpreter says
+    "missing" with the file there. Fix: a distinct EngineUnstartable end
+    and message when the file exists.
+  - `src/app/engine/Records.cpp:58` — fixedSize's switch (58-72) and
+    decode's (130-219) are two hand-kept lists of types; a type added to
+    decode only gets size 0, the check at :124 passes any payload and
+    in.at<> reads past it. Fix: each decode case checks its own fixed
+    size, or fixedSize's default is unreachable for a decoded type.
+  - `Records.cpp:240-243` — orderAllows' major check never runs: decode
+    (119-123) rejects a first HELLO of another major, and a second HELLO
+    fails at :238. Fix: keep the one copy that runs.
+  Found by review-code lane 03 and review-readability lane 03.
+  Priority: 2.
+  **Layman:** When the engine is missing, broken or closed mid-run, the window says so once, quickly and in the right words.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Engine link, Records, Report.
+
+- 📋 [DFR-0078] **Engine: probe and report agree, and an odd kernel answer cannot loop or mislead.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `src/engine/probe.asm:216-219` — probe_find_mount lets the last
+    mountinfo line matching the path decide (found_drive is overwritten
+    per match), while judge_line's mount-id check passes only the mount on
+    top. If a covered mount's line comes after the top one, report answers
+    NOT_A_MOUNT for a drive probe listed, against ADR-0002. Whether
+    mountinfo can order them so is unverified. Fix: accept if any
+    matching line passes, and take that line's id.
+  - `src/engine/extents.asm:153-156` — extents_count's FIEMAP loop has no
+    no-progress guard (extents_space has one, :262-268); extents ending at
+    or before the requested start, not flagged LAST, repeat for ever.
+    Fix: if the new r15 is not past the previous one, return -EIO.
+  - `src/engine/main.asm:235-240` — if the second, sending extents_count
+    fails part-way, the file counts as skipped, but runs send_run already
+    sent (extents.asm sends inside the extent loop) stay on the map. Fix:
+    send a file's runs only once all its calls succeed, or state in § 4.6
+    that a skipped file's earlier runs may stand.
+  - `src/engine/kernel.inc:180` — the comment says fsmap.device is
+    new_encode_dev's dev_t unconditionally; linux/fsmap.h makes it a dev_t
+    only when fmh_oflags has FMH_OF_DEV_T. Fix: say so, add
+    FMH_OF_DEV_T equ 0x1, and have extents_space check fmh_oflags (no
+    lane checked whether it does).
+  Found by review-code lanes 01 and 02, review-readability lane 01.
+  Priority: 2.
+  **Layman:** The drive list and the report always agree on which drives can be read, and a strange answer from the system cannot hang a report.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Probe, Extents, Entry.
+
+- 📋 [DFR-0079] **Map view paints correctly and cheaply at fractional display scaling.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `src/app/ui/DriveMapView.cpp:271-273` and `:282-284` — tile() and
+    glow() test `deviceIndependentSize() != QSizeF(side, side)`, but
+    paintedCell builds `QSize(side, side) * ratio`, which rounds
+    (qSaturateRound, qsize.h), so at 125% or 150% the cache misses on
+    every call: a QPixmap and QPainter per visible cell per paint, 60 a
+    second in a sweep, and a QRadialGradient per glowing cell. Settled by
+    the orchestrator from qsize.h. Fix: size as qCeil(side * ratio) and
+    cache on a stored (side, ratio) key, not a float compare. (MEDIUM.)
+  - `DriveMapView.cpp:20-27` — paintedCell never fills its pixmap, so
+    device pixels past side * ratio may be uninitialised. Fix: fill it
+    with the map background first.
+  - `DriveMapView.cpp:301` — mapKey paints each swatch once at
+    key->devicePixelRatioF() when built and never again, so on a screen
+    with another scale the swatches are scaled and blur. Not confirmed
+    on screen. Fix: repaint them on a device-pixel-ratio change.
+  Check on a real display at 150%, counting pixmaps made per paint
+  before and after.
+  Found by review-code lane 04 and review-readability lane 04.
+  Priority: 2.
+  **Layman:** On screens set to 125% or 150% size, the drive map stops redrawing every block from scratch, and its key stays sharp.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Map view.
+
+- 📋 [DFR-0080] **Window: numbers and counts read correctly in every language.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `src/app/ui/ReportView.cpp:154-160` — `tr("%1 min %2 s").arg(seconds
+    / 60)…` uses QString::arg(int), which writes C-locale digits, against
+    design.md § Wording and languages ("Numbers … are written by
+    QLocale"). Fix: %L1 and %L2, or QLocale().toString.
+  - `ReportView.cpp:129` — "Fragmented files found so far: %1" never
+    passes the count to tr() as n, so it always says "files", against
+    "A sentence with a count uses Qt's plural forms". Fix: pass n and use
+    %Ln; add the forms to defragr_en.ts (other languages stay English
+    until translated, design.md § Wording and languages).
+  - `src/app/model/Report.cpp:49-52` — only the low end is guarded
+    ("under 0.1%"); 99.95% or more fragmented but not all shows "100%".
+    Fix: show "over 99.9%" when some files are whole and rounding
+    reaches 100.
+  Found by review-code lane 04 and review-readability lane 03.
+  Priority: 3.
+  **Layman:** Times, counts and percentages read naturally in each language, and 100% shows only when it really is all.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Report view, Report, Languages.
+
+- 📋 [DFR-0081] **Amend DFR-0002 where the code and the protocol's words disagree.**
+  Amend docs/specs/DFR-0002-engine-protocol.md (write-spec's
+  references/amending.md, then write-doc). Verified 2026-11-18 at 6e9b702.
+  (a) § 4.6: REPORT_SUMMARY.extents and .file_blocks are "over those
+      files" and "their size_blocks", which could mean fragmented files
+      only; main.asm:247-248 sums every measured file. Say which.
+  (b) § 4.7 defines INTERNAL as "the engine broke one of its own
+      limits", but a failed rt_sigaction also sends it (main.asm:138-146,
+      with HELLO.command 0 even when argv[1] names a command; § 4.3 is
+      silent), and a write error other than EPIPE exits 9 with no
+      FINISHED (records.asm:136-138). Name both in § 4.7 and § 6, or give
+      them their own code.
+  (c) § 4.4 says "the drive's block size", but HELLO.block_size is
+      f_bsize (walk.asm:135) and DRIVE.block_size is f_frsize
+      (probe.asm:467); equal on ext4. Say which, or use one.
+  (d) Owner ruling 2026-11-18: keep the code (the probe accepts fuseblk
+      mounts with a real block device, such as ntfs-3g and exfat-fuse);
+      INV-12's Breaks-when names only FUSE mounts with no block device.
+  Also open from the same review; settle here: (e) Records.cpp:253
+  accepts an Unknown record after REPORT_SUMMARY, citing § 4.10, while
+  INV-8 puts the summary immediately before FINISHED. (f) walk_names
+  counts a nested mount point's name but not its contents, while INV-14
+  compares with find -mindepth 1, which crosses mounts.
+  (b) and (c) may be better fixed in code than in words. Whoever works
+  this decides which way for each, and records why.
+  Found by review-code lanes 01, 02 and 03 (open questions).
+  Priority: 3.
+  **Layman:** Make the engine's written rulebook say exactly what the engine does in a few corner cases.
+  Kind: doc-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Records, Entry, Walk, Probe.
+
+- 📋 [DFR-0082] **Gate and CI: no check passes without having run.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  Project-owned lines; template text goes to the template item.
+  - `scripts/local-ci.sh:103-106` — a green ctest prints only "ok test";
+    CTest's "did not run" list stays in .git/local-ci/test.log. Every
+    skip is guarded by DEFRAGR_VM_REQUIRED today (run.sh:36 exits 125),
+    so latent. Fix: after ctest, grep the log for Not Run and fail when
+    DEFRAGR_VM_REQUIRED=1. (LOW, calibrated.)
+  - `local-ci.sh:156` — shellcheck selects by extension;
+    tests/app/fakes/pkexec-pass/pkexec and pkexec-refuse/pkexec (tracked,
+    #!/bin/sh) are never linted. Fix: also take tracked files whose first
+    line is a sh or bash shebang.
+  - `local-ci.sh:24-25` against `:155-158` — every compiler-free check is
+    to run in both modes, but lint comes after the --docs exit (:124).
+    Fix: move lint above the DOCS_ONLY exit.
+  - `.github/workflows/ci.yml:79` — the NASM cache key omits
+    scripts/build-nasm.sh, unlike ci-container.sh:51's image tag, so a
+    recipe change restores the old binary; ImageOS names only the OS, so
+    :68's "and the image" is wrong. Fix: add
+    hashFiles('scripts/build-nasm.sh'); fix the comment, or add
+    ImageVersion if a rebuild per image is meant.
+  - `scripts/check-links.py:13` — inline links on one line only:
+    reference definitions, links split across lines and <angle> targets
+    pass unchecked, %20 is not decoded. None in the tree today. Fix:
+    parse reference definitions, join a paragraph's lines, decode.
+  - `local-ci.sh:55-57` — --docs-glob, --nasm-pin and --ci-packages test
+    only ${1:-}, so extra arguments pass despite :20. Fix: check $#.
+  - `local-ci.sh:168-169` — jobs sized from cores; local-gate.md § 9 sizes
+    from memory per job by peak RSS, and DFR-0062 measured time only.
+    Fix: measure peak RSS per job; size from it, or record an override in
+    docs/standards/.
+  - `scripts/update-translations.sh:19,25` — cd runs before work=$2, so a
+    relative --check DIR lands under the repository. Fix: make it
+    absolute first.
+  - `update-translations.sh:38` — no nullglob; with no .ts files the
+    pattern reaches lupdate, which would create defragr_*.ts. Fix:
+    nullglob, and fail on none.
+  - `scripts/ci-container.sh:70` — warm ignores any argument but
+    --refresh, so a typo builds unrefreshed. Fix: refuse others.
+  Found by review-code lane 05 and review-readability lane 05.
+  Priority: 3.
+  **Layman:** The safety checks run before each upload never report a pass for a check that did not actually run.
+  Kind: review-fix.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Build.
+
+- 📋 [DFR-0083] **Copy the fixed hooks and gate passages in from the template, once claude-config fixes them.**
+  Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  .githooks/commit-msg, pre-commit and pre-push are byte-identical to
+  ~/.claude/skeleton/files (cmp, 2026-11-18). scripts/local-ci.sh is not,
+  but the passages below are template text. Owner ruling 2026-11-18: the
+  claude-config session fixes the template first, then copy it in, as
+  DFR-0055 did.
+  - `.githooks/pre-commit:80` — the link check duplicates
+    scripts/check-links.py and has drifted: the hook skips docs/ (:70),
+    dated lines (:96) and paths ending `-` (:86) and reads code blocks;
+    check-links.py does the reverse. Sent by DFR-0055; survived the copy.
+  - `pre-commit:85` — :80's capture class has no `:` or `*`, so the http*
+    skip matches only relative paths starting "http", and the `*'*'*`
+    skip never fires.
+  - `pre-commit:86` — `*-) continue` has no known reason (:77-79).
+  - `pre-commit:91-92` — existence is tested in the working tree, though
+    :66-67 says every read is staged. Fix: git cat-file -e ":$path".
+  - `pre-commit:105` — `${#gone}` counts by locale; under LC_ALL=C the
+    45-character floor shrinks for non-ASCII text.
+  - `.githooks/commit-msg:48` — the rewrites at :46-49 say not which
+    subject shapes each repairs.
+  - `commit-msg:143` — `_low` (an id), `_lo` and `_hi` (numbers).
+  - `scripts/local-ci.sh:94` (template :70) — says a step skips itself
+    with need(); need() stops the gate (:80-82).
+  - `local-ci.sh:96` (template :72) — one LOG_DIR for every worktree, so
+    two gates at once overwrite each other's log.
+  - `local-ci.sh:36` (template :33) — "Tool versions are pinned HERE";
+    here only NASM is pinned (ci.yml:58's copy is in the build-comments
+    item).
+  Then: copy the hooks, re-cmp them byte-identical, merge the local-ci.sh
+  passages.
+  Found by review-readability lane 05 and review-code lane 05.
+  Priority: 3.
+  Waiting-on: claude-config session (template fix, asked 2026-11-18).
+  **Layman:** The shared project template's safety-check scripts have small faults; once they are fixed there, copy the fixed versions here.
+  Kind: review-fix.
+  Source: review-readability-2026-11-18.
+  Lanes: Build.
+
+- 📋 [DFR-0084] **Tests: no race on a busy machine, and no idle waits.**
+  Confirmed by review-tests' orchestrator 2026-11-18 at 6e9b702; do not
+  re-review (review-cost.md § 4).
+  - `tests/app/tst_engineprocess.cpp:195` — msleep(600) assumes
+    chatter.sh's burst (written 0.3 s after HELLO) is in the pipe at
+    `delete engine`; under ctest -j it may not be, and the path goes
+    untested. Fix: the fake writes a marker file after the burst; poll
+    for it without processing events. (MEDIUM.)
+  - `tst_engineprocess.cpp:37` — qWait(50) misses a later duplicate
+    ended(). Fix: wait for !isRunning(), sendPostedEvents, then count.
+  - `tst_engineprocess.cpp:193` — a failed QVERIFY returns before
+    `delete engine`; its `exec sleep 30` child holds stderr and CTest
+    waits 30 s. Fix: own it with std::unique_ptr or QScopeGuard.
+  - `tests/app/tst_drivelist.cpp:179` — qWait(500) for slow-probe.sh's
+    drive; if later, the re-entry check proves nothing. Fix: a marker
+    file and qWaitFor.
+  - `tst_drivelist.cpp:168` — 1.08 s, nearly all slow-probe.sh's sleep 1.
+    Fix: shorten the pause once the marker exists.
+  - `tests/app/tst_probe.cpp:160` — mountedVolumes() is read after
+    initTestCase's probe; an automount between fails a check. Fix: read
+    before and after; compare devices present both times.
+  - `tests/app/tst_mainwindow.cpp:205` with `:188` — the 1.5 s budget,
+    ReportView's 1 s tick and window.sh's sleep 2 must stay in order
+    (about 0.5 s slack). Not reproduced in 180 runs; queued because the
+    same fix removes :188's 2.2 s. Fix: window.sh holds the run until the
+    test releases it (a file); wait with kWaitMs. (LOW.)
+  - `tst_mainwindow.cpp:252` — 2.1 s from slow-probe.sh's pause, which
+    guards no assertion (each runs before an event is processed). Fix: a
+    probe with no pause.
+  - `tests/app/tst_drivemap.cpp:161` — a wall-clock `< 500` ms fails
+    under load or a sanitizer build. Fix: QBENCHMARK outside the gate, or
+    a limit far above any build. (LOW, calibrated.)
+  - `tests/image/check-report.sh:118` — `timeout 1 head -c 1 <&3` always
+    waits the full second (fd 3 has a writer), after the engine exited.
+    Fix: a non-blocking read (dd iflag=nonblock).
+  Found by review-tests lanes 1-3.
+  Priority: 3.
+  **Layman:** Make the automatic checks reliable when the computer is busy, and stop them sitting idle.
+  Kind: review-fix.
+  Source: review-tests-2026-11-18.
+  Lanes: Engine link, Drives, Screens, Map view, Build.
+
+- 📋 [DFR-0085] **Engine code a stranger can change safely.**
+  Confirmed by review-readability's orchestrator 2026-11-18 at 6e9b702;
+  do not re-review (review-cost.md § 4).
+  - `src/engine/main.asm:156` — the header lists the report stream as an
+    order, but runs come from extents_space (:200) before any file and
+    batches go out mid-walk. Say FRAGMENTED_FILE, FILE_SKIPPED, MAP_RUNS
+    and REPORT_PROGRESS interleave (§ 4.6).
+  - `src/engine/CMakeLists.txt:5-6` — "its one home" for NASM 3.02, but
+    README.md:58, local-ci.sh:46 and ci.yml:65 repeat it. Say this file
+    enforces it and name the copies (DFR-0052's choice stands).
+  - `src/engine/probe.asm:388-394`, `:406-412`, `:532-536` — three copies
+    of "fs_buf equals this name" (two repe cmpsb, ext4 a 4-byte load).
+    One (name, length) helper for all three; the ext4 comment is
+    DFR-0052's.
+  - `probe.asm:424-439` — judge_line inlines the rdev split, uncommented.
+    Move the btrfs source-to-device step into its own function, headed by
+    kernel.inc:109-111's formula.
+  - `probe.asm:762` — `rotational` returns '0', '1' or -1, not a yes/no.
+    Rename (read_rotational_byte).
+  - `src/engine/records.asm:261` — map_run_size is a bare `shl ecx, 4` at
+    200, 215, 256 and 261 (261 uncommented), and send_batch computes the
+    size twice (255-257, 260-262). Derive it once. (MEDIUM.)
+  - `src/engine/walk.asm:287` — r12 turns from the entry buffer (:203)
+    into a descriptor that reopen takes silently (306-307, 320-321); r15
+    from name length to errno (342, 370). Pass reopen its descriptor in
+    an argument register, or split the open-and-check part. (MEDIUM.)
+  - `walk.asm:3` — says walk calls only sys.asm per design.md, which
+    allows sys.asm and records.asm. Say so.
+  - `walk.asm:64` — walk_level's comment omits .len (entry bytes read).
+    Rename (dents_len) or describe it.
+  Found by review-readability lanes 01 and 02.
+  Priority: 4.
+  **Layman:** Tidy the engine's code and notes so the next person to change it is not misled.
+  Kind: refactor.
+  Source: review-readability-2026-11-18.
+  Lanes: Entry, Probe, Records, Walk.
+
+- 📋 [DFR-0086] **Window code a stranger can change safely.**
+  Confirmed 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `src/app/model/DriveMap.h:13` — CellState's count is a bare 4 at
+    DriveMap.cpp:59 (twice) and :82 and DriveMapView.h:94 and :97; a fifth
+    state indexes past them silently and mapKey (DriveMapView.cpp:293-298)
+    omits it. One count beside the enum, or a static_assert. Also
+    DriveMap.cpp:82's local `blocks` shadows DriveMap::blocks(). (MEDIUM.)
+  - `src/app/ui/DriveMapView.cpp:35` — the glow's 3-cell reach is
+    hand-kept at :35, :177-182, :205 and :283. One constant. (MEDIUM.)
+  - `DriveMapView.cpp:39-56` — glow colours (lighter(150), white, alpha
+    110, opacity 0.45, lightness 128) and `src/app/ui/MainWindow.cpp:59`'s
+    resize(800, 450) are chosen outside Theme, against design.md ("Only
+    ui/Theme chooses a colour, symbol or size"). Move them into Theme.
+  - `src/app/ui/Theme.h:2` cites design.md § Who may call whom, which does
+    not exist; it is § What may depend on what.
+  - `src/app/ui/Theme.cpp:57` — says Desktop uses dark high contrast's
+    map colours; the constructor (:101-104) never calls coloursOf for
+    Desktop. Say the case only covers every value.
+  - `src/app/model/Report.h:76` — m_incoming holds only files, beside
+    three other m_incoming* members. Rename m_incomingFiles.
+  - `src/app/main.cpp:15` — `languages` is unused by name but installs
+    the translators, so it must outlive the window. Say so.
+  - `src/app/ui/ReportView.cpp:111` — showFound only records. Rename
+    (noteFound).
+  - `DriveMapView.cpp:217` — sortMap sorts nothing; it fits the map to
+    the cells. Rename it and m_sortedFor (fitMapToCells, m_fittedFor).
+  - `DriveMapView.cpp:104` — elapsed returns a fraction, not a time.
+    Rename (progress).
+  - `src/app/CMakeLists.txt:76` — defragr-window is set up at 61-74 and
+    again at 89-91. Keep each target's lines together.
+  Found by review-readability lanes 03 and 04, review-code lane 04.
+  Priority: 4.
+  **Layman:** Tidy the window's code and notes so the next person to change it is not misled.
+  Kind: refactor.
+  Source: review-readability-2026-11-18.
+  Lanes: Map view, Theme, Report, Report view, Languages, Build.
+
+- 📋 [DFR-0087] **Build and container scripts: comments that say what the code does.**
+  Confirmed 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
+  - `.github/workflows/ci.yml:58` — "one commit cannot use two
+    versions", but only NASM is pinned; the packages float with the
+    runner. Say the list lives in the script and its versions follow the
+    runner image. (local-ci.sh:36's template copy is in the template
+    item.)
+  - `scripts/ci-container.sh:117` with `:118-119` — the copied modules
+    folder is also where the container finds the kernel (tests/vm/run.sh:62
+    tries $modules/vmlinuz); /boot is not mounted, so a host keeping its
+    kernel only in /boot gets "no readable kernel image". Say so.
+  - `ci-container.sh:56` — no reason given for defaulting to this
+    machine's scratch folder (/tmp is RAM here). One clause, naming
+    DEFRAGR_SCRATCH for other machines.
+  - `scripts/ci-container/Containerfile:6` — RUNNER_PACKAGES is "tools
+    ... the gate uses", but ci-container.sh:28 says the image build uses
+    some (curl, xz-utils, ca-certificates). Match it.
+  - `Containerfile:19` — the DL3008 ignore explains word splitting, not
+    why versions float: the image copies a runner that updates weekly
+    (ci-container.sh:18-20). Say so.
+  Found by review-readability lane 05.
+  Priority: 4.
+  **Layman:** Correct notes in the build scripts that would send the next person the wrong way.
+  Kind: doc-fix.
+  Source: review-readability-2026-11-18.
+  Lanes: Build.
+
+- 📋 [DFR-0088] **Map view per-frame costs: measure, then change only what wins.**
+  None measured (review-code --performance lane P2, 2026-11-18). Measure
+  first (review-cost.md § 5): perf record -g on the window during a sweep,
+  heaptrack for allocation counts only, and a painted-cells counter. Keep
+  a change only where the numbers show a win.
+  - `src/app/ui/DriveMapView.cpp:112` (and glowAt) — a QEasingCurve is
+    built per cell per frame. Change: static curves, or inline
+    1 − (1 − x)³.
+  - `DriveMapView.cpp:188` with `src/app/ui/Theme.cpp:161` — cellRect
+    calls Theme::cellSide() about eight times, each building a
+    QFontMetrics; tile() and glow() call it again. Change: side, pitch and
+    columns once per paint, or the side stored in Theme (m_body is fixed
+    after construction).
+  - `DriveMapView.cpp:241` — frame() repaints the whole widget, though
+    only the arriving band (about a quarter) and its glow margin change.
+    Change: update only the moving rows; measure on a real compositor
+    (DFR-0061's rig ran offscreen).
+  - `DriveMapView.cpp:214` — each capacity change while dragging reruns
+    DriveMap::cells over every run, and cells() calls blocks(), walking
+    them again. Change: merge a burst of resizes with a short single-shot
+    timer; keep blocks() up to date in DriveMap::add. Time sortMap on a
+    large MAP_RUNS stream.
+  - `DriveMapView.cpp:228` — ReportView::start calls showMap(nullptr),
+    which runs about 156 empty 16 ms wakeups. Change: skip moveUntil when
+    there are no cells. (LOW.)
+  Found by review-code --performance lane P2; Theme.cpp:161 also by
+  review-readability lane 04.
+  Priority: 5 — measure before changing.
+  **Layman:** Check whether the drive map's animation wastes computer power, and trim only what measurably helps.
+  Kind: perf.
+  Source: code-quality-review-2026-11-18.
+  Lanes: Map view, Theme.
 
 - 📋 [DFR-0015] **Release 0.2.0.**
   **Layman:** Publishes the version that shows the drive map.
@@ -682,6 +1216,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   copied in; pre-push and setup-hooks.sh were unchanged, and all four are
   byte-identical to ~/.claude/skeleton/files again. local-ci.sh's and
   ci.yml's template comments take the same fix's wording.
+  Review 2026-11-18: two defects this item sent remain after the copy.
+  The hook's link check still differs from check-links.py
+  (pre-commit:80), and still tests existence in the working tree
+  (pre-commit:91). Carried by DFR-0083.
   **Layman:** Once the shared template's hook defects are fixed, copy the fixed files here so the two stay identical.
   Kind: chore.
   Source: review-code-2026-11-16.
@@ -869,6 +1407,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   and file names must show as written. Each check was seen to fail with
   its behaviour broken. MainWindow and ReportView now build as the
   defragr-window library so the test can link them.
+  Record corrected 2026-11-18 (review-tests): not every check was seen to
+  fail. With the listing branch's m_report->setEnabled(false) removed
+  (mutation M2), the View report check at tst_mainwindow.cpp:267 stayed
+  green, because no row is selected. Fixed by DFR-0076.
   **Layman:** An automatic check that presses the window's own buttons, so a break between the screen and the engine is caught before release.
   Kind: test.
   Source: verify-delivery-2026-11-16.
@@ -914,6 +1456,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   flashes a second. Each state's glow is painted once, so a frame costs
   about what it did without the glow (measured offscreen at 1600x1000).
   Owner approved the glow from the second demo video, 2026-11-18.
+  Review 2026-11-18: the three-flashes limit held only because callers
+  pace their changes; the view enforces nothing (DriveMapView.cpp:128-151,
+  :214). DFR-0075 makes the view enforce it; then this record must say so.
   **Layman:** A changed block lights up and glows over its neighbours before settling, and a new map rolls in as a bright band.
   Kind: enhancement.
   Source: user-request-2026-11-18.
@@ -981,6 +1526,23 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   with strace -c -f on a cold report (needs root), then look first at
   the candidates: GETFSMAP's map (extents_space), FIEMAP read twice per
   file since DFR-0011, and getdents64's small 4 KiB buffer.
+  Review 2026-11-18 (review-code --performance lane P1), none measured.
+  Changes to try once the counts are in, each kept only if it wins:
+  (1) main.asm:237 — a file whose extents all fit one FIEMAP call (256)
+  and reached FIEMAP_EXTENT_LAST still has them in fm_buf; send its runs
+  from there instead of a second FIEMAP. Count ioctl calls with perf trace
+  -s, old and new builds alternating.
+  (2) extents.asm:35 — FSMAP_PER_CALL 64 is sized so the image test needs
+  a second call (INV-17). If ext4 rebuilds its metadata list on each
+  GETFSMAP call, use a large buffer in production and the small one only
+  in the test build. Time the map phase with perf stat, 64 against 4096.
+  (3) walk.asm:320 — each folder costs openat2(O_PATH), statx, an open
+  through /proc/self/fd and a close; one openat2(FOLDER_FLAGS,
+  RESOLVE_NO_XDEV) may keep the same guards. Treat ENOTDIR and ELOOP as
+  "next"; DT_UNKNOWN keeps today's path.
+  (4) main.asm:208 — the walk is one thread and kernel-CPU bound. Several
+  walkers feeding one writer is large work, weighed against S8; consider
+  it only after perf record -g -a shows no lock bound.
   **Layman:** A report on the big games drive spends most of its 20 minutes with the computer thinking, not the disk reading; find out which step.
   Kind: investigate.
   Source: dfr-0060-measurement-2026-11-18.
