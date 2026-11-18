@@ -1161,7 +1161,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: dfr-0088-session-2026-11-18.
   Lanes: Build.
 
-- 📋 [DFR-0015] **Release 0.2.0.**
+- ✅ [DFR-0015] **Release 0.2.0.**
   **Layman:** Publishes the version that shows the drive map.
   Kind: release.
   Source: design-2026-11-15.
