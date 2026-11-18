@@ -667,7 +667,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Build.
 
-- 📋 [DFR-0055] **Copy the fixed git hooks in from the project template.**
+- ✅ [DFR-0055] **Copy the fixed git hooks in from the project template.**
   .githooks/commit-msg, pre-commit, pre-push and scripts/setup-hooks.sh are
   byte-identical to ~/.claude/skeleton/files (diff -q, 2026-11-16).
   local-ci.sh:27-29 and :58-67 and ci.yml:24 carry template text. Their
@@ -677,6 +677,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   splitting on spaces, a dated-line exemption matching any line, three
   copies of one pipeline, and a wrong comment on how the push hook reads
   DOCS_GLOB. Do this once claude-config reports the template fixed.
+  Done 2026-11-18, after claude-config fixed the template (~/.claude
+  a0a7de4, its message 2204). .githooks/commit-msg and pre-commit are
+  copied in; pre-push and setup-hooks.sh were unchanged, and all four are
+  byte-identical to ~/.claude/skeleton/files again. local-ci.sh's and
+  ci.yml's template comments take the same fix's wording.
   **Layman:** Once the shared template's hook defects are fixed, copy the fixed files here so the two stay identical.
   Kind: chore.
   Source: review-code-2026-11-16.

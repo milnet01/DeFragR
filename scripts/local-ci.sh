@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # THE CI GATE. One list of steps, run in two places.
 #
-# `.github/workflows/ci.yml` CALLS this file and restates none of it. That is
-# the whole point (`local-gate.md` § 3): two lists of steps drift the first
-# time someone edits one of them, and the drift surfaces as a red build on a
-# push — which is exactly what running locally was meant to prevent. A
-# hand-written mirror is correct on the day it is written and wrong after.
+# The pre-push hook runs this file. A CI workflow, where the project has one,
+# CALLS it too and restates none of it. That is the whole point
+# (`local-gate.md` § 3): two lists of steps drift the first time someone edits
+# one of them, and the drift surfaces as a red build on a push — which is
+# exactly what running locally was meant to prevent. A hand-written mirror is
+# correct on the day it is written and wrong after.
 #
 # So: to change what CI does, change THIS FILE. Never add a step to the
 # workflow.
@@ -27,12 +28,12 @@
 set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
-# The one definition of what counts as documentation. The pre-push hook reads
-# it with `--docs-glob` and does its own matching, so the decision has one home
-# as well as one value.
+# The one definition of what counts as documentation. setup-hooks.sh copies it
+# into git config (`ants.gate.docsGlob`), and the pre-push hook reads that
+# copy. After editing it, re-run ./scripts/setup-hooks.sh in every clone.
 DOCS_GLOB='docs/*|*.md|LICENSE'
 
-# Tool versions are pinned HERE and installed from here by the workflow. A
+# Tool versions are pinned HERE, and a CI workflow installs them from here. A
 # version pinned only in the workflow is a second copy: this script would take
 # whatever happened to be on PATH, so the same commit could pass locally and
 # fail on GitHub. Measured case: ruff's default rule set changed between

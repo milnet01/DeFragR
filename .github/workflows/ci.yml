@@ -21,8 +21,9 @@ permissions:
 
 # local-gate.md § 9. A newer push to a branch cancels its older run, which
 # saves minutes. NOT on the default branch: there a cancelled run would hide
-# which commit broke it. The event is in the key so a push and a scheduled
-# run never cancel or queue behind each other. A tag ref is not the default
+# which commit broke it. The event is in the key so runs from two triggers
+# (a push, and a schedule if you add one) never cancel or queue behind each
+# other. A tag ref is not the default
 # branch, so a workflow that also publishes on a tag must not copy this
 # expression: a re-pushed tag would cancel a half-done release. There, cancel
 # on pull_request only.
