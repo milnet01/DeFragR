@@ -36,7 +36,10 @@ private:
     void showFailure(const model::Message &message);
     void showFound(quint64 count, const QByteArray &latestPath);
     void showProgress(quint64 names, quint64 estimate);
+    // Each second: how long it has run, and what it has found since.
+    void showTick();
     void showElapsed();
+    void showLatestFound();
     // Shows the run as going, or as over.
     void setRunning(bool running);
 
@@ -50,6 +53,11 @@ private:
     QProgressBar *m_progress = nullptr;
     QElapsedTimer m_clock;
     QTimer m_tick;
+    // What showFound last heard, shown on the next tick: a big drive
+    // finds thousands of files, faster than anyone can read them.
+    quint64 m_foundCount = 0;
+    QByteArray m_latestPath;
+    bool m_foundShown = true;
     QWidget *m_mapKey = nullptr;
     DriveMapView *m_map = nullptr;
     QLabel *m_filesHeading = nullptr;

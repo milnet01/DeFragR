@@ -36,11 +36,11 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     m_found = new QLabel;
     m_latest = new QLabel;
     m_latest->setTextFormat(Qt::PlainText);
-    // A long path must not widen the window; showFound elides it.
+    // A long path must not widen the window; showLatestFound elides it.
     m_latest->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     m_elapsed = new QLabel;
     m_tick.setInterval(1000);
-    connect(&m_tick, &QTimer::timeout, this, &ReportView::showElapsed);
+    connect(&m_tick, &QTimer::timeout, this, &ReportView::showTick);
     m_progress = new QProgressBar;
 
     // The key sits right above the map, so a magnifier shows both.
@@ -85,6 +85,7 @@ void ReportView::start(const QByteArray &mountPoint)
     m_progress->setRange(0, 0);
     m_found->setText(tr("No fragmented files found yet."));
     m_latest->clear();
+    m_foundShown = true;
     m_map->showMap(nullptr);
     m_clock.start();
     showElapsed();
@@ -109,10 +110,26 @@ void ReportView::showFailure(const model::Message &message)
 
 void ReportView::showFound(quint64 count, const QByteArray &latestPath)
 {
+    m_foundCount = count;
+    m_latestPath = latestPath;
+    m_foundShown = false;
+}
+
+void ReportView::showTick()
+{
+    showElapsed();
+    showLatestFound();
+}
+
+void ReportView::showLatestFound()
+{
+    if (m_foundShown)
+        return;
+    m_foundShown = true;
     m_found->setText(tr("Fragmented files found so far: %1")
-                         .arg(QLocale().toString(count)));
+                         .arg(QLocale().toString(m_foundCount)));
     //: %1 is the path of the file found most recently.
-    const QString latest = tr("Latest: %1").arg(model::messages::path(latestPath));
+    const QString latest = tr("Latest: %1").arg(model::messages::path(m_latestPath));
     m_latest->setText(fontMetrics().elidedText(latest, Qt::ElideMiddle, m_latest->width()));
     m_latest->setToolTip(latest);
 }

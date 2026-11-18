@@ -782,7 +782,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-perf-2026-11-16.
   Lanes: Walk, Entry.
 
-- 📋 [DFR-0061] **Report view: cheaper live updates and column sizing.**
+- ✅ [DFR-0061] **Report view: cheaper live updates and column sizing.**
   - ReportView.cpp:105 updates the "latest file" line once per fragmented
     file (up to about 30,600 on /mnt/Games): elide, two labels, a tooltip,
     a relayout. Paint it from the existing 1 s tick.
@@ -792,6 +792,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   - Report.cpp:190 decodes a path each time a File cell is drawn.
   Measure on a replayed 30k-row report first. Found by review-code
   --performance lane 02.
+  Done 2026-11-18, measured offscreen with a scratch rig: the real
+  ReportView fed a generated report of 30,600 fragmented files through a
+  fake engine and launcher. All at once: the run took about 65 ms, the
+  event loop never stalled past 14 ms, and the finished table's first
+  paint took 4 to 8 ms, so column sizing and path decoding stay as they
+  are. One record per read (3,000 files, 2 ms apart): the window's CPU
+  time was 1,420 to 1,476 ms; with the found count and latest-file lines
+  painted from the 1 s tick instead of on every find, 224 to 253 ms.
+  That change is in.
   **Layman:** Keep the window smooth while a report on a big drive streams in thousands of results.
   Kind: perf.
   Source: review-code-perf-2026-11-16.
