@@ -906,7 +906,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-readability-2026-11-18.
   Lanes: Build.
 
-- 📋 [DFR-0084] **Tests: no race on a busy machine, and no idle waits.**
+- ✅ [DFR-0084] **Tests: no race on a busy machine, and no idle waits.**
   Confirmed by review-tests' orchestrator 2026-11-18 at 6e9b702; do not
   re-review (review-cost.md § 4).
   - `tests/app/tst_engineprocess.cpp:195` — msleep(600) assumes
@@ -943,6 +943,20 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     Fix: a non-blocking read (dd iflag=nonblock).
   Found by review-tests lanes 1-3.
   Priority: 3.
+  Shipped 2026-11-18. Fakes now hold their run until the test releases
+  it (fakes/hold.sh, FakeHold.h), replacing fixed sleeps and qWaits:
+  destroyedMidRun waits for the burst to be sent (green before with the
+  burst never sent), drivelist waits for slow-probe's drive (green
+  before with it late), run() waits for !isRunning() then
+  sendPostedEvents, the chatter engine is held by unique_ptr (a failed
+  check cost 30 s, now 10 s), tst_probe compares devices present both
+  before and after, mainwindow's report is held until checked and its
+  Refresh test uses a probe with no pause, drivemap's time limit is 2000
+  ms (33 ms here), check-report.sh reads the automount pipe without
+  waiting. Times: tst_engineprocess 1.65 s to about 0.35 s,
+  tst_drivelist 1.31 s to about 0.16 s, tst_mainwindow 6.17 s to 1.9-3.5
+  s. Each changed test passed 10 repeats, the whole suite 5 repeats at
+  -j 8. Duplicate ended() and the automount race were not reproduced.
   **Layman:** Make the automatic checks reliable when the computer is busy, and stop them sitting idle.
   Kind: review-fix.
   Source: review-tests-2026-11-18.

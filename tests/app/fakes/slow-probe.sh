@@ -1,9 +1,11 @@
 #!/bin/sh
-# A probe that lists one drive, /mnt/slow, then pauses before it
-# finishes (docs/specs/DFR-0002-engine-protocol.md § 4.4 and § 4.5), so a
-# test can act while the drive is already read and the run still going.
-# Any other command line gets no stream.
+# A probe that lists one drive, /mnt/slow, then pauses until its test
+# lets it finish (docs/specs/DFR-0002-engine-protocol.md § 4.4 and § 4.5;
+# hold.sh), so a test can act while the drive is already sent and the run
+# still going. Any other command line gets no stream.
 [ "$1" = probe ] || exit 3
+# shellcheck source=SCRIPTDIR/hold.sh
+. "${0%/*}/hold.sh"
 
 # One byte with the value $1.
 byte() { printf '%b' "\\0$(printf '%o' "$1")"; }
@@ -33,6 +35,7 @@ header 1 16; le 1 2; le 1 2; le 1 4; zeros 8
 header 16 80
 le 1000 8; le 500 8; le 4096 4; le 8 4; le 1 4; le 2 1; le 2 1; zeros 2; zeros 8
 string_part 40 /mnt/slow; string_part 56 /dev/sdz1; string_part 72 ext4
-sleep 1
+hold_sent
+hold_wait
 # FINISHED: OK.
 header 2 8; zeros 8

@@ -3,6 +3,7 @@
 // reports files whose names look like markup, and a stand-in pkexec
 // (fakes/pkexec-pass, fakes/pkexec-refuse) answers for admin rights, so
 // the test needs no root, no display and no real pkexec. DFR-0063.
+#include "FakeHold.h"
 #include "model/Messages.h"
 #include "ui/Languages.h"
 #include "ui/MainWindow.h"
@@ -203,6 +204,8 @@ private slots:
     // runs and then the result, and Back returns to the drives.
     void reportRunsAndShowsItsResult()
     {
+        FakeHold hold;
+        QVERIFY(hold.isValid());
         useLauncher("pkexec-pass");
         openWindow("window.sh");
         selectRow(0);
@@ -210,23 +213,23 @@ private slots:
         QCOMPARE(pages()->currentWidget(), reportView());
 
         // Mid-run: the engine has found a file and says it is half done,
-        // then waits.
+        // then waits until the test lets it finish.
         QVERIFY2(QTest::qWaitFor([&] { return progress()->value() == 50; }, kWaitMs),
                  "no progress arrived");
         QVERIFY(progress()->isVisibleTo(m_window.get()));
         QCOMPARE(progress()->maximum(), 100);
         QVERIFY(!button(reportView(), QStringLiteral("Back to drives"))->isEnabled());
-        // What it has found shows on the view's next 1 s tick (DFR-0061),
-        // well inside the engine's 2 s wait.
+        // What it has found shows on the view's next 1 s tick (DFR-0061).
         QVERIFY2(QTest::qWaitFor(
                      [&] { return label(reportView(), QStringLiteral("Found 1 fragmented file so far.")); },
-                     1500),
-                 "the found file was not shown within a tick");
+                     kWaitMs),
+                 "the found file was not shown");
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Report on")), kMarkupDrive));
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Latest:")), kMarkupFile));
         QVERIFY(tipShowsAsWritten(label(reportView(), QStringLiteral("Latest:")), kMarkupFile));
 
         // The end: the figures replace the progress, and the file is listed.
+        QVERIFY(hold.release());
         QVERIFY2(QTest::qWaitFor([&] { return button(reportView(), QStringLiteral("Back to drives"))->isEnabled(); },
                                  kWaitMs),
                  "the report did not end");
@@ -264,9 +267,11 @@ private slots:
     }
 
     // While a probe runs, Refresh is greyed out and the window says so.
+    // Each check runs before the window handles an event, so the probe
+    // needs no pause.
     void refreshIsGreyedWhileListing()
     {
-        useEngine("slow-probe.sh");
+        useEngine("window.sh");
         m_window = std::make_unique<ui::MainWindow>(*m_theme);
         m_window->show();
         auto *refresh = button(m_window.get(), QStringLiteral("Refresh drives"));
@@ -287,7 +292,7 @@ private slots:
         QVERIFY(!button(m_window.get(), QStringLiteral("View report"))->isEnabled());
         waitForDrives();
         QVERIFY(refresh->isEnabled());
-        QCOMPARE(driveTable()->model()->rowCount(), 1);
+        QCOMPARE(driveTable()->model()->rowCount(), 2);
     }
 
 private:

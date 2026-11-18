@@ -148,6 +148,9 @@ private slots:
     }
 
     // A map of a big drive bins quickly enough to redo on every resize.
+    // The limit is dozens of times an unoptimised build's time on a busy
+    // machine, so it catches binning that visits every run once per cell,
+    // not binning a few times slower.
     void bigDriveBinsQuickly()
     {
         DriveMap map;
@@ -160,7 +163,9 @@ private slots:
         QElapsedTimer clock;
         clock.start();
         QCOMPARE(map.cells(20'000).size(), 20'000);
-        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        const qint64 ms = clock.elapsed();
+        qInfo("binned in %lld ms", qlonglong(ms));
+        QVERIFY2(ms < 2000, qPrintable(QString::number(ms)));
     }
 
     // DFR-0074: a local user who can write to the drive chooses how many

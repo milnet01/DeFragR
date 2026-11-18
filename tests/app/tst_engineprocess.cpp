@@ -2,13 +2,18 @@
 // (docs/specs/DFR-0002-engine-protocol.md § 6; docs/design.md § Errors).
 // The real engine comes from DEFRAGR_ENGINE; the failures come from the
 // fake engines and launchers in DEFRAGR_FAKES.
+#include "FakeHold.h"
 #include "engine/EngineProcess.h"
 
+#include <QCoreApplication>
+#include <QDeadlineTimer>
 #include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
+
+#include <memory>
 
 #include <unistd.h>
 
@@ -25,7 +30,9 @@ struct Run {
 
 // Once per engine: its connections outlive the Run they write to. An
 // outcome left at its default reads as Broken, so a test of a broken end
-// also checks that ended() came.
+// also checks that ended() came. The run is over once the engine has
+// exited and no end is queued; a second ended() would have come by then,
+// or be among the events still posted.
 Run run(EngineProcess &engine, Command command, const QStringList &arguments = {})
 {
     Run result;
@@ -37,9 +44,9 @@ Run run(EngineProcess &engine, Command command, const QStringList &arguments = {
     });
     engine.start(command, arguments);
     result.endsDuringStart = result.ends;
-    if (!QTest::qWaitFor([&] { return result.ends > 0; }, 10000))
+    if (!QTest::qWaitFor([&] { return result.ends > 0 && !engine.isRunning(); }, 10000))
         qWarning("the run did not end");
-    QTest::qWait(50);  // a second ended() would land here
+    QCoreApplication::sendPostedEvents();
     return result;
 }
 
@@ -184,10 +191,9 @@ private slots:
         engine.start(CommandProbe);
         QVERIFY(engine.isRunning());
         engine.start(CommandProbe);
-        QTRY_COMPARE(ends, 1);
-        QTest::qWait(50);  // a second ended() would land here
+        QTRY_VERIFY(ends > 0 && !engine.isRunning());
+        QCoreApplication::sendPostedEvents();  // a second ended() would land here
         QCOMPARE(ends, 1);
-        QVERIFY(!engine.isRunning());
     }
 
     // DFR-0077: an engine program that is there but will not start, such
@@ -226,7 +232,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(ends, 1, 5000);
         QCOMPARE(outcome.end, RunEnd::Broken);
         QTRY_VERIFY_WITH_TIMEOUT(!engine.isRunning(), 5000);
-        QTest::qWait(50);
+        QCoreApplication::sendPostedEvents();  // a second ended() would land here
         QCOMPARE(ends, 1);
     }
 
@@ -268,22 +274,31 @@ private slots:
     // the half-destroyed object: once, it corrupted the heap.
     void destroyedMidRun()
     {
+        FakeHold hold;
+        QVERIFY(hold.isValid());
         useEngine(fake("chatter.sh"));
-        auto *engine = new EngineProcess(fake("pass-through.sh"));
         int batches = 0;
         bool destroying = false;
         int batchesWhileDestroying = 0;
-        connect(engine, &EngineProcess::recordsReceived, this, [&] {
+        // Owned, so a failed check still stops the engine: its wait would
+        // hold CTest's standard error open for 30 s.
+        auto engine = std::make_unique<EngineProcess>(fake("pass-through.sh"));
+        connect(engine.get(), &EngineProcess::recordsReceived, this, [&] {
             ++batches;
             if (destroying)
                 ++batchesWhileDestroying;
         });
         engine->start(CommandReport, {QStringLiteral("/")});
         QVERIFY(QTest::qWaitFor([&] { return batches > 0; }, 10000));
-        // No event loop, so the fake's burst arrives and stays unread.
-        QThread::msleep(600);
+        // No event loop from here, so the fake's burst arrives and stays
+        // unread.
+        QVERIFY(hold.release());
+        const QDeadlineTimer deadline(10000);
+        while (!hold.sent() && !deadline.hasExpired())
+            QThread::msleep(5);
+        QVERIFY2(hold.sent(), "the fake did not send its burst");
         destroying = true;
-        delete engine;
+        engine.reset();
         QCOMPARE(batchesWhileDestroying, 0);
     }
 };

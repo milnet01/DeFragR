@@ -116,8 +116,13 @@ timeout 30 /test/defragr-engine report /mnt/img >/tmp/nested.bin
 check "report with mounts inside exits OK" $? 0
 check "report with mounts inside is the first report" \
     "$(sha256sum </tmp/nested.bin)" "$(sha256sum </tmp/report.bin)"
-check "the automount was not woken" \
-    "$(timeout 1 head -c 1 <&3 | wc -c)" 0
+# The engine has exited, so any request it made is already in the pipe:
+# look without waiting. The machine's shell is busybox's, whose read has
+# -n and -t.
+woken=0
+# shellcheck disable=SC2034,SC3045
+read -r -n 1 -t 0 byte <&3 && woken=1
+check "the automount was not woken" "$woken" 0
 umount /mnt/img/auto
 umount /mnt/img/nested
 exec 3<&-

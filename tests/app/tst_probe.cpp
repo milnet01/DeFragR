@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QProcess>
 #include <QSet>
 #include <QStorageInfo>
@@ -61,6 +62,21 @@ quint64 deviceKey(quint32 major, quint32 minor)
     return (quint64(major) << 32) | minor;
 }
 
+// Each mounted block device, by device number, with the name Qt gives it.
+QHash<quint64, QByteArray> mountedBlockDevices()
+{
+    QHash<quint64, QByteArray> devices;
+    for (const QStorageInfo &volume : QStorageInfo::mountedVolumes()) {
+        const QByteArray device = volume.device();
+        struct stat node {};
+        if (!device.startsWith("/dev/") || stat(device.constData(), &node) != 0
+            || !S_ISBLK(node.st_mode))
+            continue;
+        devices.insert(deviceKey(major(node.st_rdev), minor(node.st_rdev)), device);
+    }
+    return devices;
+}
+
 // The device's rotational flag, found through sysfs's partition file
 // rather than by trying paths: a partition's flag is its disk's.
 std::optional<char> rotational(quint32 major, quint32 minor)
@@ -87,11 +103,13 @@ class TestProbe : public QObject {
     Q_OBJECT
 
     Probe m_probe;
+    QHash<quint64, QByteArray> m_mountedBefore;  // read just before the probe
 
 private slots:
     void initTestCase()
     {
         QVERIFY2(!qEnvironmentVariable("DEFRAGR_ENGINE").isEmpty(), "DEFRAGR_ENGINE is not set");
+        m_mountedBefore = mountedBlockDevices();
         m_probe = runProbe();
         QCOMPARE(m_probe.error, std::nullopt);
         QCOMPARE(m_probe.result, int(ResultOk));
@@ -150,21 +168,20 @@ private slots:
         }
     }
 
-    // S1: every mounted block device appears once.
+    // S1: every mounted block device appears once. Only a device mounted
+    // both before the probe and now counts: one mounted or unmounted
+    // meanwhile, as by an automount, may or may not be in the probe.
     void listsEveryDrive()
     {
         QSet<quint64> listed;
         for (const Drive &drive : std::as_const(m_probe.drives))
             listed.insert(deviceKey(drive.devMajor, drive.devMinor));
         int checked = 0;
-        for (const QStorageInfo &volume : QStorageInfo::mountedVolumes()) {
-            const QByteArray device = volume.device();
-            struct stat node {};
-            if (!device.startsWith("/dev/") || stat(device.constData(), &node) != 0
-                || !S_ISBLK(node.st_mode))
+        const QHash<quint64, QByteArray> mountedAfter = mountedBlockDevices();
+        for (auto it = mountedAfter.cbegin(); it != mountedAfter.cend(); ++it) {
+            if (!m_mountedBefore.contains(it.key()))
                 continue;
-            const quint64 key = deviceKey(major(node.st_rdev), minor(node.st_rdev));
-            QVERIFY2(listed.contains(key), device.constData());
+            QVERIFY2(listed.contains(it.key()), it.value().constData());
             ++checked;
         }
         if (checked == 0)

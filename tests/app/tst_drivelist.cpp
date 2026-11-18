@@ -2,9 +2,11 @@
 // verdict alone (S12, ADR-0002; docs/specs/DFR-0002-engine-protocol.md
 // § 4.5 names this test). The real engine comes from DEFRAGR_ENGINE;
 // fakes, such as a crashing one, from DEFRAGR_FAKES.
+#include "FakeHold.h"
 #include "engine/EngineProcess.h"
 #include "model/DriveList.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QLocale>
@@ -188,9 +190,11 @@ private slots:
 
     // DFR-0049: the window can refresh the list. A refresh while a probe
     // runs is ignored, and keeps the drives that probe has already sent.
-    // The fake sends its drive at once, then pauses for a second.
+    // The fake sends its drive, then waits until the test lets it finish.
     void refreshWhileListingIsIgnored()
     {
+        FakeHold hold;
+        QVERIFY(hold.isValid());
         qputenv("DEFRAGR_ENGINE",
                 QFile::encodeName(m_fakes.filePath(QStringLiteral("slow-probe.sh"))));
         DriveList list;
@@ -200,8 +204,11 @@ private slots:
         connect(&list, &DriveList::failed, this, [&] { ++failed; });
         list.refresh();
         QVERIFY(list.isListing());
-        QTest::qWait(500);
+        QVERIFY2(QTest::qWaitFor([&] { return hold.sent(); }, 10000), "the drive was not sent");
+        // The drive is in the pipe before `sent` is made; this reads it.
+        QCoreApplication::processEvents();
         list.refresh();
+        QVERIFY(hold.release());
         QVERIFY(QTest::qWaitFor([&] { return loaded + failed > 0; }, 10000));
         QCOMPARE(failed, 0);
         QCOMPARE(loaded, 1);

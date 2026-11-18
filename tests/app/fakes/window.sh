@@ -1,9 +1,9 @@
 #!/bin/sh
 # An engine for the window's own test (tst_mainwindow). Its probe lists
 # two drives whose names look like markup, and its report on the first
-# finds one fragmented file whose name looks like markup, with a pause
-# before the end so a test can look at the window mid-run. Any other
-# command line gets no stream.
+# finds one fragmented file whose name looks like markup, then pauses
+# before the end until the test lets it finish (hold.sh), so the test can
+# look at the window mid-run. Any other command line gets no stream.
 #   /mnt/<img src=x>            ext4, report and defrag
 #   /mnt/other  on <b>zfs</b>   not ext4, report only
 # Records: docs/specs/DFR-0002-engine-protocol.md § 4.
@@ -12,6 +12,8 @@ probe) ;;
 report) [ "$2" = '/mnt/<img src=x>' ] || exit 3 ;;
 *) exit 3 ;;
 esac
+# shellcheck source=SCRIPTDIR/hold.sh
+. "${0%/*}/hold.sh"
 
 # One byte with the value $1.
 byte() { printf '%b' "\\0$(printf '%o' "$1")"; }
@@ -66,7 +68,8 @@ else
     fragmented 3 10 '<img src=x>.bin'
     # REPORT_PROGRESS: names 150 of an estimated 300.
     header 35 16; le 150 8; le 300 8
-    sleep 2
+    hold_sent
+    hold_wait
     # REPORT_SUMMARY: files 200, fragmented 1, extents 3, file_blocks 5000,
     # skipped 0.
     header 34 40; le 200 8; le 1 8; le 3 8; le 5000 8; le 0 8
