@@ -31,25 +31,6 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 **Theme:** Drive map
 
-### Security
-- A report refuses a folder that is not a real drive, such as a system
-  area, a memory-only folder or a network share, instead of reading it
-  with admin rights (DFR-0044).
-- Drive and file names always show as written. A name that looks like
-  web code is no longer drawn as a picture or a link (DFR-0047).
-- A report never opens a device, and never wakes a network or
-  on-demand drive mounted inside the one being read. Before, an
-  on-demand drive there could make the report hang (DFR-0045).
-- Another user on the same computer can no longer stall a report, stop
-  the drives being listed, or make a report read only part of a drive
-  (DFR-0073).
-- A file or drive name can no longer change how the window shows text:
-  not through a tooltip, and not with hidden characters that reverse the
-  reading direction, which now show as codes such as [U+202E]. A report's
-  memory is capped, so a drive crowded with fragmented files cannot use
-  up the computer's memory; past the cap, the list keeps the worst files
-  and says how many it left out (DFR-0074).
-
 ### Added
 - A "Refresh drives" button lists the drives again, and the window says
   "Listing drives…" while it does (DFR-0049).
@@ -117,6 +98,25 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   size is right on a filesystem that counts space in a unit other than
   its block size. An engine from a different release is reported as
   one, even when its first message is cut short (DFR-0056).
+
+### Security
+- A report refuses a folder that is not a real drive, such as a system
+  area, a memory-only folder or a network share, instead of reading it
+  with admin rights (DFR-0044).
+- Drive and file names always show as written. A name that looks like
+  web code is no longer drawn as a picture or a link (DFR-0047).
+- A report never opens a device, and never wakes a network or
+  on-demand drive mounted inside the one being read. Before, an
+  on-demand drive there could make the report hang (DFR-0045).
+- Another user on the same computer can no longer stall a report, stop
+  the drives being listed, or make a report read only part of a drive
+  (DFR-0073).
+- A file or drive name can no longer change how the window shows text:
+  not through a tooltip, and not with hidden characters that reverse the
+  reading direction, which now show as codes such as [U+202E]. A report's
+  memory is capped, so a drive crowded with fragmented files cannot use
+  up the computer's memory; past the cap, the list keeps the worst files
+  and says how many it left out (DFR-0074).
 
 ## [0.1.0] - 2026-11-16
 
