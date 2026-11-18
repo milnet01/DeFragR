@@ -92,7 +92,7 @@ int main(int argc, char **argv)
             view->showMap(&map);
     });
     // Starts once the first sweep is over.
-    QTimer::singleShot(ui::DriveMapView::kSweepMs + ui::DriveMapView::kEaseMs, &script,
+    QTimer::singleShot(ui::DriveMapView::kSweepMs + ui::DriveMapView::kArriveMs, &script,
                        qOverload<>(&QTimer::start));
     return app.exec();
 }

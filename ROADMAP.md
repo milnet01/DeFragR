@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=70 -->
+<!-- ants-roadmap-id-high-water: DFR=71 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -830,6 +830,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: fix.
   Source: user-request-2026-11-17.
   Lanes: Languages.
+
+- 🚧 [DFR-0071] **Make the map's changes more noticeable.**
+  Owner, 2026-11-18, after the DFR-0014 demo video: "a bit more flashy,
+  more noticeable". A changed cell glows: a soft halo three cells across
+  and the cell drawn half as big again and lit, fading out over 900 ms.
+  A sweep cell glows the same over 500 ms, so a new map rolls in as a
+  bright band over 2 s. One glow per change keeps S10's limit of three
+  flashes a second. Each state's glow is painted once, so a frame costs
+  about what it did without the glow (measured offscreen at 1600x1000).
+  **Layman:** A changed block lights up and glows over its neighbours before settling, and a new map rolls in as a bright band.
+  Kind: enhancement.
+  Source: user-request-2026-11-18.
+  Lanes: Map view.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 

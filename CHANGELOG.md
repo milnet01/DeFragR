@@ -36,9 +36,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A report shows a map of the drive as a grid of squares: whole files
   solid, fragmented files striped, folders and the filesystem dotted,
   free space as an outline. A key to the patterns sits right above the
-  map. Each square shows what fills most of it. The map fills in from
-  the first block to the last, and a square that changes fades rather
-  than jumps (DFR-0014).
+  map. Each square shows what fills most of it. The map rolls in as a
+  bright band from the first block to the last, and a square that
+  changes lights up and glows over its neighbours before settling
+  (DFR-0014, DFR-0071).
 
 ### Fixed
 - When pkexec, the program that asks for admin rights, is missing, the

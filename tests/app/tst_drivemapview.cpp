@@ -1,6 +1,7 @@
 // DriveMapView: the map painted with the theme's patterns (S4, S10). A
-// cell never jumps: it fades from old to new, a new map fills in first
-// block to last, and the frame timer stops once nothing moves. The view
+// cell never jumps: it fades from old to new while it glows past its
+// edges, then settles; a new map fills in first block to last, and the
+// frame timer stops once nothing moves. The view
 // reads a clock this test sets, so every frame is a chosen moment.
 #include "ui/DriveMapView.h"
 #include "ui/Theme.h"
@@ -95,7 +96,7 @@ class TestDriveMapView : public QObject {
     {
         auto view = makeView();
         view->showMap(&m_map);
-        m_now += DriveMapView::kSweepMs + DriveMapView::kEaseMs;
+        m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
         return view;
     }
 
@@ -112,21 +113,25 @@ private slots:
                      qPrintable(QString::number(i)));
     }
 
-    // Halfway through the sweep, the first cell is in and the last is
-    // still blank.
+    // A quarter through the sweep, the first cell is in and the last is
+    // still blank. Three quarters through, the band's glow has moved on
+    // and the first cell shows just its pattern.
     void sweepGoesFirstToLast()
     {
         const auto view = makeView();
         view->showMap(&m_map);
         QVERIFY(samePixels(view->grab().toImage(), cellAt(0), blankImage(m_theme)));
-        m_now = DriveMapView::kSweepMs / 2;
-        const QImage shot = view->grab().toImage();
-        QVERIFY(samePixels(shot, cellAt(0), cellImage(m_theme, CellState::Whole)));
+        m_now = DriveMapView::kSweepMs / 4;
+        QImage shot = view->grab().toImage();
+        QVERIFY(!samePixels(shot, cellAt(0), blankImage(m_theme)));
         QVERIFY(samePixels(shot, cellAt(kColumns * kRows - 1), blankImage(m_theme)));
+        m_now = DriveMapView::kSweepMs * 3 / 4;
+        shot = view->grab().toImage();
+        QVERIFY(samePixels(shot, cellAt(0), cellImage(m_theme, CellState::Whole)));
     }
 
-    // A changed cell shows its old pattern, then a blend of both, then
-    // its new one; its neighbours never change.
+    // A changed cell shows its old pattern, then something between, then
+    // its new one; once settled its neighbours are as they were.
     void changeFadesRatherThanJumps()
     {
         const auto view = settledView();
@@ -139,15 +144,50 @@ private slots:
 
         QImage shot = view->grab().toImage();
         QVERIFY(samePixels(shot, cellAt(0), before));
-        m_now += DriveMapView::kEaseMs / 2;
+        m_now += DriveMapView::kChangeMs / 2;
         shot = view->grab().toImage();
         QVERIFY(!samePixels(shot, cellAt(0), before));
         QVERIFY(!samePixels(shot, cellAt(0), after));
-        QVERIFY(samePixels(shot, cellAt(1), before));
-        m_now += DriveMapView::kEaseMs / 2;
+        m_now += DriveMapView::kChangeMs / 2;
         shot = view->grab().toImage();
         QVERIFY(samePixels(shot, cellAt(0), after));
+        QVERIFY(samePixels(shot, cellAt(1), before));
         QCOMPARE(view->cells(), cells);
+    }
+
+    // So a change catches the eye, the changed cell lights up brighter
+    // than either of its patterns and its glow reaches past its edges,
+    // over the cell beside it and the one below.
+    void changeGlowsPastItsEdges()
+    {
+        const auto view = settledView();
+        QList<CellState> cells = view->cells();
+        const int changed = kColumns + 4;  // a fragmented cell, mid row
+        cells[changed] = CellState::Whole;
+        view->changeCells(cells);
+        const QImage still = view->grab().toImage();
+        m_now += DriveMapView::kChangeMs / 5;
+        const QImage lit = view->grab().toImage();
+
+        const auto brightness = [&](const QImage &shot, int index) {
+            qint64 sum = 0;
+            for (int y = 0; y < m_theme.cellSide(); ++y)
+                for (int x = 0; x < m_theme.cellSide(); ++x)
+                    sum += qGray(shot.pixel(cellAt(index) + QPoint(x, y)));
+            return sum;
+        };
+        const qint64 whole = [&] {
+            qint64 sum = 0;
+            const QImage image = cellImage(m_theme, CellState::Whole);
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x)
+                    sum += qGray(image.pixel(x, y));
+            return sum;
+        }();
+        QCOMPARE_GT(brightness(lit, changed), whole);
+        QCOMPARE_GT(brightness(lit, changed), brightness(still, changed));
+        for (const int neighbour : {changed + 1, changed + kColumns})
+            QCOMPARE_GT(brightness(lit, neighbour), brightness(still, neighbour));
     }
 
     // The frame timer runs only while something moves.
@@ -156,7 +196,7 @@ private slots:
         const auto view = makeView();
         view->showMap(&m_map);
         QVERIFY(view->isMoving());
-        m_now += DriveMapView::kSweepMs + DriveMapView::kEaseMs;
+        m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
         QTRY_VERIFY(!view->isMoving());
         // Asking for what is already shown moves nothing.
         view->changeCells(view->cells());
@@ -169,7 +209,7 @@ private slots:
         const auto view = makeView();
         view->setLayoutDirection(Qt::RightToLeft);
         view->showMap(&m_map);
-        m_now += DriveMapView::kSweepMs + DriveMapView::kEaseMs;
+        m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
         const QImage shot = view->grab().toImage();
         const QPoint topRight(view->width() - m_theme.cellSide(), 0);
         QVERIFY(samePixels(shot, topRight, cellImage(m_theme, CellState::Whole)));

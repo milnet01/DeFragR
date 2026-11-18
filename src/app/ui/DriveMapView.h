@@ -1,8 +1,10 @@
 // DriveMapView: the drive as a grid of cells, first block top left (top
 // right in a right-to-left language), painted with the theme's patterns
-// (S4, S10). A cell never jumps: each change fades in over kEaseMs, from
-// one frame timer that runs only while something moves. A new map fills
-// in as a sweep from the first block to the last.
+// (S4, S10). A cell never jumps: each change fades in while the cell
+// swells and glows past its edges, then settles, from one frame timer that
+// runs only while something moves. A new map fills in as a bright band
+// sweeping from the first block to the last. A cell glows once per change,
+// so nothing flashes more than three times a second.
 #pragma once
 
 #include "model/DriveMap.h"
@@ -25,10 +27,12 @@ class DriveMapView : public QWidget {
     Q_OBJECT
 
 public:
-    // How long one cell's change takes, and how long a sweep takes to
-    // reach the last cell, in milliseconds.
-    static constexpr int kEaseMs = 400;
-    static constexpr int kSweepMs = 1500;
+    // In milliseconds: how long a changed cell takes to settle, how long
+    // a cell arriving in a sweep takes, and how long a sweep takes to
+    // reach the last cell.
+    static constexpr int kChangeMs = 900;
+    static constexpr int kArriveMs = 500;
+    static constexpr int kSweepMs = 2000;
 
     explicit DriveMapView(const Theme &theme, QWidget *parent = nullptr);
 
@@ -63,6 +67,7 @@ private:
         std::optional<model::CellState> from;  // none: blank ground
         model::CellState to;
         qint64 start;  // when the change begins
+        int length;    // how long it lasts
     };
 
     // Sorts the map into cells, sweeping from m_sweepStart.
@@ -74,6 +79,7 @@ private:
     int columns() const;
     QRect cellRect(qsizetype index) const;
     const QPixmap &tile(model::CellState state);
+    const QPixmap &glow(model::CellState state);
 
     const Theme &m_theme;
     const model::DriveMap *m_map = nullptr;
@@ -86,6 +92,9 @@ private:
     QTimer m_frame;
     // Each state's cell, painted once per size and pixel ratio.
     std::array<QPixmap, 4> m_tiles;
+    // Each state's cell at the peak of its glow, painted once per size and
+    // pixel ratio.
+    std::array<QPixmap, 4> m_glows;
 };
 
 // The key to the map: each pattern beside its name, at the map's own
