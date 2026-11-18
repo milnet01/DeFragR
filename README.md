@@ -1,12 +1,17 @@
 # DeFragR
 
-> One line: what this does, for whom.
+> A defragmenter for spinning ext4 drives on the Linux desktop, in a
+> window that shows the drive as a map.
+
+Version 0.1.0. [CHANGELOG.md](CHANGELOG.md) says what shipped;
+[ROADMAP.md](ROADMAP.md) says what comes next.
 
 ## Status
 
 Early development. The window lists your drives and says which it
 could defrag, and why not for the rest. It can report how fragmented a
-drive is and list its worst files. Defragging is not built yet.
+drive is, list its worst files and show the drive as a map. Defragging
+is not built yet.
 [ROADMAP.md](ROADMAP.md) holds the plan.
 
 ## Languages
@@ -23,11 +28,26 @@ since shows in English until it is translated.
 
 ## Install
 
-(Once there is something to install.)
+There is no package yet. Build it from source, as
+[Working on it](#working-on-it) shows. The window and its engine land
+side by side in `build/bin/`.
+
+Reading a drive needs admin rights, which DeFragR asks for through
+`pkexec`. Most desktops ship it with Polkit.
 
 ## Usage
 
-(Once there is something to use.)
+```sh
+./build/bin/defragr
+```
+
+1. Pick a drive from the list. The window says whether DeFragR could
+   defrag it, and why not if it could not.
+2. Choose **View report** and type the admin password when asked.
+3. The report shows how fragmented the drive is, its worst files, and a
+   map of the drive.
+
+The report changes nothing on the drive.
 
 ## Working on it
 

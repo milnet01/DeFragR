@@ -810,11 +810,16 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: verify-delivery-2026-11-16.
   Lanes: Screens, Report view.
 
-- 📋 [DFR-0064] **Fill in the README's summary, Install and Usage.**
+- ✅ [DFR-0064] **Fill in the README's summary, Install and Usage.**
   README.md line 3 is still "> One line: what this does, for whom.",
   § Install is "(Once there is something to install.)" and § Usage is
   "(Once there is something to use.)". 0.1.0 can be built and used from
   source, so say what it does and how to build and run it.
+  Done 2026-11-18: README has its one-line summary, the version with
+  links to the changelog and roadmap, Install (build from source; pkexec
+  for admin rights) and Usage. The build steps were followed in a clean
+  checkout and the window opened listing drives; the report step needs
+  the admin password and was not run.
   **Layman:** Replace the README's template placeholders with what DeFragR is and how to try it.
   Kind: doc.
   Source: verify-delivery-2026-11-16.
