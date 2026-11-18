@@ -34,7 +34,7 @@ signals:
 private:
     void showReport();
     void showFailure(const model::Message &message);
-    void showFound(quint64 count, const QByteArray &latestPath);
+    void noteFound(quint64 count, const QByteArray &latestPath);
     void showProgress(quint64 names, quint64 estimate);
     // Each second: how long it has run, and what it has found since.
     void showTick();
@@ -53,7 +53,7 @@ private:
     QProgressBar *m_progress = nullptr;
     QElapsedTimer m_clock;
     QTimer m_tick;
-    // What showFound last heard, shown on the next tick: a big drive
+    // What noteFound last heard, shown on the next tick: a big drive
     // finds thousands of files, faster than anyone can read them.
     quint64 m_foundCount = 0;
     QByteArray m_latestPath;

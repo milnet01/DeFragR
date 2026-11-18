@@ -54,7 +54,7 @@ const Colours kAurora{
 const Colours &coloursOf(Theme::Id id)
 {
     switch (id) {
-    case Theme::Id::Desktop:  // Only its map colours are used.
+    case Theme::Id::Desktop:  // Never asked for; listed so every Id is covered.
     case Theme::Id::DarkHighContrast:
         return kDarkHighContrast;
     case Theme::Id::LightHighContrast:
@@ -70,6 +70,8 @@ const Colours &coloursOf(Theme::Id id)
     }
     return kDarkHighContrast;
 }
+
+bool isDark(const QColor &colour) { return colour.lightness() < 128; }
 
 QPalette paletteOf(const WindowColours &c)
 {
@@ -100,7 +102,7 @@ Theme::Theme(Id id, const QPalette &desktopPalette, const QFont &desktopFont)
 {
     if (id == Id::Desktop) {
         // The map keeps high contrast on a desktop of either kind.
-        const bool dark = desktopPalette.color(QPalette::Window).lightness() < 128;
+        const bool dark = isDark(desktopPalette.color(QPalette::Window));
         m_map = (dark ? kDarkHighContrast : kLightHighContrast).map;
     } else {
         m_map = coloursOf(id).map;
@@ -153,6 +155,23 @@ QColor Theme::cellColour(CellState state) const
         return m_map.fragmented;
     }
     return m_map.free;
+}
+
+QGradientStops Theme::glowHalo(CellState state) const
+{
+    QColor colour = cellColour(state);
+    if (isDark(m_map.background))
+        colour = colour.lighter(150);
+    QColor half = colour;
+    half.setAlpha(110);
+    QColor none = colour;
+    none.setAlpha(0);
+    return {{0, colour}, {0.45, half}, {1, none}};
+}
+
+QColor Theme::glowWash(CellState state) const
+{
+    return isDark(m_map.background) ? QColor(Qt::white) : cellColour(state);
 }
 
 int Theme::cellSide() const

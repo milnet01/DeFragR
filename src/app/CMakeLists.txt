@@ -72,8 +72,13 @@ add_custom_target(defragr-build-id
     VERBATIM)
 add_dependencies(defragr-window defragr-build-id)
 target_include_directories(defragr-window PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
+target_compile_options(defragr-window PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-window PUBLIC defragr-model defragr-theme defragr-map-view Qt6::Widgets)
+target_include_directories(defragr-window PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(defragr main.cpp)
+target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr PRIVATE defragr-window defragr-languages Qt6::Widgets Qt6::DBus)
 # Beside the engine, where EngineProcess looks for it when
 # DEFRAGR_ENGINE is unset; src/engine/CMakeLists.txt does the same.
 set_target_properties(defragr PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -85,9 +90,3 @@ qt_add_resources(defragr icons
     PREFIX /
     BASE ${PROJECT_SOURCE_DIR}/packaging
     FILES ${PROJECT_SOURCE_DIR}/packaging/defragr.png)
-
-target_compile_options(defragr-window PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr-window PUBLIC defragr-model defragr-theme defragr-map-view Qt6::Widgets)
-target_include_directories(defragr-window PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(defragr PRIVATE defragr-window defragr-languages Qt6::Widgets Qt6::DBus)

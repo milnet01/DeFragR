@@ -14,11 +14,16 @@
 #include <QList>
 
 #include <array>
+#include <cstddef>
 
 namespace defragr::model {
 
 // What one map cell shows.
 enum class CellState { Free, Filesystem, Whole, Fragmented };
+// How many states there are, for arrays indexed by CellState. A state
+// added after Fragmented fails the assert until this counts it.
+inline constexpr std::size_t kCellStates = 4;
+static_assert(kCellStates == std::size_t(CellState::Fragmented) + 1);
 
 class DriveMap {
 public:
@@ -45,7 +50,7 @@ public:
 
 private:
     // Blocks of each kind, indexed by CellState.
-    using Tally = std::array<quint64, 4>;
+    using Tally = std::array<quint64, kCellStates>;
 
     // Widens the bins until m_end fits in kBinsMax of them, then adds
     // bins up to m_end.

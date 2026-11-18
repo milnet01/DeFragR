@@ -98,7 +98,8 @@ QList<CellState> DriveMap::cells(int count) const
 
     // Blocks of each kind in each cell. Doubles, since a bin across two
     // cells is shared by width; a one-block bin stays a whole number.
-    QList<std::array<double, 4>> tally(cellCount, std::array<double, 4>{});
+    using Shares = std::array<double, kCellStates>;
+    QList<Shares> tally(cellCount, Shares{});
     const qsizetype last = m_bins.size() - 1;
     for (qsizetype bin = 0; bin <= last; ++bin) {
         const quint64 start = quint64(bin) * m_binBlocks;
@@ -109,7 +110,7 @@ QList<CellState> DriveMap::cells(int count) const
                                         ? end
                                         : std::min(end, (cell + 1) * perCell);
             const double share = double(cellEnd - at) / double(end - start);
-            for (size_t kind = 0; kind < 4; ++kind)
+            for (size_t kind = 0; kind < kCellStates; ++kind)
                 tally[qsizetype(cell)][kind] += double(m_bins[bin][kind]) * share;
             at = cellEnd;
         }
@@ -118,18 +119,18 @@ QList<CellState> DriveMap::cells(int count) const
     QList<CellState> cells;
     cells.reserve(cellCount);
     for (qsizetype i = 0; i < cellCount; ++i) {
-        std::array<double, 4> &blocks = tally[i];
+        Shares &byKind = tally[i];
         const double size = double(std::min(perCell, total - quint64(i) * perCell));
         double named = 0;
-        for (const double n : blocks)
+        for (const double n : byKind)
             named += n;
         // Overlapping runs (§ 4.6) can name more blocks than the cell has.
         if (named < size)
-            blocks[size_t(CellState::Filesystem)] += size - named;
+            byKind[size_t(CellState::Filesystem)] += size - named;
         // max_element keeps the first of equals; searching from the end
         // gives a tie to the later kind.
-        const auto most = std::max_element(blocks.rbegin(), blocks.rend());
-        cells.append(CellState(blocks.rend() - most - 1));
+        const auto most = std::max_element(byKind.rbegin(), byKind.rend());
+        cells.append(CellState(byKind.rend() - most - 1));
     }
     return cells;
 }

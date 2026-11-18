@@ -56,7 +56,7 @@ MainWindow::MainWindow(const Theme &theme, QWidget *parent) : QMainWindow(parent
     m_pages->addWidget(m_drivePage);
     m_pages->addWidget(m_reportView);
     setCentralWidget(m_pages);
-    resize(800, 450);
+    resize(Theme::kWindowStartSize);
 
     connect(m_table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             &MainWindow::updateActions);

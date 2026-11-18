@@ -174,7 +174,7 @@ void Report::run(const QByteArray &mountPoint)
     m_mountPoint = mountPoint;
     m_incomingBlockSize = 0;
     m_incomingSummary = {};
-    m_incoming.clear();
+    m_incomingFiles.clear();
     m_incomingBytes = 0;
     m_incomingIsHeap = false;
     m_incomingUnlisted = 0;
@@ -200,7 +200,7 @@ void Report::collect(const QList<Record> &records)
             m_incomingBlockSize = hello->blockSize;
     }
     if (latest)
-        emit found(quint64(m_incoming.size()) + m_incomingUnlisted, latest->path);
+        emit found(quint64(m_incomingFiles.size()) + m_incomingUnlisted, latest->path);
     if (progress)
         emit progressed(progress->names, progress->estimate);
 }
@@ -209,18 +209,18 @@ void Report::collect(const QList<Record> &records)
 // bad file on top, and drops that file until the list fits again.
 void Report::keep(const FragmentedFile &file)
 {
-    m_incoming.append(file);
+    m_incomingFiles.append(file);
     m_incomingBytes += bytesOf(file);
     if (m_incomingIsHeap) {
-        std::ranges::push_heap(m_incoming, worse);
+        std::ranges::push_heap(m_incomingFiles, worse);
     } else if (m_incomingBytes > m_listBytes) {
-        std::ranges::make_heap(m_incoming, worse);
+        std::ranges::make_heap(m_incomingFiles, worse);
         m_incomingIsHeap = true;
     }
-    while (m_incomingBytes > m_listBytes && !m_incoming.isEmpty()) {
-        std::ranges::pop_heap(m_incoming, worse);
-        m_incomingBytes -= bytesOf(m_incoming.last());
-        m_incoming.removeLast();
+    while (m_incomingBytes > m_listBytes && !m_incomingFiles.isEmpty()) {
+        std::ranges::pop_heap(m_incomingFiles, worse);
+        m_incomingBytes -= bytesOf(m_incomingFiles.last());
+        m_incomingFiles.removeLast();
         ++m_incomingUnlisted;
     }
 }
@@ -230,7 +230,7 @@ void Report::runEnded(const RunOutcome &outcome)
     const Message problem = messages::forRun(outcome);
     if (!problem.what.isEmpty()) {
         // A broken run's figures are never shown: a message, never a guess.
-        m_incoming.clear();
+        m_incomingFiles.clear();
         m_incomingBytes = 0;
         m_incomingIsHeap = false;
         m_incomingUnlisted = 0;
@@ -238,11 +238,11 @@ void Report::runEnded(const RunOutcome &outcome)
         emit failed(problem);
         return;
     }
-    std::ranges::stable_sort(m_incoming, worse);
+    std::ranges::stable_sort(m_incomingFiles, worse);
     beginResetModel();
     m_blockSize = m_incomingBlockSize;
     m_summary = m_incomingSummary;
-    m_files = std::exchange(m_incoming, {});
+    m_files = std::exchange(m_incomingFiles, {});
     m_unlisted = std::exchange(m_incomingUnlisted, 0);
     m_incomingBytes = 0;
     m_incomingIsHeap = false;

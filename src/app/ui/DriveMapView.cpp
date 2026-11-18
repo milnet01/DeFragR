@@ -11,12 +11,16 @@
 #include <QtMath>
 
 #include <algorithm>
+#include <type_traits>
 
 using defragr::model::CellState;
 
 namespace defragr::ui {
 
 namespace {
+
+// How many cells a glowing cell's glow reaches past each of its edges.
+constexpr int kGlowReach = 1;
 
 // Device pixels for `side` at `ratio`, rounded up so the cell fits.
 QSize devicePixels(int side, qreal ratio)
@@ -36,34 +40,25 @@ QPixmap paintedCell(const Theme &theme, CellState state, int side, qreal ratio)
     return pixmap;
 }
 
-// A cell at the peak of its glow, three cells across: a soft round halo in
-// the state's colour, and over it the cell half as big again and lit up.
-// On a dark map the halo is lightened and the cell lit with white, so both
-// read as light rather than as a stain; on a light map, with the colour.
+// A cell at the peak of its glow, reaching kGlowReach cells past each
+// edge: the theme's soft round halo, and over it the cell half as big
+// again, washed with the theme's glow.
 QPixmap paintedGlow(const Theme &theme, CellState state, int side, qreal ratio)
 {
-    const int across = 3 * side;
+    const int across = (2 * kGlowReach + 1) * side;
     QPixmap pixmap(devicePixels(across, ratio));
     pixmap.setDevicePixelRatio(ratio);
     pixmap.fill(Qt::transparent);
-    const bool dark = theme.mapBackground().lightness() < 128;
-    QColor colour = theme.cellColour(state);
-    if (dark)
-        colour = colour.lighter(150);
     QRadialGradient gradient(QPointF(across, across) / 2, across / 2.0);
-    gradient.setColorAt(0, colour);
-    colour.setAlpha(110);
-    gradient.setColorAt(0.45, colour);
-    colour.setAlpha(0);
-    gradient.setColorAt(1, colour);
+    gradient.setStops(theme.glowHalo(state));
     QPainter painter(&pixmap);
     painter.fillRect(QRect(0, 0, across, across), gradient);
 
     const int swollen = side * 3 / 2;
     const QRect cell((across - swollen) / 2, (across - swollen) / 2, swollen, swollen);
     theme.paintCell(painter, cell, state);
-    painter.setOpacity(0.45);
-    painter.fillRect(cell, dark ? QColor(Qt::white) : theme.cellColour(state));
+    painter.setOpacity(Theme::kGlowWashOpacity);
+    painter.fillRect(cell, theme.glowWash(state));
     return pixmap;
 }
 
@@ -85,7 +80,7 @@ void DriveMapView::showMap(const model::DriveMap *map)
 {
     m_map = map;
     m_sweepStart = m_now();
-    sortMap(true);
+    fitMapToCells(true);
 }
 
 int DriveMapView::capacity() const
@@ -112,7 +107,8 @@ namespace {
 constexpr qreal kFadePart = 0.35;
 constexpr qreal kGlowPeak = 0.2;
 
-qreal elapsed(qint64 start, int length, qint64 now)
+// How far a change from `start` lasting `length` has got at `now`.
+qreal progress(qint64 start, int length, qint64 now)
 {
     return std::clamp(qreal(now - start) / length, 0.0, 1.0);
 }
@@ -169,7 +165,7 @@ void DriveMapView::changeCells(const QList<CellState> &cells)
             // A change still going starts again from whichever of its
             // two states shows most.
             const std::optional<CellState> shown =
-                fadeIn(elapsed(cell.start, cell.length, now)) >= 0.5 ? cell.to : cell.from;
+                fadeIn(progress(cell.start, cell.length, now)) >= 0.5 ? cell.to : cell.from;
             cell = {shown, cells[i], now, kChangeMs};
             stillAt = now + kChangeMs;
         }
@@ -203,19 +199,19 @@ void DriveMapView::paintEvent(QPaintEvent *event)
     painter.fillRect(event->rect(), m_theme.mapBackground());
     const qint64 now = m_now();
     const int across = columns();
-    // A glowing cell reaches a cell past its edges, so take a row more
-    // either side of what needs painting.
-    const qsizetype first =
-        std::max(qsizetype(0), qsizetype(event->rect().top() / pitch() - 1) * across);
-    const qsizetype end =
-        std::min(m_cells.size(), qsizetype(event->rect().bottom() / pitch() + 2) * across);
+    // A glowing cell reaches kGlowReach cells past its edges, so take as
+    // many rows more either side of what needs painting.
+    const qsizetype first = std::max(
+        qsizetype(0), qsizetype(event->rect().top() / pitch() - kGlowReach) * across);
+    const qsizetype end = std::min(
+        m_cells.size(), qsizetype(event->rect().bottom() / pitch() + 1 + kGlowReach) * across);
     // First every cell at its own size, then the glowing ones over their
     // neighbours.
     QList<qsizetype> glowing;
     for (qsizetype i = first; i < end; ++i) {
         const Cell cell = m_cells[i].at(now);
         const QRect rect = cellRect(i);
-        const qreal t = elapsed(cell.start, cell.length, now);
+        const qreal t = progress(cell.start, cell.length, now);
         const qreal shown = fadeIn(t);
         if (shown < 1 && cell.from)
             painter.drawPixmap(rect.topLeft(), tile(*cell.from));
@@ -227,11 +223,11 @@ void DriveMapView::paintEvent(QPaintEvent *event)
         if (glowAt(t) > 0)
             glowing.append(i);
     }
-    const int side = m_theme.cellSide();
+    const int reach = kGlowReach * m_theme.cellSide();
     for (const qsizetype i : glowing) {
         const Cell cell = m_cells[i].at(now);
-        painter.setOpacity(glowAt(elapsed(cell.start, cell.length, now)));
-        painter.drawPixmap(cellRect(i).topLeft() - QPoint(side, side), glow(cell.to));
+        painter.setOpacity(glowAt(progress(cell.start, cell.length, now)));
+        painter.drawPixmap(cellRect(i).topLeft() - QPoint(reach, reach), glow(cell.to));
     }
     painter.setOpacity(1);
 }
@@ -239,17 +235,17 @@ void DriveMapView::paintEvent(QPaintEvent *event)
 void DriveMapView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    if (m_map && capacity() != m_sortedFor)
-        sortMap(false);
+    if (m_map && capacity() != m_fittedFor)
+        fitMapToCells(false);
 }
 
-void DriveMapView::sortMap(bool sweep)
+void DriveMapView::fitMapToCells(bool sweep)
 {
     m_cells.clear();
-    m_sortedFor = capacity();
+    m_fittedFor = capacity();
     const qint64 now = m_now();
     if (m_map) {
-        const QList<CellState> states = m_map->cells(m_sortedFor);
+        const QList<CellState> states = m_map->cells(m_fittedFor);
         m_cells.reserve(states.size());
         for (qsizetype i = 0; i < states.size(); ++i)
             m_cells.append({std::nullopt, states[i],
@@ -367,6 +363,8 @@ QWidget *mapKey(const Theme &theme, QWidget *parent)
         {CellState::Filesystem, DriveMapView::tr("Folders and filesystem")},
         {CellState::Free, DriveMapView::tr("Free space")},
     };
+    static_assert(std::extent_v<decltype(entries)> == model::kCellStates,
+                  "the key names every state");
     for (const auto &[state, name] : entries) {
         auto *swatch = new Swatch(theme, state);
         auto *label = new QLabel(name);

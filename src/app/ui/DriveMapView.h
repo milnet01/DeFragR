@@ -38,8 +38,8 @@ public:
 
     explicit DriveMapView(const Theme &theme, QWidget *parent = nullptr);
 
-    // Shows this map, filling in as a sweep. A resize sorts it into the
-    // cells that then fit, all settled at once: a resize starts no glow.
+    // Shows this map, filling in as a sweep. A resize fits it to as
+    // many cells as then fit, all settled at once: a resize starts no glow.
     // The map must outlive the view, or the next call; nullptr shows
     // nothing.
     void showMap(const model::DriveMap *map);
@@ -81,8 +81,9 @@ private:
         Cell at(qint64 now) const;
     };
 
-    // Sorts the map into cells: sweeping from m_sweepStart, or settled.
-    void sortMap(bool sweep);
+    // Fits the map to as many cells as the view holds: sweeping from
+    // m_sweepStart, or settled.
+    void fitMapToCells(bool sweep);
     // Runs the frame timer until m_stillAt.
     void moveUntil(qint64 stillAt);
     void frame();
@@ -98,7 +99,7 @@ private:
     const Theme &m_theme;
     const model::DriveMap *m_map = nullptr;
     QList<Cell> m_cells;
-    int m_sortedFor = -1;  // the capacity m_cells was sorted for
+    int m_fittedFor = -1;  // the capacity m_cells was fitted to
     qint64 m_sweepStart = 0;
     qint64 m_stillAt = 0;
     QElapsedTimer m_elapsed;
@@ -108,10 +109,10 @@ private:
     // held, m_paintedSide and m_paintedRatio.
     int m_paintedSide = -1;
     qreal m_paintedRatio = 0;
-    std::array<QPixmap, 4> m_tiles;
+    std::array<QPixmap, model::kCellStates> m_tiles;
     // Each state's cell at the peak of its glow, painted once per size and
     // pixel ratio.
-    std::array<QPixmap, 4> m_glows;
+    std::array<QPixmap, model::kCellStates> m_glows;
 };
 
 // The key to the map: each pattern beside its name, at the map's own

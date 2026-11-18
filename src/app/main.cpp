@@ -12,6 +12,8 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("DeFragR"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/defragr.png")));
+    // Never named again, but it holds the translators it installs, so it
+    // must outlive the window.
     const defragr::ui::Languages languages;
 
     // Desktop until the menu offers a choice (DFR-0021).

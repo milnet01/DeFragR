@@ -98,7 +98,7 @@ private:
     // The running report's records so far; shown only once it succeeds.
     quint32 m_incomingBlockSize = 0;
     engine::ReportSummary m_incomingSummary;
-    QList<engine::FragmentedFile> m_incoming;
+    QList<engine::FragmentedFile> m_incomingFiles;
     qsizetype m_incomingBytes = 0;  // counted as kFileListBytes says
     bool m_incomingIsHeap = false;  // least bad first, once at the limit
     quint64 m_incomingUnlisted = 0;

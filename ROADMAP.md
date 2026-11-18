@@ -1011,7 +1011,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-readability-2026-11-18.
   Lanes: Entry, Probe, Records, Walk.
 
-- 📋 [DFR-0086] **Window code a stranger can change safely.**
+- ✅ [DFR-0086] **Window code a stranger can change safely.**
   Confirmed 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `src/app/model/DriveMap.h:13` — CellState's count is a bare 4 at
     DriveMap.cpp:59 (twice) and :82 and DriveMapView.h:94 and :97; a fifth
@@ -1043,6 +1043,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     again at 89-91. Keep each target's lines together.
   Found by review-readability lanes 03 and 04, review-code lane 04.
   Priority: 4.
+  Shipped 2026-11-18. All eleven. model::kCellStates replaces every bare
+  4, with static_asserts; the glow's reach is kGlowReach; the glow
+  colours and the window's starting size are Theme's (glowHalo,
+  glowWash, kGlowWashOpacity, kWindowStartSize); Theme cites § What may
+  depend on what and says Desktop's case only covers every Id;
+  m_incomingFiles, noteFound, fitMapToCells and m_fittedFor, and
+  progress are renamed; main.cpp says why languages must outlive the
+  window; each CMake target's lines are together. The reach and the
+  swell, counted in cells, stay in DriveMapView. Glow frames
+  byte-identical before and after at scale 1 and 1.5 (a one-step alpha
+  change was caught); translations unchanged.
   **Layman:** Tidy the window's code and notes so the next person to change it is not misled.
   Kind: refactor.
   Source: review-readability-2026-11-18.

@@ -1,14 +1,16 @@
 // Theme: every colour, map pattern and size the window uses, chosen in
-// this one place (S10; docs/design.md § Who may call whom). A map cell's
-// state shows as a pattern as well as a colour, so the map reads without
-// colour. Text follows the desktop's size, never below a floor.
+// this one place (S10; docs/design.md § What may depend on what). A map
+// cell's state shows as a pattern as well as a colour, so the map reads
+// without colour. Text follows the desktop's size, never below a floor.
 #pragma once
 
 #include "model/DriveMap.h"
 
+#include <QBrush>
 #include <QColor>
 #include <QFont>
 #include <QPalette>
+#include <QSize>
 
 #include <array>
 
@@ -35,6 +37,11 @@ public:
     // The smallest map cell, in pixels: below it, stripes and dots blur
     // into each other.
     static constexpr int kMinCellSide = 8;
+    // The main window's size when it opens, in pixels.
+    static constexpr QSize kWindowStartSize{800, 450};
+    // How strongly a glowing cell is washed with glowWash: 0 not at all,
+    // 1 hidden under it.
+    static constexpr qreal kGlowWashOpacity = 0.45;
 
     // desktopPalette and desktopFont are the application's before any
     // theme is applied.
@@ -61,6 +68,12 @@ public:
     // fragmented is diagonal stripes, filesystem is four dots, free is a
     // faint outline.
     void paintCell(QPainter &painter, const QRect &cell, CellState state) const;
+    // A changing cell's glow: a round halo, its colours from the centre
+    // (0) to the edge (1), and a wash over the cell. On a dark map both
+    // are light, so they read as light rather than as a stain; on a light
+    // map, they are the state's colour.
+    QGradientStops glowHalo(CellState state) const;
+    QColor glowWash(CellState state) const;
 
     // The map's colours. Public so the table of themes in Theme.cpp can
     // name them.

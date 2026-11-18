@@ -69,7 +69,7 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     connect(m_back, &QPushButton::clicked, this, &ReportView::backRequested);
     connect(&m_report, &model::Report::loaded, this, &ReportView::showReport);
     connect(&m_report, &model::Report::failed, this, &ReportView::showFailure);
-    connect(&m_report, &model::Report::found, this, &ReportView::showFound);
+    connect(&m_report, &model::Report::found, this, &ReportView::noteFound);
     connect(&m_report, &model::Report::progressed, this, &ReportView::showProgress);
 }
 
@@ -108,7 +108,7 @@ void ReportView::showFailure(const model::Message &message)
     setRunning(false);
 }
 
-void ReportView::showFound(quint64 count, const QByteArray &latestPath)
+void ReportView::noteFound(quint64 count, const QByteArray &latestPath)
 {
     m_foundCount = count;
     m_latestPath = latestPath;
