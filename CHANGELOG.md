@@ -18,6 +18,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   git history can name its build in the window title with
   `-DDEFRAGR_BUILD_ID` (DFR-0091).
 
+### Fixed
+- The engine builds where the system sets its own link flags, as
+  Debian, Fedora and Arch package builds do, and carries the build ID
+  their debugging tools look for (part of DFR-0092).
+
 ## [0.2.0] - 2026-11-18
 
 **Theme:** Drive map
