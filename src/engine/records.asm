@@ -100,6 +100,9 @@ rec_string:
 ; whole, repeating partial writes and retrying on EINTR (§ 6). Does not
 ; return when a write fails, since no FINISHED could follow: exits with
 ; CANCELLED on EPIPE (the window has gone), INTERNAL on any other error.
+; EAGAIN is not retried: the window's QProcess gives the engine a blocking
+; pipe (its fd 1 has no O_NONBLOCK, measured 2026-11-18, DFR-0053), so
+; only a caller that made it non-blocking can see it.
 ; Clobbers rax, rcx, rdx, rdi, rsi, r8 to r11.
 rec_send:
     push r12

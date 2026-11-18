@@ -626,11 +626,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Entry, System calls, Records, Walk, Probe.
 
-- 📋 [DFR-0053] **Find whether the engine's output can be non-blocking.**
+- ✅ [DFR-0053] **Find whether the engine's output can be non-blocking.**
   records.asm:119-128 ends the run as INTERNAL on EAGAIN. Whether stdout
   can reach the engine non-blocking through QProcess and pkexec was not
   settled: check fd 1's flags during a real run, or write a test.
   Found by review-code lane 01 (LOW, unsettled).
+  Done 2026-11-18: settled by measurement. A scratch Qt program started
+  a child with QProcess, as EngineProcess does, and the child's
+  /proc/self/fdinfo/1 read "flags: 01", O_WRONLY with no O_NONBLOCK. So
+  under the window the engine's stdout blocks and EAGAIN cannot occur; no
+  code change. pkexec sits between them in a report and was not measured
+  (it needs the admin password); it runs the engine on the same open pipe.
+  records.asm's rec_send comment now says why EAGAIN is not retried.
   **Layman:** Check one rare case where a report could stop with an internal error for no real reason.
   Kind: investigate.
   Source: review-code-2026-11-16.
