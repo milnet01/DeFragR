@@ -697,7 +697,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Records.
 
-- 📋 [DFR-0057] **Write DeFragR's trust boundaries into SECURITY.md.**
+- ✅ [DFR-0057] **Write DeFragR's trust boundaries into SECURITY.md.**
   SECURITY.md's trust-boundary list is still empty. The review recommends
   recording, as accepted by design: a root report sends the user's window
   the paths inside folders that user cannot read; the short mount-id reuse
@@ -705,6 +705,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   admin authentication); and that names from a drive are untrusted input
   (see the plain-text item). Confirm each with the owner while writing it.
   Found by review-code lanes 01 and 02.
+  Done 2026-11-18: SECURITY.md names the seven crossings with their
+  checks, what is not defended, and two things accepted by design, each
+  confirmed by the owner that day: a report shows names from folders the
+  user cannot open, and the gap between finding a mount and walking it.
+  Private vulnerability reporting is switched on for the GitHub repo.
   **Layman:** Write down what the admin-rights engine trusts and what it deliberately allows, so later changes keep to it.
   Kind: doc.
   Source: review-code-2026-11-16.
