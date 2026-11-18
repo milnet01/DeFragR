@@ -11,7 +11,8 @@
 ;     may name any device as its source;
 ;   - its mount point is a folder this user can open, and the mount found
 ;     there is this line's own by mount id (statx, Linux 5.8), not one
-;     stacked on it;
+;     stacked on it, and the folder is that mount's top folder, not one
+;     inside it that a link in a parent folder leads to;
 ;   - statfs on that mount succeeds, with a fragment size (f_frsize, the
 ;     unit of its block counts) from 1 to 32 bits;
 ;   - its mount point, source and filesystem type each fit a record
@@ -51,9 +52,14 @@ extern rec_start
 extern rec_string
 extern rec_send
 
-; Limits. Reaching one ends the probe with INTERNAL rather than a partial
-; list. Unused .bss costs no memory until touched.
-MOUNTINFO_MAX   equ 4 * 1024 * 1024
+; Limits. Reaching DEVICES_MAX ends the probe with INTERNAL rather than a
+; partial list. Unused .bss costs no memory until touched.
+; Mountinfo is read a line at a time, so another user's mounts cannot make
+; it too big to read. A line longer than MOUNTINFO_LINE_MAX is left out.
+; No drive's line comes near it: its mount point, root, source and type
+; are each at most 4096 bytes, its options at most a page, and escaping
+; makes one byte at most four.
+MOUNTINFO_LINE_MAX equ 128 * 1024
 DEVICES_MAX     equ 4096
 SYS_PATH_MAX    equ 64              ; longest: prefix, two u32s, ':', rot_part
 
@@ -75,8 +81,12 @@ empty_name:     db 0
 
 section .bss
 alignb 8
-mi_buf:         resb MOUNTINFO_MAX
-mi_len:         resq 1
+mi_buf:         resb MOUNTINFO_LINE_MAX ; mountinfo, read but not yet handed out
+mi_start:       resq 1              ; where in mi_buf the next line starts
+mi_len:         resq 1              ; bytes held in mi_buf
+mi_fd:          resq 1
+mi_eof:         resb 1              ; the last read returned nothing
+mi_skip:        resb 1              ; dropping the rest of a line too long
 devices:        resq DEVICES_MAX    ; (major << 32) | minor, one per drive sent
 devices_count:  resq 1
 stat_buf:       resb kernel_stat_size
@@ -100,7 +110,7 @@ sys_path:       resb SYS_PATH_MAX
 rot_bytes:      resb 8
 dev_major:      resd 1
 dev_minor:      resd 1
-line_end:       resq 1              ; probe_find_mount's line, from split_line
+line_end:       resq 1              ; the end of probe_find_mount's line
 found_id:       resq 1              ; probe_find_mount's latest match
 found:          resb 1
 found_drive:    resb 1              ; whether that match is a drive
@@ -113,42 +123,30 @@ global unescape
 ; probe_run() -> eax = result code, edx = errno or 0.
 ; Sends one DRIVE record per drive. On OK the caller sends FINISHED. Fails
 ; with MOUNTINFO when mountinfo cannot be read (errno set) or has a line
-; of an unknown shape (errno 0); INTERNAL at a limit. Clobbers rax, rcx,
-; rdx, rsi, rdi, r8 to r11.
+; of an unknown shape (errno 0); INTERNAL at DEVICES_MAX or a record
+; string that does not fit. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
 probe_run:
-    push rbx
-    push r12
-    push r13
-    call read_mountinfo
+    sub rsp, 8
+    call mountinfo_open
     test eax, eax
     jnz .return
-    lea r12, [mi_buf]               ; r12 = this line
-    mov r13, r12
-    add r13, [mi_len]               ; r13 = end of the text
 .line:
-    cmp r12, r13
-    jae .done
-    mov rdi, r12
-    mov rsi, r13
-    call split_line
-    mov rbx, rax                    ; rbx = next line
-    mov rdi, r12
+    call mountinfo_line
+    test eax, eax
+    jnz .close                      ; MOUNTINFO
+    test rdi, rdi
+    jz .close                       ; the end; eax and edx are 0
     call probe_line
     test eax, eax
-    jnz .return
-    mov r12, rbx
-    jmp .line
-.done:
-    xor eax, eax
-    xor edx, edx
+    jz .line
+.close:
+    call mountinfo_close
 .return:
-    pop r13
-    pop r12
-    pop rbx
+    add rsp, 8
     ret
 
 ; probe_find_mount(rdi = NUL-terminated path)
-;   -> eax = OK, NOT_A_MOUNT, MOUNTINFO or INTERNAL; edx = errno or 0;
+;   -> eax = OK, NOT_A_MOUNT or MOUNTINFO; edx = errno or 0;
 ;   on OK, rcx = the mount's id, mountinfo's first field, which statx
 ;   gives as stx_mnt_id.
 ; The trust boundary of report (DFR-0002 INV-12): the path must be, byte
@@ -159,9 +157,7 @@ probe_run:
 ; judged. MOUNTINFO as probe_run.
 ; Clobbers as probe_run.
 probe_find_mount:
-    push rbx
     push r12
-    push r13
     push r14
     push r15
     mov r14, rdi                    ; r14 = path
@@ -177,21 +173,17 @@ probe_find_mount:
     test r15, r15
     jz .not_a_mount
     mov byte [found], 0
-    call read_mountinfo
+    call mountinfo_open
     test eax, eax
     jnz .return
-    lea r12, [mi_buf]               ; r12 = this line
-    mov r13, r12
-    add r13, [mi_len]               ; r13 = end of the text
 .line:
-    cmp r12, r13
-    jae .done
-    mov rdi, r12
-    mov rsi, r13
-    call split_line
-    mov rbx, rax                    ; rbx = next line
+    call mountinfo_line
+    test eax, eax
+    jnz .close                      ; MOUNTINFO
+    test rdi, rdi
+    jz .done
+    mov r12, rdi                    ; r12 = this line
     mov [line_end], rsi
-    mov rdi, r12
     call next_field                 ; mount id
     call next_field                 ; parent id
     call next_field                 ; major:minor
@@ -202,25 +194,27 @@ probe_find_mount:
     lea rdx, [mount_buf]
     call unescape
     cmp rax, r15                    ; -1, too long, never equals r15
-    jne .next_line
+    jne .line
     lea rsi, [mount_buf]
     mov rdi, r14
     mov rcx, r15                    ; non-zero, so repe compares
     repe cmpsb
-    jne .next_line
+    jne .line
     mov rdi, r12
     mov rsi, [line_end]
     call judge_line                 ; the test probe lists drives by
     test eax, eax
-    jnz .return                     ; MOUNTINFO
+    jnz .close                      ; MOUNTINFO
     mov [found_drive], cl
     mov rax, [line_id]
     mov [found_id], rax
     mov byte [found], 1
-.next_line:
-    mov r12, rbx
     jmp .line
+.close:
+    call mountinfo_close
+    jmp .return
 .done:
+    call mountinfo_close
     cmp byte [found], 0
     je .not_a_mount
     cmp byte [found_drive], 0
@@ -236,86 +230,133 @@ probe_find_mount:
 .return:
     pop r15
     pop r14
-    pop r13
     pop r12
-    pop rbx
     ret
 
-; split_line(rdi = line start, rsi = end of the text, beyond rdi)
-;   -> rax = the next line's start, rsi = this line's end, before its
-;   newline. A last line with no newline runs to the end of the text.
-; Clobbers rcx, rdi.
-split_line:
-    mov rcx, rsi
-    sub rcx, rdi
-    mov al, 10
-    repne scasb                     ; rdi = past the newline, or the end
-    mov rax, rdi
-    mov rsi, rdi
-    jne .last_line
-    dec rsi                         ; the line ends before its newline
-.last_line:
-    ret
-
-; read_mountinfo() -> eax = OK, MOUNTINFO or INTERNAL; edx = errno or 0.
-; Reads /proc/self/mountinfo whole into mi_buf and sets mi_len. INTERNAL
-; when it fills mi_buf. Clobbers as probe_run.
-read_mountinfo:
-    push rbx
-    push r12
+; mountinfo_open() -> eax = OK or MOUNTINFO, edx = errno or 0.
+; Opens /proc/self/mountinfo for mountinfo_line; on OK the caller ends
+; with mountinfo_close. Clobbers rax, rcx, rdx, rsi, rdi, r8 to r11.
+mountinfo_open:
     sub rsp, 8
     lea rdi, [mountinfo_path]
     mov esi, O_RDONLY | O_CLOEXEC
     call sys_open
     cmp rax, -MAX_ERRNO
-    jae .open_failed
-    mov ebx, eax                    ; ebx = fd
-    xor r12d, r12d                  ; r12 = bytes read
-.read:
-    mov edx, MOUNTINFO_MAX
-    sub rdx, r12
-    jz .full
-    mov edi, ebx
-    lea rsi, [mi_buf]
-    add rsi, r12
-    call sys_read
-    cmp rax, -MAX_ERRNO
-    jae .read_failed
-    test rax, rax
-    jz .end_of_file
-    add r12, rax
-    jmp .read
-.read_failed:
-    cmp rax, -EINTR
-    je .read
-    neg eax
-    mov r12d, eax                   ; r12 = errno
-    mov edi, ebx
-    call sys_close
-    mov eax, RESULT_MOUNTINFO
-    mov edx, r12d
-    jmp .return
-.full:
-    mov edi, ebx
-    call sys_close
-    mov eax, RESULT_INTERNAL
-    xor edx, edx
-    jmp .return
-.end_of_file:
-    mov [mi_len], r12
-    mov edi, ebx
-    call sys_close                  ; the text is read; a failed close loses nothing
+    jae .failed
+    mov [mi_fd], rax
     xor eax, eax
+    mov [mi_start], rax
+    mov [mi_len], rax
+    mov [mi_eof], al
+    mov [mi_skip], al
     xor edx, edx
-    jmp .return
-.open_failed:
+    add rsp, 8
+    ret
+.failed:
     neg eax
     mov edx, eax
     mov eax, RESULT_MOUNTINFO
-.return:
     add rsp, 8
-    pop r12
+    ret
+
+; mountinfo_line() -> eax = OK or MOUNTINFO, edx = errno or 0; on OK,
+;   rdi = the next line's start and rsi its end, before any newline, or
+;   rdi = 0 at the end of mountinfo. A last line with no newline runs to
+;   the end. The line stays in mi_buf until the next call.
+; A line longer than MOUNTINFO_LINE_MAX is left out (header). Clobbers
+; rax, rcx, rdx, r8 to r11.
+mountinfo_line:
+    push rbx
+.scan:
+    mov rbx, [mi_start]             ; rbx = where the unread lines start
+    lea rsi, [mi_buf]
+    add rsi, rbx                    ; rsi = the same, as an address
+    mov rdi, rsi
+    mov rcx, [mi_len]
+    sub rcx, rbx                    ; rcx = bytes not yet handed out
+    jz .no_line
+    mov al, 10
+    repne scasb                     ; rdi = past the newline
+    jne .no_line
+    mov rax, rdi
+    lea rdx, [mi_buf]
+    sub rax, rdx
+    mov [mi_start], rax
+    cmp byte [mi_skip], 0
+    jne .skipped
+    mov rdi, rsi
+    lea rsi, [rax + rdx - 1]        ; the newline
+    jmp .line
+.skipped:                           ; that ended a line too long to keep
+    mov byte [mi_skip], 0
+    jmp .scan
+.no_line:                           ; no newline in what is held
+    mov rcx, [mi_len]
+    sub rcx, rbx                    ; rcx = a part line's bytes, from rsi
+    cmp byte [mi_eof], 0
+    je .more
+    test rcx, rcx
+    jz .end
+    cmp byte [mi_skip], 0
+    jne .end                        ; the tail of a line too long to keep
+    mov rax, [mi_len]
+    mov [mi_start], rax
+    mov rdi, rsi
+    add rsi, rcx
+    jmp .line
+.more:                              ; the part line to the front, then read
+    lea rdi, [mi_buf]
+    mov [mi_len], rcx
+    mov qword [mi_start], 0
+    rep movsb                       ; forward, so overlapping is safe
+    cmp qword [mi_len], MOUNTINFO_LINE_MAX
+    jb .read
+    mov byte [mi_skip], 1           ; full with no newline: drop it
+    mov qword [mi_len], 0
+.read:
+    mov rdi, [mi_fd]
+    lea rsi, [mi_buf]
+    mov rdx, [mi_len]
+    add rsi, rdx
+    neg rdx
+    add rdx, MOUNTINFO_LINE_MAX
+    call sys_read
+    cmp rax, -EINTR
+    je .read
+    cmp rax, -MAX_ERRNO
+    jae .failed
+    test rax, rax
+    jz .read_all
+    add [mi_len], rax
+    jmp .scan
+.read_all:
+    mov byte [mi_eof], 1
+    jmp .scan
+.failed:
+    neg eax
+    mov edx, eax
+    mov eax, RESULT_MOUNTINFO
+    jmp .return
+.end:
+    xor edi, edi
+.line:
+    xor eax, eax
+    xor edx, edx
+.return:
     pop rbx
+    ret
+
+; mountinfo_close() closes what mountinfo_open opened. Keeps rax and rdx,
+; the caller's result. Clobbers rcx, rsi, rdi, r8 to r11.
+mountinfo_close:
+    push rax
+    push rdx
+    sub rsp, 8
+    mov rdi, [mi_fd]
+    call sys_close                  ; read-only; a failed close loses nothing
+    add rsp, 8
+    pop rdx
+    pop rax
     ret
 
 ; judge_line(rdi = line start, rsi = line end, before any newline)
@@ -459,6 +500,8 @@ judge_line:
     mov rax, [statx_buf + kernel_statx.mnt_id]
     cmp rax, [line_id]
     jne .close                      ; another mount is stacked on this one
+    test dword [statx_buf + kernel_statx.attributes], STATX_ATTR_MOUNT_ROOT
+    jz .close                       ; a folder inside it, through a link
     mov edi, ebx
     lea rsi, [statfs_buf]
     call sys_fstatfs

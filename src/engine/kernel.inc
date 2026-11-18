@@ -33,6 +33,7 @@ EOPNOTSUPP          equ 95
 
 ; open flags (asm-generic/fcntl.h).
 O_RDONLY            equ 0
+O_NONBLOCK          equ 0o4000
 O_DIRECTORY         equ 0o200000
 O_NOFOLLOW          equ 0o400000
 O_NOATIME           equ 0o1000000
@@ -132,6 +133,9 @@ endstruc
 ; stx_mask bits asked for and checked.
 STATX_TYPE          equ 0x0001
 STATX_MNT_ID        equ 0x1000
+; stx_attributes bit: the file is the top folder of its mount (Linux 5.8,
+; as STATX_MNT_ID).
+STATX_ATTR_MOUNT_ROOT equ 0x2000
 
 ; One entry of getdents64's buffer (linux/dirent.h). d_name is
 ; NUL-terminated; d_reclen is the whole entry's size, to the next one.

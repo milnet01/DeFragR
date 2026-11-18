@@ -433,7 +433,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Map, Map view.
   Blocked-by: DFR-0011, DFR-0012, DFR-0013.
 
-- 📋 [DFR-0073] **Engine: an ordinary user cannot stall or block a report.**
+- ✅ [DFR-0073] **Engine: an ordinary user cannot stall or block a report.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   Robustness and security fixes: a local user without admin rights can
   hold up, break or mislead the root engine's report. Three defects in
@@ -444,6 +444,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   machine, seen red first.
   Found by review-code lane 02.
   Priority: 1 — any local user can deny reports to everyone.
+  Shipped 2026-11-18. All three fixed. Each has a check in image_report,
+  seen to fail before its fix and pass after; hold-lease.asm is a test
+  helper for one of them. probe's output on this machine is byte for
+  byte the same.
   **Layman:** Stops another user on the same computer from freezing or breaking a drive report.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.

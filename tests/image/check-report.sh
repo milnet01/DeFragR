@@ -1,6 +1,7 @@
 # shellcheck shell=sh
 # Run in the test machine by the image_report test, with one blank disk
-# called "img" and the engine at /test/defragr-engine. Runs `report` on a
+# called "img", the engine at /test/defragr-engine and /test/hold-lease
+# (hold-lease.asm). Runs `report` on a
 # fragmented image and checks what only the machine can see: the exit
 # codes, and that the disk is byte for byte unchanged (S3); and which of
 # several stacked or disguised mounts `probe` lists. Then prints
@@ -161,6 +162,73 @@ umount /mnt/spoof
 umount /mnt/stack
 umount /mnt/stack
 losetup -d "$lower" && losetup -d "$upper" && losetup -d "$real"
+
+# DFR-0073: what another user on the machine can do cannot stall or
+# mislead a report. Each check is on a small drive of its own.
+truncate -s 8M /tmp/own.img && mkfs.ext4 -q /tmp/own.img &&
+    own=$(losetup -f) && losetup "$own" /tmp/own.img &&
+    mkdir -p /mnt/own && mount -t ext4 "$own" /mnt/own &&
+    echo data >/mnt/own/leased && mkdir -p /mnt/own/x/img
+check "the small drive is made" $? 0
+# A file's owner may hold a write lease on it. Opening the file then waits
+# for the owner to let go, up to lease-break-time, and hold-lease never
+# does. The walk must skip the file at once, not wait.
+echo 30 >/proc/sys/fs/lease-break-time
+/test/hold-lease /mnt/own/leased >/tmp/lease.out &
+holder=$!
+tries=0
+while [ ! -s /tmp/lease.out ] && [ "$tries" -lt 100 ]; do
+    sleep 0.1
+    tries=$((tries + 1))
+done
+check "the lease is held" "$(cat /tmp/lease.out)" held
+timeout 10 /test/defragr-engine report /mnt/own >/tmp/lease.bin
+check "report beside a held lease exits OK without waiting" $? 0
+check "the leased file is skipped" "$(grep -a -o leased /tmp/lease.bin | wc -l)" 1
+kill "$holder"
+wait "$holder"
+# Else probe would list the drive here, not where the next checks look.
+umount /mnt/own
+check "the small drive is unmounted" $? 0
+# A path that is the drive's mount point in mountinfo, but which a link in
+# a parent folder leads to a sub-folder of the same mount: here the drive
+# is covered by a memory filesystem whose link "p" leads, through this
+# shell's open folder x, to x/img. Its mount id is the drive's; it is
+# not the drive's top folder, so it is not the drive.
+mkdir -p /mnt/cover/p/img && mount -t ext4 "$own" /mnt/cover/p/img &&
+    exec 4</mnt/cover/p/img/x &&
+    mount -t tmpfs none /mnt/cover && ln -s "/proc/$$/fd/4" /mnt/cover/p
+check "the drive is covered by a link to its sub-folder" $? 0
+/test/defragr-engine report /mnt/cover/p/img >/dev/null
+check "report through a link to a sub-folder exits NOT_A_MOUNT" $? 3
+/test/defragr-engine probe >/tmp/probe.bin
+check "probe does not list a drive reached through a link" \
+    "$(times_in /mnt/cover/p/img)" 0
+umount /mnt/cover
+exec 4<&-
+umount /mnt/cover/p/img
+losetup -d "$own"
+# Mount points long enough, escaped, to fill more than 4 MiB of mountinfo,
+# as another user's FUSE mounts could. Probe and report still work.
+gap=$(printf '%240s' '')
+long=/mnt/long
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do long="$long/$gap"; done
+mkdir -p "$long"
+mounts=0
+while [ "$mounts" -lt 300 ] && mount -t tmpfs none "$long"; do
+    mounts=$((mounts + 1))
+done
+check "300 long mounts are made" "$mounts" 300
+check "mountinfo is over 4 MiB" \
+    "$(( $(wc -c </proc/self/mountinfo) > 4 * 1024 * 1024 ))" 1
+/test/defragr-engine probe >/tmp/probe.bin
+check "probe beside a huge mountinfo exits OK" $? 0
+check "probe still lists the drive" "$(times_in /mnt/img)" 1
+/test/defragr-engine report /mnt/img >/dev/null
+check "report beside a huge mountinfo exits OK" $? 0
+while [ "$mounts" -gt 0 ] && umount "$long"; do mounts=$((mounts - 1)); done
+check "the long mounts are gone" "$mounts" 0
+
 # Every name below the mount point; the image's names hold no newline.
 names=$(find /mnt/img -mindepth 1 -xdev | wc -l)
 

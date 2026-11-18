@@ -21,6 +21,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A report never opens a device, and never wakes a network or
   on-demand drive mounted inside the one being read. Before, an
   on-demand drive there could make the report hang (DFR-0045).
+- Another user on the same computer can no longer stall a report, stop
+  the drives being listed, or make a report read only part of a drive
+  (DFR-0073).
 
 ### Added
 - A "Refresh drives" button lists the drives again, and the window says

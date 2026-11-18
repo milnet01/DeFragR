@@ -20,7 +20,7 @@ Each line names what crosses and what is checked where it crosses.
   command, and a report not run as root. The mount point must be,
   byte for byte, one listed in `/proc/self/mountinfo`, and its mount a
   drive by `probe`'s rules (ADR-0002). The walk then reads that mount
-  only, matched by its mount id. `pkexec` clears the window's
+  only, matched by its mount id, from its top folder. `pkexec` clears the window's
   environment, so none of it reaches the engine.
 - **Filesystem: the engine reads names and layouts from the drive, as
   root.** Every name is opened with `openat2`, `O_PATH`, `O_NOFOLLOW`

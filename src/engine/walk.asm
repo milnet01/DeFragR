@@ -51,9 +51,11 @@ DENTS_SIZE      equ 4096
 
 FOLDER_FLAGS    equ O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_NOATIME | O_CLOEXEC
 ; The reopens through /proc/self/fd follow that link, as they must, to
-; the file already checked; so no O_NOFOLLOW.
+; the file already checked; so no O_NOFOLLOW. A file's owner can hold a
+; lease on it, which makes a plain open wait for them to let go; with
+; O_NONBLOCK the open fails at once with EAGAIN, and the file is skipped.
 REOPEN_FOLDER   equ O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC
-REOPEN_FILE     equ O_RDONLY | O_NOATIME | O_CLOEXEC
+REOPEN_FILE     equ O_RDONLY | O_NONBLOCK | O_NOATIME | O_CLOEXEC
 FD_DIGITS_MAX   equ 10                  ; a 32-bit fd's decimal digits
 
 ; One open folder: its descriptor, how far through its entries the walk
@@ -104,11 +106,12 @@ global walk_estimate
 ;   -> eax = OK, NOT_A_MOUNT or DRIVE_ERROR; edx = errno on DRIVE_ERROR,
 ;   the drive's block size on OK, else 0; on OK, ecx = the top folder's
 ;   descriptor, open until walk_next returns WALK_END or WALK_ERROR.
-; Opens the top folder and checks it is that mount: a path swapped for
-; another folder since mountinfo was read is NOT_A_MOUNT. A block size of
-; 0 or above 32 bits is DRIVE_ERROR with EINVAL. On OK, sets
-; walk_estimate and zeroes walk_names. Clobbers rax, rcx, rdx, rsi, rdi,
-; r8 to r11.
+; Opens the top folder and checks it is that mount's top folder: a path
+; swapped since mountinfo was read, for another mount or, through a link
+; in a parent folder, for a folder inside this one, is NOT_A_MOUNT. A
+; block size of 0 or above 32 bits is DRIVE_ERROR with EINVAL. On OK,
+; sets walk_estimate and zeroes walk_names. Clobbers rax, rcx, rdx, rsi,
+; rdi, r8 to r11.
 walk_start:
     push rbx
     push r12
@@ -127,6 +130,8 @@ walk_start:
     jae .failed_close
     cmp [statx_buf + kernel_statx.mnt_id], r12
     jne .not_a_mount
+    test dword [statx_buf + kernel_statx.attributes], STATX_ATTR_MOUNT_ROOT
+    jz .not_a_mount
     mov edi, ebx
     lea rsi, [statfs_buf]
     call sys_fstatfs
