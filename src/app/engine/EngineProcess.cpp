@@ -47,10 +47,12 @@ EngineProcess::EngineProcess(QString launcher, QObject *parent)
     connect(&m_process, &QProcess::finished, this, &EngineProcess::processEnded);
     connect(&m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
         // FailedToStart is the one error after which finished never comes.
+        // start() found the engine there and executable, so if it is the
+        // engine that failed, it is not missing: it would not start, as on
+        // a noexec mount or when it is not a program at all.
         if (error != QProcess::FailedToStart)
             return;
-        m_outcome.end = m_viaLauncher ? RunEnd::LauncherMissing : RunEnd::EngineMissing;
-        emit ended(m_outcome);
+        endLater(m_viaLauncher ? RunEnd::LauncherMissing : RunEnd::EngineUnstartable);
     });
 }
 
@@ -62,6 +64,9 @@ EngineProcess::~EngineProcess()
     // first. Once ~QProcess closes the pipes, the engine's next write
     // fails, and that ends it (docs/design.md § Errors).
     disconnect(&m_process, nullptr, this, nullptr);
+    // The engine does not read yet; once it does, this is cancel (DFR-0002
+    // § 4.8, DFR-0023).
+    m_process.closeWriteChannel();
 }
 
 QString EngineProcess::enginePath()
@@ -95,6 +100,7 @@ void EngineProcess::start(Command command, const QStringList &arguments)
 {
     if (isRunning())
         return;
+    m_ended = false;
     m_decoder = RecordDecoder();
     m_outcome = RunOutcome();
     m_outcome.enginePath = enginePath();
@@ -105,9 +111,7 @@ void EngineProcess::start(Command command, const QStringList &arguments)
 
     const QFileInfo engine(m_outcome.enginePath);
     if (!engine.isFile() || !engine.isExecutable()) {
-        // Queued, so ended() always comes after start() returns.
-        m_outcome.end = RunEnd::EngineMissing;
-        QTimer::singleShot(0, this, [this] { emit ended(m_outcome); });
+        endLater(RunEnd::EngineMissing);
         return;
     }
 
@@ -127,15 +131,27 @@ void EngineProcess::readOutput()
     m_gotOutput = true;
     m_decoder.feed(bytes);
     const QList<Record> records = m_decoder.takeRecords();
-    if (records.isEmpty())
-        return;
     for (const Record &record : records) {
         if (const auto *finished = std::get_if<Finished>(&record))
             m_outcome.finished = *finished;
         else if (const auto *hello = std::get_if<Hello>(&record))
             m_helloCommand = hello->command;
     }
-    emit recordsReceived(records);
+    if (!records.isEmpty())
+        emit recordsReceived(records);
+    if (!m_decoder.error() || m_ended)
+        return;
+    // Nothing after a broken record can be trusted, so the run ends here
+    // rather than when the engine exits: a root report would otherwise
+    // walk the whole drive under a running screen. An engine run as this
+    // user is stopped; one run as root ends at its next write once the
+    // pipes close.
+    if (m_viaLauncher)
+        m_process.closeWriteChannel();
+    else
+        m_process.kill();
+    end(m_decoder.error() == StreamError::VersionMismatch ? RunEnd::VersionMismatch
+                                                          : RunEnd::Broken);
 }
 
 void EngineProcess::processEnded(int exitCode, QProcess::ExitStatus status)
@@ -151,14 +167,33 @@ void EngineProcess::processEnded(int exitCode, QProcess::ExitStatus status)
                               && !(m_helloCommand == CommandUnknown
                                    && m_outcome.finished.result == ResultUsage);
     if (launcherSaidNo)
-        m_outcome.end = RunEnd::AdminRefused;
+        end(RunEnd::AdminRefused);
     else if (m_decoder.error() == StreamError::VersionMismatch)
-        m_outcome.end = RunEnd::VersionMismatch;
+        end(RunEnd::VersionMismatch);
     else if (status == QProcess::CrashExit || m_decoder.error() || otherCommand)
-        m_outcome.end = RunEnd::Broken;
+        end(RunEnd::Broken);
     else
-        m_outcome.end = RunEnd::Finished;
+        end(RunEnd::Finished);
+}
+
+void EngineProcess::end(RunEnd how)
+{
+    if (m_ended)
+        return;
+    m_ended = true;
+    m_outcome.end = how;
     emit ended(m_outcome);
+}
+
+void EngineProcess::endLater(RunEnd how)
+{
+    // Queued, so ended() always comes after start() returns; until then
+    // the run counts as going.
+    m_endQueued = true;
+    QTimer::singleShot(0, this, [this, how] {
+        m_endQueued = false;
+        end(how);
+    });
 }
 
 }  // namespace defragr::engine

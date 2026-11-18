@@ -147,6 +147,15 @@
         <translation>DeFragR を再インストールしてください。エンジンがないと、ドライブの一覧表示や確認ができません。</translation>
     </message>
     <message>
+        <source>DeFragR&apos;s engine is at %1, but it would not start.</source>
+        <extracomment>%1 is the path of the engine.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reinstall DeFragR. If it is on a drive that does not allow programs to run, install it somewhere that does.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR could not ask for admin rights, because pkexec, the program that asks for them, did not start.</source>
         <translation>管理者権限を求めるプログラム pkexec が起動しなかったため、DeFragR は管理者権限を求められませんでした。</translation>
     </message>

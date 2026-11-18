@@ -377,6 +377,21 @@ private slots:
     }
 
     // INV-7
+    // DFR-0077: a known record whose payload stops 8 bytes short of what
+    // it holds is malformed, never read past its end.
+    void shortPayloadIsMalformed()
+    {
+        const auto cut = [](const QByteArray &whole) {
+            const quint16 type = qFromLittleEndian<quint16>(whole.constData());
+            return record(type, whole.sliced(8).chopped(8));
+        };
+        QCOMPARE(errorOf(hello(CommandProbe) + cut(drive(VerdictReportAndDefrag, 0)) + finished()),
+                 kMalformed);
+        for (const QByteArray &whole : {fragmented("a"), skippedFile("a"), summary(0, 0),
+                                        progress(1, 2), ::mapRuns(MapFree, QList<MapRun>{{0, 1}})})
+            QCOMPARE(errorOf(hello(CommandReport) + cut(whole) + finished()), kMalformed);
+    }
+
     void version()
     {
         QCOMPARE(errorOf(hello(CommandUnknown, 0, 2) + finished()), kMismatch);

@@ -51,6 +51,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0014, DFR-0071).
 
 ### Fixed
+- When the engine is missing, broken, or there but unable to start, the
+  window says so once, at once, and in the right words. An engine whose
+  output breaks the rules no longer leaves a report "running" until it
+  has read the whole drive (DFR-0077).
 - The drive map never flashes more than three times a second, however
   often a block changes. Resizing the window while the map fills in
   shows the whole map at once, with no new glow (DFR-0075).

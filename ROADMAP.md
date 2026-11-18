@@ -588,7 +588,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-tests-2026-11-18.
   Lanes: Engine link, Drives, Map view, Screens, Messages, Build.
 
-- 📋 [DFR-0077] **Window: the engine link ends each run once, promptly and truthfully.**
+- ✅ [DFR-0077] **Window: the engine link ends each run once, promptly and truthfully.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `src/app/engine/EngineProcess.cpp:110`, `src/app/model/Report.cpp:124`
     and `Report.h:41` — with the engine missing, ended() is queued
@@ -625,6 +625,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     fails at :238. Fix: keep the one copy that runs.
   Found by review-code lane 03 and review-readability lane 03.
   Priority: 2.
+  Shipped 2026-11-18. isRunning() stays true until a queued ended() is
+  emitted, so a second start() is ignored and Report fails once. The
+  destructor says it waits up to 30 s for a root engine, and closes the
+  write channel first. A decoder error ends the run at once: an engine
+  run as this user is killed, a launcher run has its write channel
+  closed. FailedToStart for an engine start() found present is the new
+  RunEnd::EngineUnstartable, with its own message. PayloadReader bounds
+  every field and the decoder fails a short payload, so fixedSize's
+  hand-kept list is gone; orderAllows' unreachable major check is gone.
+  Six new checks in tst_engineprocess, tst_report and tst_messages failed
+  before the fix; tst_records' short-payload check, added for the
+  restructure, fails with the bound removed. The spec's § 6 line for a
+  stream broken mid-run goes in with DFR-0081.
   **Layman:** When the engine is missing, broken or closed mid-run, the window says so once, quickly and in the right words.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.

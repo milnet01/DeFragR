@@ -147,6 +147,15 @@
         <translation>請重新安裝 DeFragR。沒有引擎，它就無法列出或檢查磁碟。</translation>
     </message>
     <message>
+        <source>DeFragR&apos;s engine is at %1, but it would not start.</source>
+        <extracomment>%1 is the path of the engine.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reinstall DeFragR. If it is on a drive that does not allow programs to run, install it somewhere that does.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR could not ask for admin rights, because pkexec, the program that asks for them, did not start.</source>
         <translation>DeFragR 無法要求系統管理員權限，因為負責要求權限的程式 pkexec 沒有啟動。</translation>
     </message>

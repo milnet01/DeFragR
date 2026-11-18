@@ -147,6 +147,15 @@
         <translation>יש להתקין מחדש את DeFragR. בלי המנוע שלו הוא לא יכול להציג או לבדוק כוננים.</translation>
     </message>
     <message>
+        <source>DeFragR&apos;s engine is at %1, but it would not start.</source>
+        <extracomment>%1 is the path of the engine.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reinstall DeFragR. If it is on a drive that does not allow programs to run, install it somewhere that does.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>DeFragR could not ask for admin rights, because pkexec, the program that asks for them, did not start.</source>
         <translation>DeFragR לא הצליח לבקש הרשאות ניהול, כי pkexec, התוכנה שמבקשת אותן, לא הופעלה.</translation>
     </message>

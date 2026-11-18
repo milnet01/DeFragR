@@ -144,6 +144,22 @@ private slots:
         QCOMPARE(filesHeading(0), QStringLiteral("Fragmented files, worst first:"));
     }
 
+    // DFR-0077: a run asked for again before the first has ended is
+    // ignored, so its failure is told once.
+    void runWhileEndingFailsOnce()
+    {
+        useEngine("no-such-engine");
+        Report report(fake("pass-through.sh"));
+        QList<Message> failures;
+        connect(&report, &Report::failed, this,
+                [&](const Message &message) { failures.append(message); });
+        report.run("/mnt/fake");
+        report.run("/mnt/fake");
+        QTRY_COMPARE(failures.size(), 1);
+        QTest::qWait(50);  // a second failed() would land here
+        QCOMPARE(failures.size(), 1);
+    }
+
     // S3: the figures come from REPORT_SUMMARY.
     void figuresFromTheSummary()
     {

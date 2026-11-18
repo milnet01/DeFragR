@@ -6,6 +6,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
 
@@ -170,6 +171,80 @@ private slots:
         QCOMPARE(probe.ends, 1);
         QCOMPARE(probe.outcome.end, RunEnd::EngineMissing);
         QCOMPARE(probe.outcome.enginePath, path);
+    }
+
+    // DFR-0077: a run is going until its ended() has come, so a second
+    // start() before then is ignored and the run ends once.
+    void startWhileEndingIsIgnored()
+    {
+        useEngine(QStringLiteral("/nonexistent/defragr-engine"));
+        int ends = 0;
+        EngineProcess engine;
+        connect(&engine, &EngineProcess::ended, this, [&] { ++ends; });
+        engine.start(CommandProbe);
+        QVERIFY(engine.isRunning());
+        engine.start(CommandProbe);
+        QTRY_COMPARE(ends, 1);
+        QTest::qWait(50);  // a second ended() would land here
+        QCOMPARE(ends, 1);
+        QVERIFY(!engine.isRunning());
+    }
+
+    // DFR-0077: an engine program that is there but will not start, such
+    // as one that is not a program at all, is named as such, not as
+    // missing.
+    void unstartableEngineIsNotMissing()
+    {
+        QTemporaryDir dir(QDir::current().filePath(QStringLiteral("unstartable-XXXXXX")));
+        QVERIFY(dir.isValid());
+        QFile file(dir.filePath(QStringLiteral("defragr-engine")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("not a program\n");
+        file.close();
+        QVERIFY(file.setPermissions(file.permissions() | QFileDevice::ExeOwner));
+        useEngine(file.fileName());
+        EngineProcess engine;
+        const Run probe = run(engine, CommandProbe);
+        QCOMPARE(probe.ends, 1);
+        QCOMPARE(probe.outcome.end, RunEnd::EngineUnstartable);
+        QCOMPARE(probe.outcome.enginePath, file.fileName());
+    }
+
+    // DFR-0077: a stream that breaks a rule ends the run at once, not when
+    // the engine exits; an engine run without the launcher is stopped.
+    void brokenStreamEndsAtOnce()
+    {
+        useEngine(fake("malformed.sh"));
+        int ends = 0;
+        RunOutcome outcome;
+        EngineProcess engine;
+        connect(&engine, &EngineProcess::ended, this, [&](const RunOutcome &ended) {
+            outcome = ended;
+            ++ends;
+        });
+        engine.start(CommandProbe);
+        QTRY_COMPARE_WITH_TIMEOUT(ends, 1, 5000);
+        QCOMPARE(outcome.end, RunEnd::Broken);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.isRunning(), 5000);
+        QTest::qWait(50);
+        QCOMPARE(ends, 1);
+    }
+
+    // The same through the launcher. A root engine cannot be stopped from
+    // here, so the run ends at once and the engine at its next write.
+    void brokenStreamViaLauncherEndsAtOnce()
+    {
+        useEngine(fake("malformed.sh"));
+        int ends = 0;
+        RunOutcome outcome;
+        EngineProcess engine(fake("pass-through.sh"));
+        connect(&engine, &EngineProcess::ended, this, [&](const RunOutcome &ended) {
+            outcome = ended;
+            ++ends;
+        });
+        engine.start(CommandReport, {QStringLiteral("/")});
+        QTRY_COMPARE_WITH_TIMEOUT(ends, 1, 5000);
+        QCOMPARE(outcome.end, RunEnd::Broken);
     }
 
     // DFR-0002 § 4.3: a path reaches the engine escaped as mountinfo

@@ -58,8 +58,9 @@ private slots:
     // Every way a run can end badly says what happened and what to do.
     void everyRunEndHasWords()
     {
-        for (RunEnd end : {RunEnd::EngineMissing, RunEnd::LauncherMissing, RunEnd::AdminRefused,
-                           RunEnd::Broken, RunEnd::VersionMismatch}) {
+        for (RunEnd end : {RunEnd::EngineMissing, RunEnd::EngineUnstartable,
+                           RunEnd::LauncherMissing, RunEnd::AdminRefused, RunEnd::Broken,
+                           RunEnd::VersionMismatch}) {
             RunOutcome outcome;
             outcome.end = end;
             outcome.enginePath = QStringLiteral("/opt/defragr/defragr-engine");
@@ -133,6 +134,18 @@ private slots:
     {
         QCOMPARE(messages::fsType(QByteArrayLiteral("fuse.\xE2\x80\xAEx")),
                  QStringLiteral(u"\u2066fuse.[U+202E]x\u2069"));
+    }
+
+    // DFR-0077: an engine that is there but would not start is not called
+    // missing; the user is told where it is.
+    void unstartableEngineIsNamed()
+    {
+        RunOutcome outcome;
+        outcome.end = RunEnd::EngineUnstartable;
+        outcome.enginePath = QStringLiteral("/opt/defragr/defragr-engine");
+        const Message message = messages::forRun(outcome);
+        QVERIFY(message.what.contains(QStringLiteral(u"\u2066/opt/defragr/defragr-engine\u2069")));
+        QVERIFY(!message.what.contains(QStringLiteral("missing")));
     }
 
     // A failing call's errno is shown as words, never as its number.

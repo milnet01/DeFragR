@@ -11,28 +11,33 @@ namespace defragr::engine {
 
 namespace {
 
-// Fixed-part sizes, from each record's table in the spec.
-constexpr quint32 kHelloSize = 16;
-constexpr quint32 kFinishedSize = 8;
+// Where each record's strings or runs start: its fixed part's size, from
+// its table in the spec.
 constexpr quint32 kDriveSize = 40;
 constexpr quint32 kFragmentedFileSize = 16;
 constexpr quint32 kFileSkippedSize = 8;
-constexpr quint32 kReportSummarySize = 40;
-constexpr quint32 kReportProgressSize = 16;
 constexpr quint32 kMapRunsSize = 8;
 constexpr quint32 kMapRunSize = 16;  // each run after MAP_RUNS' fixed part
-constexpr quint32 kRunStateSize = 8;
 
-// Reads one payload: fixed fields by offset, then strings in order.
+// Reads one payload: fixed fields by offset, then strings in order. A
+// field past the payload's end reads as 0 and marks the payload short,
+// so no type needs its size listed twice.
 class PayloadReader {
 public:
     explicit PayloadReader(QByteArrayView payload) : m_payload(payload) {}
 
     template <typename T>
-    T at(qsizetype offset) const
+    T at(qsizetype offset)
     {
+        if (offset + qsizetype(sizeof(T)) > m_payload.size()) {
+            m_short = true;
+            return T{};
+        }
         return qFromLittleEndian<T>(m_payload.data() + offset);
     }
+
+    // A field was read past the payload's end.
+    bool isShort() const { return m_short; }
 
     // The next string after `m_cursor`; false when its count is over the
     // limit or it runs past the payload (§ 4.1).
@@ -53,23 +58,8 @@ public:
 private:
     QByteArrayView m_payload;
     qsizetype m_cursor = 0;
+    bool m_short = false;
 };
-
-quint32 fixedSize(quint16 type)
-{
-    switch (type) {
-    case TypeHello: return kHelloSize;
-    case TypeFinished: return kFinishedSize;
-    case TypeDrive: return kDriveSize;
-    case TypeFragmentedFile: return kFragmentedFileSize;
-    case TypeFileSkipped: return kFileSkippedSize;
-    case TypeReportSummary: return kReportSummarySize;
-    case TypeReportProgress: return kReportProgressSize;
-    case TypeMapRuns: return kMapRunsSize;
-    case TypeRunState: return kRunStateSize;
-    default: return 0;
-    }
-}
 
 }  // namespace
 
@@ -115,14 +105,10 @@ void RecordDecoder::finish()
 bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
 {
     // Another major may lay HELLO out differently; only its first field is
-    // certain, so it is read before the size check (§ 4.2).
+    // certain, so it is read before the rest (§ 4.2).
     if (type == TypeHello && !m_seenHello && payload.size() >= 2
         && qFromLittleEndian<quint16>(payload.data()) != kMajor) {
         m_error = StreamError::VersionMismatch;
-        return false;
-    }
-    if (payload.size() < qsizetype(fixedSize(type))) {
-        m_error = StreamError::Malformed;
         return false;
     }
     PayloadReader in(payload);
@@ -217,6 +203,10 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         record = Unknown{type};
         break;
     }
+    if (in.isShort()) {
+        m_error = StreamError::Malformed;
+        return false;
+    }
 
     if (!orderAllows(record))
         return false;
@@ -235,12 +225,9 @@ bool RecordDecoder::orderAllows(const Record &record)
     if (m_seenFinished)
         return malformed();
     if (const auto *hello = std::get_if<Hello>(&record)) {
+        // Another major was refused in decode(), before the fixed part.
         if (m_seenHello)
             return malformed();
-        if (hello->major != kMajor) {
-            m_error = StreamError::VersionMismatch;
-            return false;
-        }
         m_seenHello = true;
         m_command = hello->command;
         m_blockSize = hello->blockSize;

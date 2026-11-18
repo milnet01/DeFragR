@@ -189,6 +189,12 @@ Message forRun(const RunOutcome &outcome)
                     .arg(path(outcome.enginePath)),
                 Tr::tr("Reinstall DeFragR. Without its engine it cannot list or check "
                        "drives.")};
+    case RunEnd::EngineUnstartable:
+        //: %1 is the path of the engine.
+        return {Tr::tr("DeFragR's engine is at %1, but it would not start.")
+                    .arg(path(outcome.enginePath)),
+                Tr::tr("Reinstall DeFragR. If it is on a drive that does not allow "
+                       "programs to run, install it somewhere that does.")};
     case RunEnd::LauncherMissing:
         return {Tr::tr("DeFragR could not ask for admin rights, because pkexec, the "
                        "program that asks for them, did not start."),
