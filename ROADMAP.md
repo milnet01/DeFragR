@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=71 -->
+<!-- ants-roadmap-id-high-water: DFR=72 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -774,7 +774,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-perf-2026-11-16.
   Lanes: Build.
 
-- 📋 [DFR-0060] **Measure a cold report's disk pattern before reordering the walk.**
+- ✅ [DFR-0060] **Measure a cold report's disk pattern before reordering the walk.**
   Three candidates, none a win until measured:
   - walk.asm:284 opens files in getdents64 order, which on an indexed
     ext4 folder follows name hashes, not inode numbers: random seeks into
@@ -786,6 +786,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   plus blktrace/btt, alternating old and new on a quiet machine. Retake
   after DFR-0023 sets idle I/O priority. Found by review-code
   --performance lane 01.
+  Done 2026-11-18, one cold report on /mnt/Games (caches dropped, as
+  root, /usr/bin/time -v; iostat -x every 5 s; blktrace not installed):
+  19 min 56 s wall, 6 s user, 821.6 s system, 69% of one CPU, result OK.
+  3,227,679 files, 3,350,180 extents, 30,595 fragmented. sdb averaged
+  40% busy: about 52% in the first 7 min, about 10% from 7 to 15 min,
+  about 65% with up to 2,000 reads/s in the last 5 min. So the run is
+  mostly kernel CPU, not seeks, and the three walk-order candidates are
+  not where its time goes; none is changed. Which call costs it is
+  DFR-0072.
   **Layman:** Measure where a report on a big spinning drive spends its time, before trying to make it faster.
   Kind: investigate.
   Source: review-code-perf-2026-11-16.
@@ -964,6 +973,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0015, DFR-0016, DFR-0017, DFR-0018.
+
+- 📋 [DFR-0072] **Find which kernel call takes a big report's system time.**
+  DFR-0060's cold report on /mnt/Games took 19 min 56 s, 821 s of it
+  system time, while the drive was busy 40% of the time on average and
+  about 10% for eight minutes in the middle. Count each call's share
+  with strace -c -f on a cold report (needs root), then look first at
+  the candidates: GETFSMAP's map (extents_space), FIEMAP read twice per
+  file since DFR-0011, and getdents64's small 4 KiB buffer.
+  **Layman:** A report on the big games drive spends most of its 20 minutes with the computer thinking, not the disk reading; find out which step.
+  Kind: investigate.
+  Source: dfr-0060-measurement-2026-11-18.
+  Lanes: Walk, Extents.
 
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress
 
