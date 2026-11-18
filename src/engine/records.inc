@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 2
+PROTOCOL_MINOR      equ 3
 
 ; § 4.1 framing.
 struc rec_header
@@ -100,6 +100,7 @@ endstruc
 CMD_UNKNOWN         equ 0
 CMD_PROBE           equ 1
 CMD_REPORT          equ 2
+CMD_SELFTEST_CRC32C equ 254
 CMD_SELFTEST        equ 255
 
 ; DRIVE.media, DRIVE.verdict and DRIVE.mount_flags (§ 4.5).

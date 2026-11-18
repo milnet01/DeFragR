@@ -1,4 +1,4 @@
-// The built engine against the window's decoder: INV-10 and INV-11 of
+// The built engine against the window's decoder: INV-10, INV-11 and INV-18 of
 // docs/specs/DFR-0002-engine-protocol.md. The engine's path comes from
 // DEFRAGR_ENGINE, which tests/app/CMakeLists.txt sets.
 #include "engine/Records.h"
@@ -61,7 +61,7 @@ private slots:
         QCOMPARE(run.exitCode, 0);
         QCOMPARE(run.records.size(), 9);
 
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 2, 255, 0x01020304}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 3, 255, 0x01020304}));
 
         Drive drive;
         drive.totalBlocks = 0x1112131415161718;
@@ -94,6 +94,17 @@ private slots:
         QCOMPARE(std::get<Finished>(run.records[8]), (Finished{0, 0}));
     }
 
+    // INV-18: the engine's CRC32C gives every published value § 4.11 lists.
+    void selftestCrc32c()
+    {
+        const Run run = runEngine({QStringLiteral("selftest-crc32c")});
+        QCOMPARE(run.error, std::nullopt);
+        QCOMPARE(run.records.size(), 2);
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 3, CommandSelftestCrc32c, 0}));
+        QCOMPARE(std::get<Finished>(run.records[1]).result, int(ResultOk));
+        QCOMPARE(run.exitCode, 0);
+    }
+
     // INV-11: every run is a clean stream whose result is the exit status.
     void everyRunFinishes_data()
     {
@@ -112,6 +123,8 @@ private slots:
             << QStringList{"report", "/nonexistent"} << int(ResultNotRoot) << true;
         QTest::newRow("selftest-records") << QStringList{"selftest-records"} << int(ResultOk)
                                           << false;
+        QTest::newRow("selftest-crc32c, extra argument")
+            << QStringList{"selftest-crc32c", "x"} << int(ResultUsage) << false;
     }
 
     void everyRunFinishes()

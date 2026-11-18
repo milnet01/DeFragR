@@ -36,7 +36,13 @@ enum RecordType : quint16 {
 };
 
 // HELLO.command (§ 4.4).
-enum Command : quint32 { CommandUnknown = 0, CommandProbe = 1, CommandReport = 2, CommandSelftest = 255 };
+enum Command : quint32 {
+    CommandUnknown = 0,
+    CommandProbe = 1,
+    CommandReport = 2,
+    CommandSelftestCrc32c = 254,
+    CommandSelftest = 255,
+};
 
 // FINISHED.result (§ 4.7).
 enum Result : qint32 {

@@ -55,6 +55,9 @@ There is no such spec. Without it:
   § The parts, *Map*), so the engine sends positions, not cells; many runs
   share a record, since a large drive has millions; a run says whether
   its file is fragmented, so the map needs no file names.
+- **A hidden command checks the engine's checksum (1.3, DFR-0016).**
+  Claude's choice. It tests the shipped engine itself, as
+  `selftest-records` does.
 
 ## 4. Design
 
@@ -98,8 +101,8 @@ Padding bytes and `flags` are not checked.
 ### 4.2 Versioning
 
 The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
-defines **1.2**: 1.0 plus `REPORT_PROGRESS` in 1.1 and `MAP_RUNS` in 1.2
-(§ 4.6).
+defines **1.3**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
+(§ 4.6), and `selftest-crc32c` in 1.3 (§ 4.11).
 
 - **Minor** changes add, and never change: a new record or command type,
   a field appended to a payload, a new value of an enumerated field. An
@@ -120,6 +123,7 @@ A reader handles a value it does not know in an enumerated field as
 defragr-engine probe                  list drives; no root needed
 defragr-engine report <mount-point>   report on one drive; needs root
 defragr-engine selftest-records       fixed records (§ 4.9); hidden
+defragr-engine selftest-crc32c        checksum test (§ 4.11); hidden
 ```
 
 Arguments are the only text the engine parses. Every run, including a
@@ -155,8 +159,8 @@ command, then `FINISHED` with `USAGE`.
 ```
 offset  size  field
 0       2     major        1
-2       2     minor        2
-4       4     command      0 unknown, 1 probe, 2 report, 255 selftest-records
+2       2     minor        3
+4       4     command      0 unknown, 1 probe, 2 report, 254 selftest-crc32c, 255 selftest-records
 8       4     block_size   the drive's statfs f_bsize in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
 ```
@@ -321,7 +325,7 @@ offset  size  field
 | 6 | `REFUSED` | The drive's verdict does not allow this command |
 | 7 | `CANCELLED` | Cancelled by command or by a closed standard input |
 | 8 | `BAD_COMMAND` | A malformed command arrived on standard input |
-| 9 | `INTERNAL` | The engine broke one of its own limits, could not ignore `SIGPIPE` (§ 4.3), or a write failed with an error other than `EPIPE` (exit status only, § 6) |
+| 9 | `INTERNAL` | The engine broke one of its own limits, could not ignore `SIGPIPE` (§ 4.3), got a wrong checksum in `selftest-crc32c` (§ 4.11), or a write failed with an error other than `EPIPE` (exit status only, § 6) |
 
 Each of those causes is a bug to report, so they share one code.
 
@@ -364,7 +368,7 @@ result and errno.
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 2, command 255, block_size `0x01020304` |
+| `HELLO` | major 1, minor 3, command 255, block_size `0x01020304` |
 | `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
 | `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
@@ -379,7 +383,7 @@ these 24 bytes:
 
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
-01 00 02 00 ff 00 00 00   major 1, minor 2, command 255
+01 00 03 00 ff 00 00 00   major 1, minor 3, command 255
 04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
@@ -413,6 +417,26 @@ too, at `FINISHED` or at `finish()`. `HELLO.command` picks them:
 § 4.5's for 1, § 4.6's and INV-8 for 2, and only § 4.3's for any other
 value. An `Unknown` record may sit anywhere between `HELLO` and
 `FINISHED`, and no order or count rule counts it.
+
+### 4.11 `selftest-crc32c`
+
+Sends `HELLO` with command 254 and block_size 0, then `FINISHED`. The
+result is `OK` when the engine's CRC32C gives each value below, and
+`INTERNAL` when one differs. CRC32C starts from `0xFFFFFFFF` and inverts
+its result.
+
+| Bytes | CRC32C | Source |
+|---|---|---|
+| none | `0x00000000` | the starting value |
+| `123456789` | `0xE3069283` | the CRC catalogue's check value |
+| 32 of `0x00` | `0x8A9136AA` | RFC 3720 appendix B.4 |
+| 32 of `0xFF` | `0x62A8AB43` | RFC 3720 appendix B.4 |
+| `0x00` to `0x1F`, rising | `0x46DD794E` | RFC 3720 appendix B.4 |
+| `0x1F` to `0x00`, falling | `0x113FDB5C` | RFC 3720 appendix B.4 |
+| RFC 3720's 48-byte read command | `0xD9963A56` | RFC 3720 appendix B.4 |
+
+`123456789` is also checked in two pieces, the second continuing from
+the first, and from an address that is not a multiple of 8.
 
 ## 5. Invariants
 
@@ -512,7 +536,8 @@ isolates.
   runs `defragr-engine` and `defragr-engine bogus` (each expects result
   1), `report` with no mount point (expects 1, so arguments come before
   admin rights), `report /nonexistent` (expects 2, so admin rights come
-  before the mount point) and `selftest-records`, and checks each exit
+  before the mount point), `selftest-records`, and `selftest-crc32c x`
+  (expects 1), and checks each exit
   status against `result`. `failedWriteIsInternal` runs `bogus` and
   `selftest-records` with standard output on `/dev/full` and expects
   exit 9. `closedPipeIsCancelled` gives `selftest-records` a pipe with
@@ -594,6 +619,13 @@ isolates.
   GETFSMAP's unowned blocks as the filesystem's, marks a fragmented
   file's runs as whole, or stops after the first GETFSMAP call.
 
+- **INV-18** — `selftest-crc32c` sends `HELLO` with command 254, then
+  `FINISHED` with `OK`, and exits 0.
+  *Test:* `tests/app/tst_records_conformance.cpp::selftestCrc32c`, which
+  runs the built engine.
+  *Breaks when:* `src/engine/crc32c.asm` gives any § 4.11 value wrong,
+  including when bytes come in pieces or start unaligned.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -638,13 +670,14 @@ fail against an engine that accepts any folder under a mount point.
 | Test | Locks | Needs root |
 |---|---|---|
 | `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13, INV-16 | No |
-| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11 | No |
+| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11, INV-18 | No |
 | `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
 | `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
 | `tests/image/report-check.cpp` | INV-14, INV-17 | Yes, its input comes from the test machine |
 
 DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
-DFR-0011 does the same for INV-16's and INV-17's.
+DFR-0011 does the same for INV-16's and INV-17's, and DFR-0016 for
+INV-18's.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -677,7 +710,7 @@ engine. The conformance and image tests read real engine output.
 | Rule | What catches a breach |
 |------|----------------------|
 | INV-1 to INV-9, INV-13, INV-16 | `tests/app/tst_records.cpp` |
-| INV-10, INV-11 | `tests/app/tst_records_conformance.cpp` |
+| INV-10, INV-11, INV-18 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
 | INV-14, INV-17 | `tests/image/report-check.cpp` (`image_report`) |
 | INV-15 | `tests/image/check-report.sh` (`image_report`); `tests/app/tst_engineprocess.cpp::pathArgument` |

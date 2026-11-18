@@ -1768,9 +1768,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 
 ## 0.3.0 — Single-folder defrag with safety checks
 
-- 📋 [DFR-0016] **CRC32C checksum in the engine.**
+- ✅ [DFR-0016] **CRC32C checksum in the engine.**
   `crc32c.asm` using the CPU's `crc32` instruction, checked against
   published test vectors through a self-test command.
+  Done 2026-11-18. crc32c.asm's crc32c_update takes bytes, in pieces
+  if need be. The hidden selftest-crc32c checks it against RFC 3720's
+  values and the check string (spec § 4.11, INV-18; protocol 1.3).
+  INV-18's test went red against an engine that did not invert the
+  starting value.
   **Layman:** Gives the engine a fast fingerprint to prove a file is unchanged after it moves.
   Kind: implement.
   Source: design-2026-11-15.
@@ -1786,6 +1791,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Adds defrag's arguments and records to
   `docs/specs/DFR-0002-engine-protocol.md` by amendment, and the § 4.7
   check-order test that REFUSED makes reachable.
+  From DFR-0016: crc32c_update checksums bytes; reading the
+  file is left to this item. The crc32 instruction needs SSE4.2, which
+  Intel's CPUs before Nehalem (2008), early Atoms, and AMD's before
+  Bulldozer (2011) lack; there the engine would crash. Decide what defrag does on such a CPU.
   **Layman:** The engine safely defrags the files in one folder, checking each file is unchanged.
   Kind: implement.
   Source: design-2026-11-15.

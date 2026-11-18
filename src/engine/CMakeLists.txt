@@ -17,6 +17,7 @@ elseif(CMAKE_MATCH_1 VERSION_LESS DEFRAGR_NASM_MIN)
 endif()
 
 add_executable(defragr-engine
+    crc32c.asm
     extents.asm
     main.asm
     probe.asm

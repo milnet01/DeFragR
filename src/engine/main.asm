@@ -20,6 +20,7 @@ extern rec_hello
 extern rec_finish
 extern rec_map_flush
 extern rec_selftest
+extern crc32c_selftest
 extern probe_run
 extern probe_find_mount
 extern unescape
@@ -36,6 +37,7 @@ section .rodata
 arg_probe:      db "probe", 0
 arg_report:     db "report", 0
 arg_selftest:   db "selftest-records", 0
+arg_selftest_crc32c: db "selftest-crc32c", 0
 
 ; A report sends REPORT_PROGRESS each time the walk has read this many
 ; more names. A cold report on /mnt/Games (2026-11-16: about 3.2 million
@@ -54,7 +56,7 @@ global _start
 
 ; The kernel enters here with rsp a multiple of 16, argc at [rsp] and the
 ; argv pointers after it. Nothing returns from _start; every path ends in
-; rec_finish or rec_selftest, which exit.
+; rec_finish, rec_selftest or crc32c_selftest, which exit.
 _start:
     mov r12, [rsp]                  ; argc
     lea r13, [rsp + 8]              ; argv
@@ -85,6 +87,12 @@ _start:
     call str_equal
     test eax, eax
     jnz .selftest
+
+    mov rdi, rbx
+    lea rsi, [arg_selftest_crc32c]
+    call str_equal
+    test eax, eax
+    jnz .selftest_crc32c
 
 .unknown:
     mov edi, CMD_UNKNOWN
@@ -130,6 +138,17 @@ _start:
     call rec_selftest
 .selftest_usage:
     mov edi, CMD_SELFTEST
+    xor esi, esi
+    call rec_hello
+    mov edi, RESULT_USAGE
+    jmp .finish
+
+.selftest_crc32c:
+    cmp r12, 2
+    jne .selftest_crc32c_usage
+    call crc32c_selftest
+.selftest_crc32c_usage:
+    mov edi, CMD_SELFTEST_CRC32C
     xor esi, esi
     call rec_hello
     mov edi, RESULT_USAGE
