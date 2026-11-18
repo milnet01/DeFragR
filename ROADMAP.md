@@ -1794,7 +1794,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   From DFR-0016: crc32c_update checksums bytes; reading the
   file is left to this item. The crc32 instruction needs SSE4.2, which
   Intel's CPUs before Nehalem (2008), early Atoms, and AMD's before
-  Bulldozer (2011) lack; there the engine would crash. Decide what defrag does on such a CPU.
+  Bulldozer (2011) lack; there the engine would crash. The owner's choice (2026-11-18):
+  on such a CPU, defrag is refused with a reason saying the processor
+  is too old; report still works.
   **Layman:** The engine safely defrags the files in one folder, checking each file is unchanged.
   Kind: implement.
   Source: design-2026-11-15.
@@ -2036,6 +2038,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   yet: there is no install layout or polkit policy. Decide with DFR-0033
   where a release installs the engine and whether its polkit policy pins
   the path; then refuse anything else. Found by review-code lane 03.
+  2026-11-18: still not live for packages. The OBS packages (DFR-0092)
+  install the engine in /usr/bin, owned by root. Only a run from a
+  build folder is exposed. The owner's choice: keep it here, with
+  DFR-0033.
   **Layman:** Before asking for your password, the window checks the engine file has not been swapped for something else.
   Kind: security.
   Source: review-code-2026-11-16.
