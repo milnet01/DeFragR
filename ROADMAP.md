@@ -829,7 +829,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-perf-2026-11-16.
   Lanes: Build.
 
-- 📋 [DFR-0063] **A test that clicks the window's real buttons.**
+- ✅ [DFR-0063] **A test that clicks the window's real buttons.**
   No test drives MainWindow or ReportView; tests/app stops at the models.
   The seams in the drive list, the report-or-defrag choice, the report
   view, progress and the admin-rights message were exercised only by the
@@ -842,6 +842,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   2026-11-17). Cover Refresh drives too: greyed out, with "Listing
   drives…", while a probe runs (DFR-0049; tests/app/fakes/slow-probe.sh
   pauses mid-probe).
+  Done 2026-11-18: tests/app/tst_mainwindow.cpp runs the real MainWindow
+  and ReportView offscreen against fakes/window.sh and a stand-in pkexec
+  (fakes/pkexec-pass, fakes/pkexec-refuse), and presses their buttons:
+  the drive list and each drive's actions, Defrag now's box, a report
+  mid-run and at its end, refused admin rights, and Refresh drives greyed
+  with "Listing drives…" (slow-probe.sh). Markup-like drive, filesystem
+  and file names must show as written. Each check was seen to fail with
+  its behaviour broken. MainWindow and ReportView now build as the
+  defragr-window library so the test can link them.
   **Layman:** An automatic check that presses the window's own buttons, so a break between the screen and the engine is caught before release.
   Kind: test.
   Source: verify-delivery-2026-11-16.

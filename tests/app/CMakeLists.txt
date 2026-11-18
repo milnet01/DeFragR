@@ -90,6 +90,15 @@ qt_add_resources(tst_languages hebrew
 add_test(NAME tst_languages COMMAND tst_languages)
 set_tests_properties(tst_languages PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The window's own buttons, pressed offscreen against a fake engine and a
+# stand-in pkexec: DFR-0063.
+add_executable(tst_mainwindow tst_mainwindow.cpp)
+target_compile_options(tst_mainwindow PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_mainwindow PRIVATE defragr-window defragr-languages Qt6::Test)
+add_test(NAME tst_mainwindow COMMAND tst_mainwindow)
+set_tests_properties(tst_mainwindow PROPERTIES ENVIRONMENT
+    "QT_QPA_PLATFORM=offscreen;DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
+
 # Every theme's contrast, map patterns and text floor: DFR-0013.
 add_executable(tst_theme tst_theme.cpp)
 target_compile_options(tst_theme PRIVATE -Wall -Wextra -Wpedantic)
@@ -118,5 +127,5 @@ set_tests_properties(translations_current PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_drivemap tst_messages tst_report tst_replay tst_languages tst_theme tst_drivemapview PROPERTIES
+    tst_drivelist tst_drivemap tst_messages tst_report tst_replay tst_languages tst_theme tst_drivemapview tst_mainwindow PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

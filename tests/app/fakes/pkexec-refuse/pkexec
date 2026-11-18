@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stands in for pkexec when the user is not allowed admin rights: runs
+# nothing and exits 127, which pkexec does for "not authorised".
+exit 127

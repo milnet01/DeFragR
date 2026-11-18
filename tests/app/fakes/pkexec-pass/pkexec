@@ -1,0 +1,5 @@
+#!/bin/sh
+# Stands in for pkexec: asks nobody and runs the command as the same user.
+# A test puts this folder first on PATH, so the window's own "pkexec" is
+# this one.
+exec "$@"
