@@ -140,7 +140,10 @@ FINISHED
 ```
 
 `HELLO` comes first and `FINISHED` last, once each. The engine then exits
-with `FINISHED.result` as its exit status. An unknown command still gets
+with `FINISHED.result` as its exit status. A write that fails ends the
+run with no `FINISHED` (§ 6). The engine ignores `SIGPIPE` before it
+reads the command. If that fails, it sends `HELLO` with command 0, then
+`FINISHED` with `INTERNAL` and the call's errno. An unknown command still gets
 a stream: `HELLO` with command 0, then `FINISHED` with `USAGE`. A known
 command with the wrong number of arguments sends `HELLO` with its own
 command, then `FINISHED` with `USAGE`.
@@ -154,12 +157,14 @@ offset  size  field
 0       2     major        1
 2       2     minor        2
 4       4     command      0 unknown, 1 probe, 2 report, 255 selftest-records
-8       4     block_size   the drive's block size in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
+8       4     block_size   the drive's statfs f_bsize in bytes; non-zero in a report whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
 ```
 
 All positions and lengths in later records are in blocks of
-`block_size` (`docs/design.md` § Units). A `DRIVE` record states its own.
+`block_size` (`docs/design.md` § Units). A `DRIVE` record states its own,
+`f_frsize`. A FUSE filesystem answers each separately (`fuse_kstatfs` in
+`<linux/fuse.h>`), so a reader never mixes a report's unit with a probe's.
 
 **`FINISHED`** — type `0x0002`, fixed part 8 bytes.
 
@@ -233,8 +238,8 @@ A path longer than 4096 bytes is skipped with stage 5 and errno 36
 offset  size  field
 0       8     files              regular files whose extents FIEMAP gave
 8       8     fragmented_files   equals the FRAGMENTED_FILE records sent
-16      8     extents            over those files
-24      8     file_blocks        their size_blocks, summed
+16      8     extents            the extents of every file counted in files, whole or fragmented, summed
+24      8     file_blocks        the same files' blocks, each counted as size_blocks is, summed
 32      8     skipped            equals the FILE_SKIPPED records sent
 ```
 
@@ -316,7 +321,9 @@ offset  size  field
 | 6 | `REFUSED` | The drive's verdict does not allow this command |
 | 7 | `CANCELLED` | Cancelled by command or by a closed standard input |
 | 8 | `BAD_COMMAND` | A malformed command arrived on standard input |
-| 9 | `INTERNAL` | The engine broke one of its own limits |
+| 9 | `INTERNAL` | The engine broke one of its own limits, could not ignore `SIGPIPE` (§ 4.3), or a write failed with an error other than `EPIPE` (exit status only, § 6) |
+
+Each of those causes is a bug to report, so they share one code.
 
 The engine checks in this order, and reports the first that fails:
 arguments, admin rights, mount point, drive rules.
@@ -469,9 +476,10 @@ isolates.
 
 - **INV-8** — A report stream (`HELLO.command` 2) with result `OK` has a
   non-zero `HELLO.block_size` and holds exactly one `REPORT_SUMMARY`,
-  immediately before `FINISHED`, whose `fragmented_files` and `skipped`
-  equal the counts of `FRAGMENTED_FILE` and `FILE_SKIPPED` records;
-  otherwise the stream is malformed.
+  with no known record but `FINISHED` after it, whose `fragmented_files`
+  and `skipped` equal the counts of `FRAGMENTED_FILE` and `FILE_SKIPPED`
+  records; otherwise the stream is malformed. An `Unknown` record may
+  follow it (§ 4.10), so a later minor can add one there.
   *Test:* `tests/app/tst_records.cpp::summaryCounts` — a stream with two
   `FRAGMENTED_FILE` records and a summary claiming three, otherwise valid.
   *Breaks when:* the engine loses count, and the window shows a summary
@@ -517,7 +525,8 @@ isolates.
   equal the sub-folder's byte for byte.
   *Breaks when:* the engine accepts any folder and walks it, so a
   crafted path reaches files on another drive; or it accepts any mount
-  point, so it walks `/proc`, a network share or a FUSE mount as root.
+  point, so it walks `/proc`, a network share or a FUSE mount with no
+  block device as root.
 
 - **INV-13** — A `REPORT_PROGRESS` in a report stream decodes with its
   fields and counts toward neither of INV-8's counts. One after
@@ -531,11 +540,12 @@ isolates.
 - **INV-14** — A report that finishes `OK` sends `REPORT_PROGRESS` first
   after `HELLO`, with `names` 0 and `estimate` the drive's used inodes,
   and last straight before `REPORT_SUMMARY`, with `names` equal to every
-  name below the mount point.
+  name below the mount point on its own mount. A mount point inside it
+  counts as one name, and nothing below that counts.
   *Test:* `tests/image/report-check.cpp`, the `image_report` test. The
   image holds a symbolic link, which the walk reads but never visits.
   The used inodes come from `stat -f` before the run; the names from
-  `find -mindepth 1` after it.
+  `find -mindepth 1 -xdev` after it.
   *Breaks when:* the engine counts only what it visits, counts `.` and
   `..`, or sends `f_ffree` as the estimate.
 
@@ -594,6 +604,17 @@ isolates.
   `CANCELLED`. Its reads see end of input, which is `CANCEL` too.
 - **A write is partial or interrupted.** The engine repeats `write`
   until the whole record is out, retrying on `EINTR`.
+- **A write fails with another error, or makes no progress.** No
+  `FINISHED` can follow, so the engine exits with `INTERNAL` (§ 4.7). The
+  window reads the cut-off stream as a broken engine (INV-6).
+- **The stream breaks a rule mid-run.** The window ends the run when the
+  record that breaks it arrives, not when the engine exits. It ends as a
+  broken engine, or as a version mismatch when `HELLO` names another
+  major (INV-7). The window kills an engine running as the user. One
+  running as root, which it cannot kill, ends at its next write once its
+  pipes close (*The window dies*).
+  `tests/app/tst_engineprocess.cpp::brokenStreamEndsAtOnce` and
+  `::brokenStreamViaLauncherEndsAtOnce` check the window's half.
 - **Engine and window from different releases.** A new major is a
   version mismatch (INV-7); a new minor reads as unknown types and
   values (INV-2, INV-9).
@@ -657,6 +678,7 @@ engine. The conformance and image tests read real engine output.
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |
+| § 4.3 failed `SIGPIPE` setup; § 6 failed write | **nothing** |
 
 ## 11. Cross-doc impact
 

@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=88 -->
+<!-- ants-roadmap-id-high-water: DFR=89 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -750,7 +750,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Report view, Report, Languages.
 
-- 📋 [DFR-0081] **Amend DFR-0002 where the code and the protocol's words disagree.**
+- ✅ [DFR-0081] **Amend DFR-0002 where the code and the protocol's words disagree.**
   Amend docs/specs/DFR-0002-engine-protocol.md (write-spec's
   references/amending.md, then write-doc). Verified 2026-11-18 at 6e9b702.
   (a) § 4.6: REPORT_SUMMARY.extents and .file_blocks are "over those
@@ -777,6 +777,16 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   this decides which way for each, and records why.
   Found by review-code lanes 01, 02 and 03 (open questions).
   Priority: 3.
+  Shipped 2026-11-18. Words only, for all six: (a) extents and file_blocks
+  sum every file counted; (b) § 4.3, § 4.7, § 6 and § 10 name a failed
+  SIGPIPE setup and a failed write as INTERNAL, one code since each is a
+  bug to report; (c) HELLO.block_size is f_bsize and DRIVE's f_frsize,
+  which FUSE answers separately; (d) INV-12 per the owner's ruling; (e)
+  INV-8 lets an Unknown record follow the summary, for later minors; (f)
+  INV-14 counts a nested mount point as one name, tested with find -xdev.
+  § 6 gains DFR-0077's "stream breaks a rule mid-run" bullet. Code for (b)
+  or (c) could not be shown red: ext4 gives one value for both sizes. The
+  failed-write case's missing test is DFR-0089.
   **Layman:** Make the engine's written rulebook say exactly what the engine does in a few corner cases.
   Kind: doc-fix.
   Source: code-quality-review-2026-11-18.
@@ -1553,6 +1563,20 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: enhancement.
   Source: user-request-2026-11-18.
   Lanes: Map view.
+
+- 📋 [DFR-0089] **Test the engine's failed-write exit, and square INV-11 with it.**
+  DFR-0002 § 10 says nothing checks § 4.3's failed SIGPIPE setup or § 6's
+  failed write. A cheap check: run the engine with standard output on
+  /dev/full and expect exit 9 (INTERNAL) with no output, in
+  tests/app/tst_records_conformance.cpp; then § 10 names it. INV-11 says
+  every engine run writes a stream that decodes with no error, which a run
+  whose writes fail cannot do (EPIPE too, before DFR-0081); add one clause
+  there. Found while amending DFR-0002 (DFR-0081).
+  Priority: 4.
+  **Layman:** Add an automatic check that the engine stops cleanly when it cannot write its answer.
+  Kind: test.
+  Source: dfr-0081-amendment-2026-11-18.
+  Lanes: Records, Entry.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 
