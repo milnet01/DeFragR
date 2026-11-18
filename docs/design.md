@@ -78,7 +78,8 @@ item that first needs it, not before.
 
 **The engine depends on the kernel and nothing else.** No C library, no
 other program, no file outside the drive it was given and `/proc` and
-`/sys`.
+`/sys`. One exception: `probe` reads the status of a btrfs mount's
+source under `/dev`, without opening it, to learn its device.
 
 **The engine and the window share only the protocol spec.** Neither
 includes the other's files.

@@ -124,7 +124,7 @@ kill "$keeper"
 # Probe judges each mount by its own id. Of two drives stacked on one
 # folder, only the top one, the one visible there, is listed. A memory
 # filesystem naming a drive as its source does not hide that drive: only
-# btrfs's source is trusted. Each mount point and device name appears in
+# btrfs's source is trusted. A snap image is no drive. Each mount point and device name appears in
 # probe's output once per DRIVE record that holds it.
 times_in() { grep -a -o "$1" /tmp/probe.bin | wc -l; }
 truncate -s 8M /tmp/lower.img && mkfs.ext4 -q /tmp/lower.img &&
@@ -138,6 +138,12 @@ mkdir -p /mnt/stack /mnt/spoof /mnt/real &&
     mount -t ext4 "$lower" /mnt/stack && mount -t ext4 "$upper" /mnt/stack &&
     mount -t tmpfs "$real" /mnt/spoof && mount -t ext4 "$real" /mnt/real
 check "the stacked and disguised mounts are made" $? 0
+# A snap package's image: squashfs on a loop device, which passes every
+# other test of a drive. snap.squashfs holds one file; it was made with
+# mksquashfs in -noappend -all-root -mkfs-time 0 -all-time 0.
+snap=$(losetup -f) && losetup -r "$snap" /test/snap.squashfs &&
+    mkdir -p /mnt/snap && mount -t squashfs -o ro "$snap" /mnt/snap
+check "the snap image is mounted" $? 0
 /test/defragr-engine probe >/tmp/probe.bin
 check "probe exits OK" $? 0
 check "the stacked folder is listed once" "$(times_in /mnt/stack)" 1
@@ -145,6 +151,11 @@ check "the top drive is listed" "$(times_in "$upper")" 1
 check "the drive under it is not" "$(times_in "$lower")" 0
 check "the disguised tmpfs is not listed" "$(times_in /mnt/spoof)" 0
 check "the drive it names is listed" "$(times_in /mnt/real)" 1
+check "the snap image is not listed" "$(times_in /mnt/snap)" 0
+/test/defragr-engine report /mnt/snap >/dev/null
+check "report on the snap image exits NOT_A_MOUNT" $? 3
+umount /mnt/snap
+losetup -d "$snap"
 umount /mnt/real
 umount /mnt/spoof
 umount /mnt/stack

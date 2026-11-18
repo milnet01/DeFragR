@@ -675,7 +675,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-code-2026-11-16.
   Lanes: Build.
 
-- 📋 [DFR-0056] **Settle the protocol spec's open questions in one amendment.**
+- ✅ [DFR-0056] **Settle the protocol spec's open questions in one amendment.**
   In docs/specs/DFR-0002-engine-protocol.md:
   (a) does a file whose FIEMAP failed count in REPORT_SUMMARY.files?
   (b) which HELLO.command does a known command with extra arguments send?
@@ -692,6 +692,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   2026-11-17: design.md § Safety's device sentence is fixed by
   DFR-0045 (now openat2 with RESOLVE_NO_XDEV). The /dev half of
   § What may depend on what is still open.
+  Done 2026-11-18, one amendment of docs/specs/DFR-0002-engine-protocol.md:
+  (a) REPORT_SUMMARY.files counts files whose extents FIEMAP gave; a
+  failed FIEMAP is in skipped only (code kept). (b) A known command with
+  wrong arguments sends its own HELLO.command (code kept). (c) size_blocks
+  rounds each extent up; an inline-data file counts 1 (code kept). (d)
+  DRIVE.block_size is now f_frsize, the unit of f_blocks (probe.asm
+  changed). (e) HELLO's major is read before its length, so a short HELLO
+  from another major is a version mismatch (Records.cpp changed, INV-7
+  extended, seen red first). (f) Snap squashfs mounts are no drive, the
+  owner's choice; the image test mounts one and checks probe leaves it out
+  and report refuses it (seen red first). design.md now names probe's
+  status read of a btrfs source under /dev.
   **Layman:** Decide six small rules the engine-window protocol leaves open, and correct two stale lines in the design.
   Kind: doc.
   Source: review-code-2026-11-16.

@@ -114,6 +114,13 @@ void RecordDecoder::finish()
 
 bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
 {
+    // Another major may lay HELLO out differently; only its first field is
+    // certain, so it is read before the size check (§ 4.2).
+    if (type == TypeHello && !m_seenHello && payload.size() >= 2
+        && qFromLittleEndian<quint16>(payload.data()) != kMajor) {
+        m_error = StreamError::VersionMismatch;
+        return false;
+    }
     if (payload.size() < qsizetype(fixedSize(type))) {
         m_error = StreamError::Malformed;
         return false;

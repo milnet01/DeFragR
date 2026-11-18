@@ -14,7 +14,7 @@ truncate -s 64M "$work/img.img"
 
 rc=0
 "$here/../vm/run.sh" --work "$work/machine" \
-    --copy "$here/fragment.sh" --copy "$engine" \
+    --copy "$here/fragment.sh" --copy "$here/snap.squashfs" --copy "$engine" \
     --disk "img=$work/img.img" "$here/check-report.sh" || rc=$?
 (( rc == 0 )) || exit "$rc"
 

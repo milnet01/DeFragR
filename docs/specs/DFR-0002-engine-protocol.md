@@ -107,7 +107,9 @@ defines **1.2**: 1.0 plus `REPORT_PROGRESS` in 1.1 and `MAP_RUNS` in 1.2
 - **Major** changes anything an existing reader relies on. A window
   supports major 1 only. Any other major ends the run as a **version
   mismatch**, which is not a malformed stream: the window says the
-  engine and window come from different releases.
+  engine and window come from different releases. The major is read
+  before `HELLO`'s length is checked, since another major may lay the
+  rest out differently.
 
 A reader handles a value it does not know in an enumerated field as
 "unknown", never as malformed (INV-9).
@@ -138,8 +140,10 @@ FINISHED
 ```
 
 `HELLO` comes first and `FINISHED` last, once each. The engine then exits
-with `FINISHED.result` as its exit status. Unknown arguments still get a
-stream: `HELLO` with command 0, then `FINISHED` with `USAGE`.
+with `FINISHED.result` as its exit status. An unknown command still gets
+a stream: `HELLO` with command 0, then `FINISHED` with `USAGE`. A known
+command with the wrong number of arguments sends `HELLO` with its own
+command, then `FINISHED` with `USAGE`.
 
 ### 4.4 Records every run sends
 
@@ -173,7 +177,7 @@ offset  size  field
 offset  size  field
 0       8     total_blocks   statfs f_blocks
 8       8     free_blocks    statfs f_bfree
-16      4     block_size     statfs f_bsize
+16      4     block_size     statfs f_frsize, the unit of f_blocks and f_bfree
 20      4     dev_major      the mounted device
 24      4     dev_minor
 28      1     media          0 unknown, 1 SSD, 2 spinning
@@ -205,7 +209,7 @@ string. Sent for each regular file with two or more extents.
 offset  size  field
 0       4     extents       physically separate runs, counted as filefrag counts them
 4       4     reserved      0
-8       8     size_blocks   blocks the file occupies
+8       8     size_blocks   blocks its extents cover, each rounded up to whole blocks; an inline-data file counts 1
 16      str   path          relative to the mount point, no leading /
 ```
 
@@ -227,10 +231,10 @@ A path longer than 4096 bytes is skipped with stage 5 and errno 36
 
 ```
 offset  size  field
-0       8     files              regular files visited
+0       8     files              regular files whose extents FIEMAP gave
 8       8     fragmented_files   equals the FRAGMENTED_FILE records sent
-16      8     extents            over every visited file
-24      8     file_blocks        blocks occupied by visited files
+16      8     extents            over those files
+24      8     file_blocks        their size_blocks, summed
 32      8     skipped            equals the FILE_SKIPPED records sent
 ```
 
@@ -457,7 +461,8 @@ isolates.
   a finished run.
 
 - **INV-7** — A `HELLO` with major other than 1 is a version mismatch,
-  not malformed; minor 7 with major 1 is accepted.
+  not malformed, even when too short for 1.x; minor 7 with major 1 is
+  accepted.
   *Test:* `tests/app/tst_records.cpp::version`.
   *Breaks when:* a newer minor is refused, or a new major is decoded as
   if it were 1.

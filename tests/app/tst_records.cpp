@@ -382,6 +382,15 @@ private slots:
         QCOMPARE(errorOf(hello(CommandUnknown, 0, 2) + finished()), kMismatch);
         QCOMPARE(errorOf(hello(CommandUnknown, 0, 0) + finished()), kMismatch);
         QCOMPARE(errorOf(hello(CommandUnknown, 0, 1, 7) + finished()), kNoError);
+        // Another major's HELLO may be shorter; its major still decides.
+        const auto shortHello = [](quint16 major) {
+            QByteArray p;
+            put16(p, major);
+            p.append(6, '\0');  // 8 bytes, half the fixed part
+            return record(TypeHello, p);
+        };
+        QCOMPARE(errorOf(shortHello(2) + finished()), kMismatch);
+        QCOMPARE(errorOf(shortHello(1) + finished()), kMalformed);
     }
 
     // INV-8

@@ -61,6 +61,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   over another is listed once, as the one you see there, and a network
   or add-on drive can no longer hide a real drive from the list
   (DFR-0046).
+- Snap packages' disk images are no longer listed as drives. A drive's
+  size is right on a filesystem that counts space in a unit other than
+  its block size. An engine from a different release is reported as
+  one, even when its first message is cut short (DFR-0056).
 
 ## [0.1.0] - 2026-11-16
 

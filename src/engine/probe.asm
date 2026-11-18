@@ -12,9 +12,12 @@
 ;   - its mount point is a folder this user can open, and the mount found
 ;     there is this line's own by mount id (statx, Linux 5.8), not one
 ;     stacked on it;
-;   - statfs on that mount succeeds, with a block size from 1 to 32 bits;
+;   - statfs on that mount succeeds, with a fragment size (f_frsize, the
+;     unit of its block counts) from 1 to 32 bits;
 ;   - its mount point, source and filesystem type each fit a record
-;     string (§ 4.1).
+;     string (§ 4.1);
+;   - its filesystem is not squashfs: a snap package's read-only image,
+;     never a drive (the user's choice, 2026-11-18).
 ; Any other mount is left out. A device mounted in several places is
 ; listed once, at its first mount in mountinfo order (the user's choice,
 ; 2026-11-15). report applies the same test to the mount it is given
@@ -66,6 +69,8 @@ fs_ext4:        db "ext4"
 fs_ext4_len     equ $ - fs_ext4
 fs_btrfs:       db "btrfs"
 fs_btrfs_len    equ $ - fs_btrfs
+fs_squashfs:    db "squashfs"
+fs_squashfs_len equ $ - fs_squashfs
 empty_name:     db 0
 
 section .bss
@@ -380,6 +385,14 @@ judge_line:
     test rax, rax
     js .not_a_drive
     mov [fs_len], rax
+    cmp rax, fs_squashfs_len
+    jne .not_squashfs
+    lea rdi, [fs_buf]
+    lea rsi, [fs_squashfs]
+    mov ecx, fs_squashfs_len
+    repe cmpsb
+    je .not_a_drive
+.not_squashfs:
 
     mov rdi, [fld_dev]
     mov rsi, [fld_dev + 8]
@@ -451,11 +464,11 @@ judge_line:
     call sys_fstatfs
     cmp rax, -MAX_ERRNO
     jae .close                      ; e.g. a dying disk, or a FUSE daemon gone
-    mov rax, [statfs_buf + kernel_statfs.bsize]
+    mov rax, [statfs_buf + kernel_statfs.frsize]
     test rax, rax
     jz .close
     shr rax, 32
-    jnz .close                      ; walk_start refuses it too
+    jnz .close                      ; too big for DRIVE.block_size
     mov edi, ebx
     call sys_close                  ; read-only; a failed close loses nothing
     mov ecx, 1
@@ -540,7 +553,7 @@ probe_line:
     mov [rax + drive.total_blocks], rcx
     mov rcx, [statfs_buf + kernel_statfs.bfree]
     mov [rax + drive.free_blocks], rcx
-    mov rcx, [statfs_buf + kernel_statfs.bsize]
+    mov rcx, [statfs_buf + kernel_statfs.frsize]   ; f_blocks' unit
     mov [rax + drive.block_size], ecx
     mov ecx, [dev_major]
     mov [rax + drive.dev_major], ecx

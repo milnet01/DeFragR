@@ -154,7 +154,7 @@ done
 # because busybox's insmod cannot read a compressed module. A module built
 # into the kernel prints "builtin" and needs nothing. autofs is built in on
 # openSUSE but a module on Ubuntu, so it must be named here.
-load_order=$(for module in virtio_scsi sd_mod ext4 loop autofs4; do
+load_order=$(for module in virtio_scsi sd_mod ext4 loop autofs4 squashfs; do
     PATH=$PATH:/usr/sbin:/sbin modprobe -S "$kver" --show-depends "$module"
 done) || die "a module the machine needs is missing for $kver"
 : >"$root/lib/modules/order"
