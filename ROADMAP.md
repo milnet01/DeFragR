@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=93 -->
+<!-- ants-roadmap-id-high-water: DFR=94 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1714,11 +1714,24 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-18.
   Lanes: Packaging.
 
-- 📋 [DFR-0093] **Release 0.2.1.**
+- ✅ [DFR-0093] **Release 0.2.1.**
   **Layman:** Publishes the version the OBS packages are built from.
   Kind: release.
   Source: user-request-2026-11-18.
   Lanes: Build.
+
+- 📋 [DFR-0094] **tst_probe expects drives the probe is meant to leave out.**
+  listsEveryDrive requires every mounted block device that Qt sees to be
+  in the probe's list. The probe deliberately leaves some out, such as
+  snap disk images (DFR-0056). CI run 44320090496 on the 0.2.1 commit
+  failed with /dev/loop0 missing; the 0.2.0 run passed on a runner with
+  no loop0 in its log. Fix: compare against the devices the probe's rules
+  admit, or exclude what § 4.7's rules exclude, so the test checks the
+  rules rather than the runner.
+  **Layman:** A test fails on a machine with a snap package mounted, though DeFragR is right to skip it.
+  Kind: test.
+  Source: ci-run-44320090496-2026-11-18.
+  Lanes: Window tests.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 
