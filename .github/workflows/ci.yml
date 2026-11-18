@@ -54,8 +54,9 @@ jobs:
           # a job that actually pushes.
           persist-credentials: false
 
-      # Install the toolchain the script expects. Versions are pinned in the
-      # SCRIPT and read from it, so one commit cannot use two versions.
+      # Install the toolchain the script expects. The package list lives in
+      # the SCRIPT and is read from it; the packages' versions follow the
+      # runner image. Only NASM is pinned, below.
       - name: Install build tools and Qt 6
         run: |
           read -ra packages < <(./scripts/local-ci.sh --ci-packages)

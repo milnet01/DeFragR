@@ -53,6 +53,8 @@ TAG=$(
 )
 IMAGE=$NAME:$TAG
 
+# This machine's scratch folder, since its /tmp is held in memory; on
+# another machine, set DEFRAGR_SCRATCH.
 SCRATCH_ROOT=${DEFRAGR_SCRATCH:-/mnt/Emulators/.claude/Scratchpad/DeFragR}/ci-container
 
 say() { printf 'ci-container: %s\n' "$*" >&2; }
@@ -118,7 +120,10 @@ run() {
 
     # The gate boots the test machine on the running kernel, so the
     # container gets KVM and a copy of that kernel's modules: SELinux
-    # keeps a container from reading the host's own.
+    # keeps a container from reading the host's own. The copy is also where
+    # tests/vm/run.sh finds the kernel image ($modules/vmlinuz), since /boot
+    # is not mounted: a host that keeps its kernel only in /boot gets "no
+    # readable kernel image".
     mkdir -p "$tree/modules"
     cp -a "/lib/modules/$(uname -r)" "$tree/modules/"
     say "running the gate on $(git rev-parse --short "$commit") in $IMAGE, $cores cores."

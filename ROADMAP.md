@@ -1059,7 +1059,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: review-readability-2026-11-18.
   Lanes: Map view, Theme, Report, Report view, Languages, Build.
 
-- 📋 [DFR-0087] **Build and container scripts: comments that say what the code does.**
+- ✅ [DFR-0087] **Build and container scripts: comments that say what the code does.**
   Confirmed 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `.github/workflows/ci.yml:58` — "one commit cannot use two
     versions", but only NASM is pinned; the packages float with the
@@ -1081,6 +1081,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     (ci-container.sh:18-20). Say so.
   Found by review-readability lane 05.
   Priority: 4.
+  Shipped 2026-11-18. ci.yml says the package list lives in the script and
+  the versions follow the runner image, with only NASM pinned;
+  ci-container.sh says the copied modules folder is also where run.sh
+  finds the kernel, so a host keeping it only in /boot fails, and why the
+  scratch default is this machine's, naming DEFRAGR_SCRATCH; the
+  Containerfile's RUNNER_PACKAGES line matches ci-container.sh's, and its
+  DL3008 note says versions float because the runner updates weekly.
+  local-ci.sh's pin comment went in with DFR-0083.
   **Layman:** Correct notes in the build scripts that would send the next person the wrong way.
   Kind: doc-fix.
   Source: review-readability-2026-11-18.

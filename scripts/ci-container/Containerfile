@@ -3,7 +3,8 @@
 #
 # Each argument copies one thing CI has:
 #   BASE             Ubuntu 26.04, as the workflow's `runs-on: ubuntu-26.04`.
-#   RUNNER_PACKAGES  tools the runner image preinstalls and the gate uses.
+#   RUNNER_PACKAGES  tools the runner image preinstalls that the gate or
+#                    this image's build uses.
 #   CI_PACKAGES      what the workflow installs (local-ci.sh --ci-packages).
 #   CMAKE_*          the runner's CMake. It is Kitware's build, not Ubuntu's
 #                    package, so it is fetched the same way.
@@ -15,7 +16,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ARG RUNNER_PACKAGES
 ARG CI_PACKAGES
-# Word splitting of the package lists is intended.
+# Word splitting of the package lists is intended. Versions float, as on
+# the runner, which takes package updates weekly (ci-container.sh's
+# header); pinning them here would test a toolchain CI no longer has.
 # hadolint ignore=DL3008
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
