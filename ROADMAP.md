@@ -1148,7 +1148,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Map view, Theme.
 
-- 📋 [DFR-0090] **Build optimised by default when no build type is given.**
+- ✅ [DFR-0090] **Build optimised by default when no build type is given.**
   Nothing in the tree sets CMAKE_BUILD_TYPE (searched 2026-11-18), so a
   plain `cmake -S . -B build` compiles with no optimisation. DFR-0088's
   timings used RelWithDebInfo; the default build is slower than what was

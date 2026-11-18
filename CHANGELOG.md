@@ -51,6 +51,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0014, DFR-0071).
 
 ### Fixed
+- Building DeFragR from source makes a full-speed copy unless you ask
+  for another kind of build. Before, it made a slow, unoptimised one
+  (DFR-0090).
 - A running report's time is written in your language's digits, its
   count of fragmented files reads "1 file" or "2 files" as it should, and
   the share of fragmented files shows 100% only when every file is

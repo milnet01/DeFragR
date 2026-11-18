@@ -382,7 +382,11 @@ private slots:
     void shortPayloadIsMalformed()
     {
         const auto cut = [](const QByteArray &whole) {
-            const quint16 type = qFromLittleEndian<quint16>(whole.constData());
+            if (whole.size() < 16)
+                qFatal("cut() needs an 8-byte header and 8 payload bytes to drop");
+            // Byte by byte: GCC's -O2 bounds check misreads a 2-byte read
+            // through constData() as reading QByteArray's 1-byte empty buffer.
+            const quint16 type = quint8(whole.at(0)) | quint16(quint8(whole.at(1)) << 8);
             return record(type, whole.sliced(8).chopped(8));
         };
         QCOMPARE(errorOf(hello(CommandProbe) + cut(drive(VerdictReportAndDefrag, 0)) + finished()),
