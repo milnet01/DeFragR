@@ -67,6 +67,7 @@ add_custom_target(defragr-build-id
     COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
             -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/generated/BuildId.h
             -DVERSION=${PROJECT_VERSION}
+            -DBUILD_ID=${DEFRAGR_BUILD_ID}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/build-id.cmake
     BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/generated/BuildId.h
     VERBATIM)
@@ -82,6 +83,7 @@ target_link_libraries(defragr PRIVATE defragr-window defragr-languages Qt6::Widg
 # Beside the engine, where EngineProcess looks for it when
 # DEFRAGR_ENGINE is unset; src/engine/CMakeLists.txt does the same.
 set_target_properties(defragr PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+install(TARGETS defragr RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # The window icon. The PNG, because Qt draws an SVG icon only through the
 # qt6-svg plugin, and a missing plugin gives a blank icon with no error.

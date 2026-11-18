@@ -3,11 +3,14 @@
 # build by src/app/CMakeLists.txt; the header is replaced only when its
 # text changes, so an unchanged id rebuilds nothing.
 #
-# Takes -DSOURCE_DIR, -DOUTPUT and -DVERSION.
+# Takes -DSOURCE_DIR, -DOUTPUT and -DVERSION, and -DBUILD_ID, which, when
+# not empty, is the id used instead of git's.
 
 set(build "unknown")
 find_program(GIT git)
-if(GIT)
+if(BUILD_ID)
+    set(build ${BUILD_ID})
+elseif(GIT)
     execute_process(
         COMMAND ${GIT} -C ${SOURCE_DIR} describe --always --dirty=-modified
         OUTPUT_VARIABLE described

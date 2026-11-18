@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=90 -->
+<!-- ants-roadmap-id-high-water: DFR=93 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1687,6 +1687,38 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: test.
   Source: dfr-0081-amendment-2026-11-18.
   Lanes: Records, Entry.
+
+## 0.2.1 — Packages on OBS
+
+- ✅ [DFR-0091] **Install rules, a desktop entry and a build name for packages.**
+  cmake --install puts defragr and defragr-engine side by side in the
+  binary folder (the window runs the engine beside itself), the desktop
+  entry in applications, and the icon as SVG and 512 px PNG.
+  DEFRAGR_BUILD_ID names the build in the window title where a tarball
+  has no git history. The desktop entry's translations stay with DFR-0067.
+  A polkit policy, for a friendlier admin prompt, is not part of this.
+  **Layman:** DeFragR can be installed like any other app, with a menu entry and icon.
+  Kind: package.
+  Source: user-request-2026-11-18.
+  Lanes: Build, Packaging.
+
+- 📋 [DFR-0092] **Publish DeFragR on OBS for every distribution it builds on.**
+  Subproject home:milnet:DeFragR (user's choice 2026-11-18), x86_64
+  only. Built from the GitHub tag, so OBS and GitHub carry the same
+  version. NASM 3.02 is bundled as a build-only source, since no
+  distribution ships it. A distribution lacking Qt 6.4, CMake 3.28 or a
+  C++23 compiler is dropped and named here. The recipes are kept in
+  packaging/obs/.
+  **Layman:** Install DeFragR from a package repository on openSUSE, Fedora, Debian, Ubuntu and Arch.
+  Kind: package.
+  Source: user-request-2026-11-18.
+  Lanes: Packaging.
+
+- 📋 [DFR-0093] **Release 0.2.1.**
+  **Layman:** Publishes the version the OBS packages are built from.
+  Kind: release.
+  Source: user-request-2026-11-18.
+  Lanes: Build.
 
 ## 0.3.0 — Single-folder defrag with safety checks
 

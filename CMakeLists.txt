@@ -31,10 +31,24 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 # LTS packages (6.4.2, checked 2026-11-15). CI builds against newer.
 set(DEFRAGR_QT_MIN 6.4)
 
+# Names the build in the window title in place of the git commit, for a
+# package built from a tarball with no git history.
+set(DEFRAGR_BUILD_ID "" CACHE STRING "Build name for the window title; empty uses git")
+
 include(CTest)
+include(GNUInstallDirs)
 
 add_subdirectory(src/engine)
 add_subdirectory(src/app)
+
+# The window and its engine install side by side in the binary folder,
+# because the window runs the engine found beside itself.
+install(FILES packaging/defragr.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES packaging/defragr.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+install(FILES packaging/defragr.png
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

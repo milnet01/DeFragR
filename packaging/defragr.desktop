@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=DeFragR
+GenericName=Defragmenter
+Comment=Show how fragmented an ext4 drive is, as a map
+Exec=defragr
+Icon=defragr
+Terminal=false
+Categories=Qt;System;Filesystem;
+Keywords=defragment;fragmentation;ext4;drive;disk;
