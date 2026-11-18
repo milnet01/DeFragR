@@ -860,7 +860,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-17.
   Lanes: Languages.
 
-- 🚧 [DFR-0071] **Make the map's changes more noticeable.**
+- ✅ [DFR-0071] **Make the map's changes more noticeable.**
   Owner, 2026-11-18, after the DFR-0014 demo video: "a bit more flashy,
   more noticeable". A changed cell glows: a soft halo three cells across
   and the cell drawn half as big again and lit, fading out over 900 ms.
@@ -868,6 +868,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   bright band over 2 s. One glow per change keeps S10's limit of three
   flashes a second. Each state's glow is painted once, so a frame costs
   about what it did without the glow (measured offscreen at 1600x1000).
+  Owner approved the glow from the second demo video, 2026-11-18.
   **Layman:** A changed block lights up and glows over its neighbours before settling, and a new map rolls in as a bright band.
   Kind: enhancement.
   Source: user-request-2026-11-18.
