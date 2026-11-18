@@ -130,6 +130,51 @@ private slots:
         QCOMPARE(finished->result, result);
         QCOMPARE(run.exitCode, finished->result);
     }
+
+    // § 6: a write that fails with an error other than EPIPE ends the run
+    // at once with INTERNAL, and the engine prints nothing about it.
+    // /dev/full fails every write with ENOSPC, the first one included.
+    void failedWriteIsInternal_data()
+    {
+        QTest::addColumn<QStringList>("args");
+        QTest::newRow("unknown command") << QStringList{"bogus"};
+        QTest::newRow("selftest-records") << QStringList{"selftest-records"};
+    }
+
+    void failedWriteIsInternal()
+    {
+        QFETCH(QStringList, args);
+        QProcess engine;
+        engine.setStandardOutputFile(QStringLiteral("/dev/full"));
+        engine.start(qEnvironmentVariable("DEFRAGR_ENGINE"), args);
+        QVERIFY2(engine.waitForStarted(10000), qPrintable(engine.errorString()));
+        engine.closeWriteChannel();
+        QVERIFY(engine.waitForFinished(10000));
+        QCOMPARE(engine.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(engine.exitCode(), int(ResultInternal));
+        QCOMPARE(engine.readAllStandardError(), QByteArray());
+    }
+
+    // § 6, the window dies: standard output is a pipe with no reader, so
+    // the first write fails with EPIPE, and the engine exits CANCELLED
+    // rather than dying of SIGPIPE.
+    void closedPipeIsCancelled()
+    {
+        int fds[2];
+        QCOMPARE(pipe(fds), 0);
+        ::close(fds[0]);
+        QProcess engine;
+        engine.setChildProcessModifier([&fds] { ::dup2(fds[1], STDOUT_FILENO); });
+        engine.start(qEnvironmentVariable("DEFRAGR_ENGINE"), {QStringLiteral("selftest-records")});
+        const bool started = engine.waitForStarted(10000);
+        ::close(fds[1]);
+        QVERIFY2(started, qPrintable(engine.errorString()));
+        engine.closeWriteChannel();
+        QVERIFY(engine.waitForFinished(10000));
+        QCOMPARE(engine.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(engine.exitCode(), int(ResultCancelled));
+        QCOMPARE(engine.readAllStandardError(), QByteArray());
+    }
 };
 
 QTEST_GUILESS_MAIN(TestRecordsConformance)

@@ -1652,7 +1652,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-18.
   Lanes: Map view.
 
-- 📋 [DFR-0089] **Test the engine's failed-write exit, and square INV-11 with it.**
+- ✅ [DFR-0089] **Test the engine's failed-write exit, and square INV-11 with it.**
   DFR-0002 § 10 says nothing checks § 4.3's failed SIGPIPE setup or § 6's
   failed write. A cheap check: run the engine with standard output on
   /dev/full and expect exit 9 (INTERNAL) with no output, in
@@ -1661,6 +1661,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   whose writes fail cannot do (EPIPE too, before DFR-0081); add one clause
   there. Found while amending DFR-0002 (DFR-0081).
   Priority: 4.
+  Shipped 2026-11-18. tst_records_conformance gains
+  failedWriteIsInternal (standard output on /dev/full: exit 9) and, since
+  the new clause names EPIPE too, closedPipeIsCancelled (a pipe with no
+  reader: exit 7, not a SIGPIPE death); both expect nothing on standard
+  error. Each failed against a mutated engine in a scratch copy: a failed
+  write exiting CANCELLED, one ignored, EPIPE exiting INTERNAL, and
+  SIGPIPE left fatal. INV-11 now excepts a run whose write fails; § 10
+  names both tests, and the failed SIGPIPE setup keeps nothing, since
+  rt_sigaction fails only on a bad argument.
   **Layman:** Add an automatic check that the engine stops cleanly when it cannot write its answer.
   Kind: test.
   Source: dfr-0081-amendment-2026-11-18.

@@ -504,15 +504,21 @@ isolates.
   meaning.
 
 - **INV-11** — Every engine run writes a stream that decodes with no
-  error and no trailing bytes, and exits with `FINISHED.result`.
+  error and no trailing bytes, and exits with `FINISHED.result`. A run
+  whose write fails is the exception (§ 6): it stops at that write,
+  prints nothing, and exits with `CANCELLED` on `EPIPE` and `INTERNAL`
+  on any other error.
   *Test:* `tests/app/tst_records_conformance.cpp`, run without root —
   runs `defragr-engine` and `defragr-engine bogus` (each expects result
   1), `report` with no mount point (expects 1, so arguments come before
   admin rights), `report /nonexistent` (expects 2, so admin rights come
   before the mount point) and `selftest-records`, and checks each exit
-  status against `result`.
+  status against `result`. `failedWriteIsInternal` runs `bogus` and
+  `selftest-records` with standard output on `/dev/full` and expects
+  exit 9. `closedPipeIsCancelled` gives `selftest-records` a pipe with
+  no reader and expects exit 7. Both expect nothing on standard error.
   *Breaks when:* the engine prints text, writes a record after
-  `FINISHED`, or exits with a different code.
+  `FINISHED`, exits with a different code, or dies of `SIGPIPE`.
 
 - **INV-12** — Trust boundary: the engine reports on a path only after
   finding it as a mount point in `/proc/self/mountinfo` whose mount is a
@@ -678,7 +684,8 @@ engine. The conformance and image tests read real engine output.
 | § 4.7 check order | INV-11 up to the mount point; mount point before drive rules has **nothing**: both verdicts allow `report`, so `REFUSED` cannot happen until defrag exists — tracked by DFR-0017 |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
 | § 4.8 commands | **nothing** until DFR-0023 |
-| § 4.3 failed `SIGPIPE` setup; § 6 failed write | **nothing** |
+| § 6 failed write | INV-11's `failedWriteIsInternal` and `closedPipeIsCancelled` |
+| § 4.3 failed `SIGPIPE` setup | **nothing**: `rt_sigaction` fails only on a bad argument (`sigaction(2)`), and the engine's are fixed |
 
 ## 11. Cross-doc impact
 
