@@ -51,6 +51,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0014, DFR-0071).
 
 ### Fixed
+- The drive map never flashes more than three times a second, however
+  often a block changes. Resizing the window while the map fills in
+  shows the whole map at once, with no new glow (DFR-0075).
 - When pkexec, the program that asks for admin rights, is missing, the
   window says so, instead of asking you to enter a password no prompt
   will ask for. Advice to check the drive list again names the new

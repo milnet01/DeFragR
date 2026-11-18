@@ -75,7 +75,7 @@ void DriveMapView::showMap(const model::DriveMap *map)
 {
     m_map = map;
     m_sweepStart = m_now();
-    sortMap();
+    sortMap(true);
 }
 
 int DriveMapView::capacity() const
@@ -88,8 +88,9 @@ QList<CellState> DriveMapView::cells() const
 {
     QList<CellState> states;
     states.reserve(m_cells.size());
+    const qint64 now = m_now();
     for (const Cell &cell : m_cells)
-        states.append(cell.to);
+        states.append(cell.at(now).to);
     return states;
 }
 
@@ -125,30 +126,48 @@ qreal glowAt(qreal t)
 
 }  // namespace
 
+DriveMapView::Cell DriveMapView::Cell::at(qint64 now) const
+{
+    if (!then || now < thenAt)
+        return *this;
+    return {to, *then, thenAt, kChangeMs};
+}
+
 void DriveMapView::changeCells(const QList<CellState> &cells)
 {
     const qint64 now = m_now();
     QList<Cell> next;
     next.reserve(cells.size());
-    bool eased = false;
+    qint64 stillAt = 0;
     for (qsizetype i = 0; i < cells.size(); ++i) {
-        if (i < m_cells.size() && m_cells[i].to == cells[i]) {
-            next.append(m_cells[i]);
+        if (i >= m_cells.size()) {
+            next.append({std::nullopt, cells[i], now, kChangeMs});
+            stillAt = now + kChangeMs;
             continue;
         }
-        // A change still going starts again from whichever of its two
-        // states shows most.
-        std::optional<CellState> shown;
-        if (i < m_cells.size()) {
-            const Cell &old = m_cells[i];
-            shown = fadeIn(elapsed(old.start, old.length, now)) >= 0.5 ? old.to : old.from;
+        Cell cell = m_cells[i].at(now);
+        if (cell.to == cells[i]) {
+            cell.then.reset();  // back to what it shows: nothing waits
+        } else if (cell.then || now - cell.start < kChangeGapMs) {
+            // Too soon after the last change began: this one waits, and
+            // replaces any already waiting.
+            if (!cell.then)
+                cell.thenAt = cell.start + kChangeGapMs;
+            cell.then = cells[i];
+            stillAt = std::max(stillAt, cell.thenAt + kChangeMs);
+        } else {
+            // A change still going starts again from whichever of its
+            // two states shows most.
+            const std::optional<CellState> shown =
+                fadeIn(elapsed(cell.start, cell.length, now)) >= 0.5 ? cell.to : cell.from;
+            cell = {shown, cells[i], now, kChangeMs};
+            stillAt = now + kChangeMs;
         }
-        next.append({shown, cells[i], now, kChangeMs});
-        eased = true;
+        next.append(cell);
     }
     m_cells = std::move(next);
-    if (eased)
-        moveUntil(now + kChangeMs);
+    if (stillAt > 0)
+        moveUntil(stillAt);
     else
         update();
 }
@@ -184,7 +203,7 @@ void DriveMapView::paintEvent(QPaintEvent *event)
     // neighbours.
     QList<qsizetype> glowing;
     for (qsizetype i = first; i < end; ++i) {
-        const Cell &cell = m_cells[i];
+        const Cell cell = m_cells[i].at(now);
         const QRect rect = cellRect(i);
         const qreal t = elapsed(cell.start, cell.length, now);
         const qreal shown = fadeIn(t);
@@ -200,7 +219,7 @@ void DriveMapView::paintEvent(QPaintEvent *event)
     }
     const int side = m_theme.cellSide();
     for (const qsizetype i : glowing) {
-        const Cell &cell = m_cells[i];
+        const Cell cell = m_cells[i].at(now);
         painter.setOpacity(glowAt(elapsed(cell.start, cell.length, now)));
         painter.drawPixmap(cellRect(i).topLeft() - QPoint(side, side), glow(cell.to));
     }
@@ -211,21 +230,30 @@ void DriveMapView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     if (m_map && capacity() != m_sortedFor)
-        sortMap();
+        sortMap(false);
 }
 
-void DriveMapView::sortMap()
+void DriveMapView::sortMap(bool sweep)
 {
     m_cells.clear();
     m_sortedFor = capacity();
+    const qint64 now = m_now();
     if (m_map) {
         const QList<CellState> states = m_map->cells(m_sortedFor);
         m_cells.reserve(states.size());
         for (qsizetype i = 0; i < states.size(); ++i)
             m_cells.append({std::nullopt, states[i],
-                            m_sweepStart + i * kSweepMs / states.size(), kArriveMs});
+                            sweep ? m_sweepStart + i * kSweepMs / states.size()
+                                  : now - kArriveMs,
+                            kArriveMs});
     }
-    moveUntil(m_sweepStart + kSweepMs + kArriveMs);
+    if (sweep) {
+        moveUntil(m_sweepStart + kSweepMs + kArriveMs);
+        return;
+    }
+    // Every cell has arrived, so nothing moves.
+    m_stillAt = now;
+    update();
 }
 
 void DriveMapView::moveUntil(qint64 stillAt)

@@ -487,7 +487,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Report view, Messages, Report, Drives.
 
-- 📋 [DFR-0075] **Map view enforces the three-flashes-a-second limit itself.**
+- ✅ [DFR-0075] **Map view enforces the three-flashes-a-second limit itself.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `src/app/ui/DriveMapView.h:7` says "nothing flashes more than three
     times a second", but `changeCells` (DriveMapView.cpp:128-151)
@@ -511,6 +511,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Found by review-readability lane 04 (HIGH) and review-code lane 04
   (MEDIUM, calibrated LOW: no caller in src/).
   Priority: 1 — a safety limit the view claims and does not keep.
+  Shipped 2026-11-18. The fix defers rather than drops the glow: a plain
+  change of pattern many times a second is a flash too. A change asked for
+  less than kChangeGapMs (334 ms) after the cell's last change began waits
+  until then; a later request replaces it. A resize sorts the map into
+  settled cells, so it starts no glow and stops the sweep. tst_drivemapview:
+  one cell asked to change every 100 ms starts 3 changes in a second (10
+  before the fix); a resize mid-sweep paints the same as a settled map
+  (it did not before). DFR-0071's record now says the view enforces it.
   **Layman:** The drive map can never flash fast enough to harm someone sensitive to flashing light, whatever later feeds it.
   Kind: review-fix.
   Source: review-readability-2026-11-18.
@@ -1472,8 +1480,9 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   more noticeable". A changed cell glows: a soft halo three cells across
   and the cell drawn half as big again and lit, fading out over 900 ms.
   A sweep cell glows the same over 500 ms, so a new map rolls in as a
-  bright band over 2 s. One glow per change keeps S10's limit of three
-  flashes a second. Each state's glow is painted once, so a frame costs
+  bright band over 2 s. The view keeps S10's limit of three flashes a
+    second itself: a cell starts at most one change, so one glow, every
+    334 ms (DFR-0075). Each state's glow is painted once, so a frame costs
   about what it did without the glow (measured offscreen at 1600x1000).
   Owner approved the glow from the second demo video, 2026-11-18.
   Review 2026-11-18: the three-flashes limit held only because callers

@@ -234,6 +234,48 @@ private slots:
                            cellImage(m_theme, CellState::Free)));
     }
 
+    // S10, WCAG 2.2 SC 2.3.1: however often a cell is asked to change, it
+    // starts a change, and so glows, at most three times a second. Once
+    // still, it shows the last state asked for.
+    void changesAtMostThreeTimesASecond()
+    {
+        const auto view = settledView();
+        QList<CellState> cells = view->cells();
+        CellState shown = cells[0];
+        int starts = 0;
+        for (int step = 0; step < 100; ++step) {  // every 10 ms for a second
+            if (step % 10 == 0) {                 // a change every 100 ms
+                cells[0] = step % 20 == 0 ? CellState::Fragmented : CellState::Whole;
+                view->changeCells(cells);
+            }
+            if (view->cells()[0] != shown) {
+                shown = view->cells()[0];
+                ++starts;
+            }
+            m_now += 10;
+        }
+        QVERIFY2(starts <= 3, qPrintable(QString::number(starts)));
+        m_now += 1000;
+        QCOMPARE(view->cells()[0], cells[0]);
+    }
+
+    // A resize mid-sweep shows every cell settled: re-sorting into new
+    // cells starts no glow, so dragging the window edge cannot flash.
+    void resizeMidSweepStartsNoGlow()
+    {
+        const auto view = makeView();
+        view->showMap(&m_map);
+        m_now = DriveMapView::kSweepMs / 2;
+        // Twice as tall, so the map is sorted into twice the cells.
+        view->resize(view->width(), 2 * kRows * pitch() - m_theme.cellGap());
+        const QImage shot = view->grab().toImage();
+        const auto still = makeView();
+        still->resize(view->size());
+        still->showMap(&m_map);
+        m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
+        QCOMPARE(shot, still->grab().toImage());
+    }
+
     void noMapShowsNothing()
     {
         const auto view = settledView();
