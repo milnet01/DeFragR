@@ -16,16 +16,17 @@
 # the plural forms. Every other language's file holds every sentence. Files
 # carry no line numbers, so moving code does not change them.
 set -Eeuo pipefail
-cd "$(dirname "$0")/.."
 
 mode=update
 work=
 case "$#:${1:-}" in
     0:) ;;
-    2:--check) mode=check; work=$2 ;;
+    # Made absolute before the cd below, so a relative DIR is the caller's.
+    2:--check) mode=check; work=$(realpath -m -- "$2") ;;
     *) sed -n '/^# Usage:/,/^# Through/{s/^# \{0,1\}//;p}' "$0" >&2
        exit 2 ;;
 esac
+cd "$(dirname "$0")/.."
 
 lupdate=${LUPDATE:-$(command -v lupdate6 || command -v lupdate || true)}
 if [[ -z $lupdate ]]; then
@@ -35,7 +36,14 @@ fi
 
 src=src/app
 status=0
-for ts in "$src"/translations/defragr_*.ts; do
+# With none, the pattern itself would reach lupdate, which makes the file.
+shopt -s nullglob
+files=("$src"/translations/defragr_*.ts)
+if (( ${#files[@]} == 0 )); then
+    echo "update-translations: no translation files in $src/translations." >&2
+    exit 2
+fi
+for ts in "${files[@]}"; do
     target=$ts
     if [[ $mode == check ]]; then
         mkdir -p "$work"

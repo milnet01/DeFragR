@@ -67,7 +67,11 @@ have_image() { podman image exists "$IMAGE"; }
 
 warm() {
     local cache=()
-    [[ ${1:-} == --refresh ]] && cache=(--no-cache)
+    case "$#:${1:-}" in
+        0:) ;;
+        1:--refresh) cache=(--no-cache) ;;
+        *) say "warm takes only --refresh; refusing: $*"; exit 2 ;;
+    esac
     if have_image && (( ${#cache[@]} == 0 )); then
         say "image $IMAGE is already built."
         return 0

@@ -792,7 +792,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Records, Entry, Walk, Probe.
 
-- 📋 [DFR-0082] **Gate and CI: no check passes without having run.**
+- ✅ [DFR-0082] **Gate and CI: no check passes without having run.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   Project-owned lines; template text goes to the template item.
   - `scripts/local-ci.sh:103-106` — a green ctest prints only "ok test";
@@ -833,6 +833,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     --refresh, so a typo builds unrefreshed. Fix: refuse others.
   Found by review-code lane 05 and review-readability lane 05.
   Priority: 3.
+  Shipped 2026-11-18. All ten. The test step fails on CTest's "did not run"
+  list (a skipped test passed plain ctest, exit 0, and fails the gate);
+  shellcheck also takes tracked files whose first line runs sh or bash
+  (the two stand-in pkexec programs, both clean); lint runs in both modes;
+  the print options refuse extra arguments (the old script printed and
+  exited 0); jobs are capped by free memory at 640 MiB each, after a
+  one-job build peaked at 494 MiB (half the cores still binds here); the
+  NASM cache key holds the build recipe's hash and its comment names the
+  OS, not the image; check-links.py reads wrapped links, reference
+  definitions, angle targets and %-escapes (the old one missed four kinds
+  and flagged a valid %20 link); update-translations.sh makes --check's
+  folder absolute first and fails on no .ts files; ci-container.sh warm
+  refuses anything but --refresh.
   **Layman:** The safety checks run before each upload never report a pass for a check that did not actually run.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.

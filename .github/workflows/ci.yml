@@ -63,9 +63,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       # Ubuntu's nasm package is older than the engine's 3.02 floor, so NASM
-      # is built from source once per pin and runner image, then cached
-      # (local-gate.md § 9). The key holds the version, the tarball's hash
-      # and the image, so a new pin or image misses and builds afresh.
+      # is built from source once per pin, build recipe and runner OS, then
+      # cached (local-gate.md § 9). The key holds the OS (ImageOS names the
+      # OS, not the image's weekly version), the version, the tarball's hash
+      # and the recipe's, so a new pin or recipe misses and builds afresh.
       # No other cache: ccache is declined here for now, since the gate's
       # whole build is a few seconds of the run and per-commit keys would
       # need pruning.
@@ -73,10 +74,11 @@ jobs:
         id: nasm-pin
         run: |
           read -r version sha256 < <(./scripts/local-ci.sh --nasm-pin)
+          recipe=$(sha256sum scripts/build-nasm.sh | cut -c1-12)
           {
             echo "version=$version"
             echo "sha256=$sha256"
-            echo "key=nasm-${ImageOS:?}-$version-$sha256"
+            echo "key=nasm-${ImageOS:?}-$version-$sha256-$recipe"
           } >> "$GITHUB_OUTPUT"
 
       - name: Restore NASM

@@ -52,14 +52,13 @@ NASM_SHA256='87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d'
 # One line: the workflow reads the list with `read`.
 CI_PACKAGES='ninja-build qt6-base-dev qt6-tools-dev qt6-l10n-tools libgl-dev shellcheck qemu-system-x86 busybox-static cpio zstd kmod e2fsprogs'
 
-if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
-if [[ ${1:-} == --nasm-pin ]]; then printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA256"; exit 0; fi
-if [[ ${1:-} == --ci-packages ]]; then printf '%s\n' "$CI_PACKAGES"; exit 0; fi
-
 DOCS_ONLY=0
 case "$#:${1:-}" in
     0:) ;;
     1:--docs) DOCS_ONLY=1 ;;
+    1:--docs-glob) printf '%s\n' "$DOCS_GLOB"; exit 0 ;;
+    1:--nasm-pin) printf '%s %s\n' "$NASM_VERSION" "$NASM_SHA256"; exit 0 ;;
+    1:--ci-packages) printf '%s\n' "$CI_PACKAGES"; exit 0 ;;
     *) printf 'local-ci: unknown arguments: %s\n' "$*" >&2
        sed -n '/^# Usage:/,/^# Anything else/{s/^# \{0,1\}//;p}' "$0" >&2
        exit 2 ;;
@@ -121,6 +120,26 @@ run links python3 -I scripts/check-links.py
 # still had --docs report a pass that checked nothing (Deedbox, 2026-09-28).
 DOCS_CONFIGURED=1
 
+# Every tracked shell script: by name, the hooks, and any other file whose
+# first line runs sh or bash, such as the stand-in pkexec programs.
+shell_files() {
+    local file
+    while IFS= read -r -d '' file; do
+        case $file in
+            *.sh|.githooks/*) printf '%s\n' "$file" ;;
+            *) if [[ -f $file ]] && head -c 128 -- "$file" | head -n 1 \
+                       | grep -qE '^#!(/usr)?/bin/(env +)?(ba)?sh( |$)'; then
+                   printf '%s\n' "$file"
+               fi ;;
+        esac
+    done < <(git ls-files -z)
+}
+
+step 'lint'
+mapfile -t SHELL_FILES < <(shell_files)
+need shellcheck
+run shellcheck shellcheck "${SHELL_FILES[@]}"
+
 if (( DOCS_ONLY )); then
     if (( CONFIGURED && DOCS_CONFIGURED )); then
         printf '\nlocal-ci: --docs passed; build and test legs skipped by design.\n' >&2
@@ -152,24 +171,26 @@ for tool in cmake ninja nasm c++ shellcheck; do
     fi
 done >&2
 
-step 'lint'
-mapfile -t SHELL_FILES < <(git ls-files '*.sh' '.githooks/*')
-need shellcheck
-run shellcheck shellcheck "${SHELL_FILES[@]}"
-
 # Locally the gate shares the machine with the desktop and other work, so
-# it builds at low CPU and disk priority on at most half the cores.
-# DEFRAGR_CI_JOBS overrides the count. CI gets the whole runner. Measured
-# 2026-11-15 on 12 cores: 6 jobs built as fast as 14.
+# it builds at low CPU and disk priority on at most half the cores. CI gets
+# the whole runner. Measured 2026-11-15 on 12 cores: 6 jobs built as fast
+# as 14. Either way no more jobs than the memory free now holds: the
+# largest compile job peaked at 494 MiB (2026-11-18, a one-job build), and
+# JOB_MIB leaves headroom. An out-of-memory kill would read as an
+# unrelated failure. DEFRAGR_CI_JOBS overrides the count.
+JOB_MIB=640
+mem_jobs=$(awk -v per="$JOB_MIB" \
+    '/^MemAvailable:/ { n = int($2 / 1024 / per); print (n > 1 ? n : 1) }' /proc/meminfo)
 if [[ ${CI:-} == true ]]; then
-    JOBS=${DEFRAGR_CI_JOBS:-$(nproc)}
+    cpu_jobs=$(nproc)
     GENTLE=()
 else
     cores=$(nproc)
-    JOBS=${DEFRAGR_CI_JOBS:-$(( cores > 1 ? cores / 2 : 1 ))}
+    cpu_jobs=$(( cores > 1 ? cores / 2 : 1 ))
     GENTLE=(nice -n 10)
     command -v ionice >/dev/null 2>&1 && GENTLE+=(ionice -c 2 -n 7)
 fi
+JOBS=${DEFRAGR_CI_JOBS:-$(( cpu_jobs < mem_jobs ? cpu_jobs : mem_jobs ))}
 
 # A fresh tree each run, so a stale cache cannot hide a configure error.
 BUILD_DIR=build/ci
@@ -193,10 +214,21 @@ step 'test'
 # The gate must boot the test machine: a host that cannot fails the vm_smoke
 # test here instead of skipping it, so a skip never reads as a pass.
 export DEFRAGR_VM_REQUIRED=1
+# CTest counts a skipped test as no failure, so the run fails on CTest's
+# list of tests that did not run.
+every_test() {
+    local out rc=0
+    out=$("${GENTLE[@]}" ctest "$@" 2>&1) || rc=$?
+    printf '%s\n' "$out"
+    (( rc == 0 )) || return "$rc"
+    if grep -q 'The following tests did not run' <<<"$out"; then
+        printf 'local-ci: a test did not run, so the gate fails.\n'
+        return 1
+    fi
+}
 # Side by side on the same jobs: measured 2026-11-18 on 12 cores, 4 at
 # once took 4 to 5 s against 13 to 14 s one at a time (DFR-0059).
-run test "${GENTLE[@]}" ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error \
-    -j "$JOBS"
+run test every_test --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error -j "$JOBS"
 
 # ci-container.sh matches this pass line exactly; change both together.
 if (( CONFIGURED )); then
