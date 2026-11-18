@@ -162,6 +162,23 @@ umount /mnt/real
 umount /mnt/spoof
 umount /mnt/stack
 umount /mnt/stack
+# Mountinfo lists mounts oldest first, and a mount moved keeps its place.
+# Moving an older drive onto a newer one puts the top drive's line first,
+# the covered drive's after it. Report must still accept the drive probe
+# lists there.
+mkdir -p /mnt/park /mnt/flip &&
+    mount -t ext4 "$upper" /mnt/park && mount -t ext4 "$lower" /mnt/flip &&
+    mount --move /mnt/park /mnt/flip
+check "an older drive is moved onto a newer one" $? 0
+check "the top drive's line comes first" \
+    "$(awk '$5 == "/mnt/flip" { for (i = 7; $i != "-"; i++); print $(i + 2) }' \
+        /proc/self/mountinfo | xargs)" "$upper $lower"
+/test/defragr-engine probe >/tmp/probe.bin
+check "the moved drive is listed" "$(times_in "$upper")" 1
+/test/defragr-engine report /mnt/flip >/dev/null
+check "report on the moved drive exits OK" $? 0
+umount /mnt/flip
+umount /mnt/flip
 losetup -d "$lower" && losetup -d "$upper" && losetup -d "$real"
 
 # DFR-0073: what another user on the machine can do cannot stall or

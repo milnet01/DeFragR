@@ -181,7 +181,9 @@ FIEMAP_EXTENT_NOT_ALIGNED   equ 0x100
 ; two keys; the last record returned, as the low key, asks for the next.
 FS_IOC_GETFSMAP     equ 0xC0C0583B
 struc fsmap
-    .device         resd 1      ; as new_encode_dev encodes it
+    .device         resd 1      ; a dev_t as new_encode_dev encodes it
+                                ; where oflags has FMH_OF_DEV_T, else a
+                                ; cookie the filesystem chooses
     .flags          resd 1
     .physical       resq 1
     .owner          resq 1
@@ -197,6 +199,8 @@ struc fsmap_head
     .reserved       resq 6
     .keys           resb 2 * fsmap_size
 endstruc                        ; the records follow
+; fmh_oflags: the records' devices are dev_t numbers.
+FMH_OF_DEV_T            equ 0x1
 ; fmr_flags: the owner is special, not an inode; the drive's last record.
 FMR_OF_SPECIAL_OWNER    equ 0x10
 FMR_OF_LAST             equ 0x20

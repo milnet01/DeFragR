@@ -51,6 +51,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0014, DFR-0071).
 
 ### Fixed
+- A report on a drive that was moved onto another drive's folder is no
+  longer refused, and a strange answer from the system about a file's
+  pieces or the free space can no longer hang a report (DFR-0078).
 - When the engine is missing, broken, or there but unable to start, the
   window says so once, at once, and in the right words. An engine whose
   output breaks the rules no longer leaves a report "running" until it

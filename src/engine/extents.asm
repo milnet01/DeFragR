@@ -52,10 +52,13 @@ global extents_space
 
 ; extents_count(edi = an open regular file, esi = the block size, not 0,
 ;   edx = a MAP_ kind to send the file's runs as, or 0 to send none)
-;   -> rax = the file's pieces, or -errno when FIEMAP fails; rdx = the
-;   blocks its extents cover, each extent's bytes rounded up to a block.
+;   -> rax = the file's pieces, or -errno when FIEMAP fails, -EIO when
+;   its answer cannot be right; rdx = the blocks its extents cover, each
+;   extent's bytes rounded up to a block.
 ; An inline-data file counts its one block, but sends no run for it, nor
-; for an extent with no place yet. Clobbers rcx, rsi, rdi, r8 to r11.
+; for an extent with no place yet. Runs sent before a failure stand: they
+; may already have left in a full batch, so cannot be taken back.
+; Clobbers rcx, rsi, rdi, r8 to r11.
 extents_count:
     push rbx
     push r12
@@ -150,10 +153,16 @@ extents_count:
     add rsi, fiemap_extent_size
     dec ecx
     jnz .extent
-    mov r15, [r14 + fiemap_extent.logical]
-    add r15, [r14 + fiemap_extent.length]
     test r8d, r8d
-    jz .call
+    jnz .done
+    ; The next call asks from the last extent's end. A call that ends no
+    ; further on would ask the same again, for ever.
+    mov rax, [r14 + fiemap_extent.logical]
+    add rax, [r14 + fiemap_extent.length]
+    cmp rax, r15
+    jbe .broken
+    mov r15, rax
+    jmp .call
 .done:
     mov rax, r12
     mov rdx, r13
@@ -171,7 +180,8 @@ extents_count:
     jmp .return
 
 ; extents_space(edi = a descriptor on the drive, esi = the block size,
-;   not 0) -> rax = 0, or -errno when statx or GETFSMAP fails.
+;   not 0) -> rax = 0, or -errno when statx or GETFSMAP fails, -EIO when
+;   GETFSMAP's answer cannot be right.
 ; Sends the drive's free space as MAP_FREE runs and what the filesystem
 ; keeps for itself as MAP_FILESYSTEM runs, in physical order. Blocks in use
 ; whose owner GETFSMAP does not know, or that an inode owns, are the
@@ -196,8 +206,9 @@ extents_space:
     call sys_statx
     cmp rax, -MAX_ERRNO
     jae .return
-    ; The device as GETFSMAP numbers it, new_encode_dev's 32 bits:
-    ; minor's low byte, major above it, minor's other bits above that.
+    ; The device as a dev_t, new_encode_dev's 32 bits: minor's low byte,
+    ; major above it, minor's other bits above that. GETFSMAP numbers
+    ; devices so only where it answers with FMH_OF_DEV_T.
     mov eax, [drive_statx + kernel_statx.dev_minor]
     movzx r12d, al
     and eax, ~0xFF
@@ -231,6 +242,10 @@ extents_space:
     je .call
     cmp rax, -MAX_ERRNO
     jae .return
+    ; Without it the keys named some other device, or none, so the
+    ; records cannot be known to be this drive's.
+    test dword [r13 + fsmap_head.oflags], FMH_OF_DEV_T
+    jz .broken
     mov r14d, [r13 + fsmap_head.entries]
     test r14d, r14d
     jz .done

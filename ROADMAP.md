@@ -643,7 +643,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: code-quality-review-2026-11-18.
   Lanes: Engine link, Records, Report.
 
-- 📋 [DFR-0078] **Engine: probe and report agree, and an odd kernel answer cannot loop or mislead.**
+- ✅ [DFR-0078] **Engine: probe and report agree, and an odd kernel answer cannot loop or mislead.**
   Verified 2026-11-18 at 6e9b702; do not re-review (review-cost.md § 4).
   - `src/engine/probe.asm:216-219` — probe_find_mount lets the last
     mountinfo line matching the path decide (found_drive is overwritten
@@ -668,6 +668,18 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
     lane checked whether it does).
   Found by review-code lanes 01 and 02, review-readability lane 01.
   Priority: 2.
+  Shipped 2026-11-18. (1) Mountinfo can put a covered mount's line after
+  the top one: a drive moved onto a newer mount keeps its older place.
+  probe_find_mount now accepts the line judge_line passes and takes its
+  id; image_report's moved-drive check failed before (exit 3) and passes.
+  (2) extents_count returns -EIO when a FIEMAP call ends no further on.
+  (3) Runs cannot be held back in bounded memory, since a full batch
+  leaves at once; § 4.6 already says a stage-3 skip may have sent runs,
+  and main.asm now points there. (4) kernel.inc says fsmap.device is a
+  dev_t only with FMH_OF_DEV_T; extents_space returns -EIO without it.
+  (2) and (4) have no red test: only a misbehaving kernel answers so.
+  image_report's map checks pass with (4), so ext4 sets the flag here.
+  probe's output on this machine is unchanged.
   **Layman:** The drive list and the report always agree on which drives can be read, and a strange answer from the system cannot hang a report.
   Kind: review-fix.
   Source: code-quality-review-2026-11-18.

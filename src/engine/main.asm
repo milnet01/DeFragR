@@ -227,7 +227,8 @@ report_run:
     cmp r12, -MAX_ERRNO
     jae .close
     ; Its map runs, now its pieces say which kind they are. A failure here
-    ; skips the file as a failed count would.
+    ; skips the file as a failed count would; runs already sent stand
+    ; (DFR-0002 § 4.6).
     mov edx, MAP_WHOLE_FILE
     mov eax, MAP_FRAGMENTED_FILE
     cmp r12, 2

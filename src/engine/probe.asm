@@ -111,9 +111,8 @@ rot_bytes:      resb 8
 dev_major:      resd 1
 dev_minor:      resd 1
 line_end:       resq 1              ; the end of probe_find_mount's line
-found_id:       resq 1              ; probe_find_mount's latest match
-found:          resb 1
-found_drive:    resb 1              ; whether that match is a drive
+found_id:       resq 1              ; the id of probe_find_mount's drive
+found:          resb 1              ; whether a matching line is a drive
 
 section .text
 global probe_run
@@ -153,8 +152,9 @@ probe_run:
 ; for byte, a mount point in /proc/self/mountinfo, unescaped as probe
 ; sends it, and its mount a drive by the header's test, else NOT_A_MOUNT.
 ; A later mount of a drive probe lists once, at its first, passes too. Where
-; several mounts share it, the last is the one on top, and is the one
-; judged. MOUNTINFO as probe_run.
+; several mounts share the path, each line is judged, and at most one, the
+; mount on top, can pass; its line need not be the last, as a mount moved
+; there keeps its place. MOUNTINFO as probe_run.
 ; Clobbers as probe_run.
 probe_find_mount:
     push r12
@@ -205,7 +205,8 @@ probe_find_mount:
     call judge_line                 ; the test probe lists drives by
     test eax, eax
     jnz .close                      ; MOUNTINFO
-    mov [found_drive], cl
+    test ecx, ecx
+    jz .line                        ; not a drive, or covered
     mov rax, [line_id]
     mov [found_id], rax
     mov byte [found], 1
@@ -216,8 +217,6 @@ probe_find_mount:
 .done:
     call mountinfo_close
     cmp byte [found], 0
-    je .not_a_mount
-    cmp byte [found_drive], 0
     je .not_a_mount
     xor eax, eax
     xor edx, edx
