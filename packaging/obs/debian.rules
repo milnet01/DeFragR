@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+# DeFragR: the NASM engine and the Qt 6 window.
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# Build-only: no distribution ships NASM 3.02, the engine's floor. OBS puts
+# the tarball at the top of the source tree (DEBTRANSFORM-FILES in the .dsc).
+# It is built under debian/ and never installed.
+NASM_VERSION := 3.02
+NASM_SHA256 := 87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d
+NASM_DIR := $(CURDIR)/debian/nasm-build
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	echo "$(NASM_SHA256)  nasm-$(NASM_VERSION).tar.xz" | sha256sum --check --strict
+	mkdir -p $(NASM_DIR)
+	tar -xJf nasm-$(NASM_VERSION).tar.xz -C $(NASM_DIR) --strip-components=1
+	cd $(NASM_DIR) && env -u CFLAGS -u CXXFLAGS -u LDFLAGS -u CPPFLAGS ./configure
+	$(MAKE) -C $(NASM_DIR) nasm
+	dh_auto_configure -- \
+		-DBUILD_TESTING=OFF \
+		-DDEFRAGR_BUILD_ID=obs \
+		-DCMAKE_ASM_NASM_COMPILER=$(NASM_DIR)/nasm \
+		-DCMAKE_SKIP_INSTALL_RPATH=ON
+
+# The tests need a virtual machine; CI runs them.
+override_dh_auto_test:
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf $(NASM_DIR)

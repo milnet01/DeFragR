@@ -1,0 +1,16 @@
+Source: defragr
+Section: utils
+Priority: optional
+Maintainer: Anthony Schemel <milnet01@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), cmake (>= 3.28), qt6-base-dev (>= 6.4), qt6-tools-dev (>= 6.4), qt6-tools-dev-tools, qt6-l10n-tools, libgl-dev
+Standards-Version: 4.7.0
+Homepage: https://github.com/milnet01/DeFragR
+Rules-Requires-Root: no
+
+Package: defragr
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, pkexec, qt6-qpa-plugins, hicolor-icon-theme
+Description: defragmenter for ext4 drives
+ DeFragR shows how fragmented an ext4 drive is, lists its worst files and
+ draws the drive as a map. A small engine written in x86-64 assembly reads
+ the drive; a Qt 6 window shows the results.

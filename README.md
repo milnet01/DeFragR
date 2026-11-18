@@ -28,12 +28,24 @@ since shows in English until it is translated.
 
 ## Install
 
-There is no package yet. Build it from source, as
-[Working on it](#working-on-it) shows. The window and its engine land
-side by side in `build/bin/`.
+Packages for 64-bit PCs are built on the openSUSE Build Service for
+openSUSE Tumbleweed and Leap, Fedora, Debian 13, Ubuntu 24.04 and
+later, and Arch. Each distribution's repository is a folder in
+[home:milnet:DeFragR](https://download.opensuse.org/repositories/home:/milnet:/DeFragR/).
+On openSUSE Tumbleweed:
+
+```bash
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/milnet:/DeFragR/openSUSE_Tumbleweed/home:milnet:DeFragR.repo
+sudo zypper install defragr
+```
+
+To build it from source instead, follow
+[Working on it](#working-on-it). The window and its engine land side by
+side in `build/bin/`, and `cmake --install build` installs them with a
+menu entry.
 
 Reading a drive needs admin rights, which DeFragR asks for through
-`pkexec`. Most desktops ship it with Polkit.
+`pkexec`. The packages install it; most desktops already have it.
 
 ## Usage
 

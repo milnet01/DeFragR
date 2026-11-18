@@ -1,0 +1,20 @@
+<services>
+  <!-- Fetch the tagged source from GitHub and roll defragr-0.2.1.tar.gz,
+       the Source0 / DEBTRANSFORM-TAR / source=() name every recipe here
+       expects. Both run server-side (no mode), so the tarball is committed
+       to the package: the Fedora, Debian, Ubuntu and Arch build roots lack
+       the obs-service-* tools a buildtime run needs, and build.opensuse.org
+       has no server-side "tar" service to follow obs_scm.
+       nasm-3.02.tar.xz stays an uploaded file beside this one. -->
+  <service name="tar_scm">
+    <param name="scm">git</param>
+    <param name="url">https://github.com/milnet01/DeFragR.git</param>
+    <param name="revision">v0.2.1</param>
+    <param name="filename">defragr</param>
+    <param name="versionformat">0.2.1</param>
+  </service>
+  <service name="recompress">
+    <param name="file">*.tar</param>
+    <param name="compression">gz</param>
+  </service>
+</services>

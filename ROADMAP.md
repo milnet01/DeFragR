@@ -1702,13 +1702,19 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-request-2026-11-18.
   Lanes: Build, Packaging.
 
-- 🚧 [DFR-0092] **Publish DeFragR on OBS for every distribution it builds on.**
+- ✅ [DFR-0092] **Publish DeFragR on OBS for every distribution it builds on.**
   Subproject home:milnet:DeFragR (user's choice 2026-11-18), x86_64
   only. Built from the GitHub tag, so OBS and GitHub carry the same
   version. NASM 3.02 is bundled as a build-only source, since no
   distribution ships it. A distribution lacking Qt 6.4, CMake 3.28 or a
   C++23 compiler is dropped and named here. The recipes are kept in
   packaging/obs/.
+  Shipped 2026-11-18, OBS revision 7 built from tag v0.2.1 by _service:
+  succeeded on openSUSE Tumbleweed, Leap 16.0 and 15.6 (gcc13-c++),
+  Fedora 43, 44 and Rawhide, Debian 13, Ubuntu 24.04 to 26.10, and Arch.
+  Dropped: Debian 12 (CMake 3.25). Installed from the published repos and
+  run offscreen in Tumbleweed and Ubuntu 24.04 containers (Debian 13 and
+  Arch on the trial build). Fedora 42 left out as end-of-life.
   **Layman:** Install DeFragR from a package repository on openSUSE, Fedora, Debian, Ubuntu and Arch.
   Kind: package.
   Source: user-request-2026-11-18.

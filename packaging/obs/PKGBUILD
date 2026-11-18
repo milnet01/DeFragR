@@ -1,0 +1,40 @@
+# Maintainer: Anthony Schemel <milnet01@users.noreply.github.com>
+pkgname=defragr
+pkgver=0.2.1
+pkgrel=1
+_nasmver=3.02
+pkgdesc='Defragmenter for ext4 drives'
+# The engine is x86-64 assembly.
+arch=('x86_64')
+url='https://github.com/milnet01/DeFragR'
+license=('MIT')
+# The window runs the engine through pkexec, which polkit provides.
+depends=('qt6-base' 'polkit' 'hicolor-icon-theme')
+makedepends=('cmake' 'qt6-tools')
+# NASM is build-only: no distribution ships 3.02, the engine's floor. It is
+# built in the source folder and never installed.
+source=("$pkgname-$pkgver.tar.gz"
+        "https://www.nasm.us/pub/nasm/releasebuilds/$_nasmver/nasm-$_nasmver.tar.xz")
+sha256sums=('SKIP'
+            '87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d')
+
+build() {
+    (
+        cd "nasm-$_nasmver"
+        env -u CFLAGS -u CXXFLAGS -u LDFLAGS -u CPPFLAGS ./configure
+        make nasm
+    )
+    cmake -S "$pkgname-$pkgver" -B build \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_TESTING=OFF \
+        -DDEFRAGR_BUILD_ID=obs \
+        -DCMAKE_ASM_NASM_COMPILER="$srcdir/nasm-$_nasmver/nasm" \
+        -DCMAKE_SKIP_INSTALL_RPATH=ON
+    cmake --build build
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+    install -Dm644 "$pkgname-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
