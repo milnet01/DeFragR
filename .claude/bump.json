@@ -11,7 +11,50 @@
       "path": "README.md",
       "pattern": "Version {OLD}. [CHANGELOG.md]",
       "replace": "Version {NEW}. [CHANGELOG.md]"
+    },
+    {
+      "path": "packaging/obs/_service",
+      "pattern": "roll defragr-{OLD}.tar.gz,",
+      "replace": "roll defragr-{NEW}.tar.gz,"
+    },
+    {
+      "path": "packaging/obs/_service",
+      "pattern": "<param name=\"revision\">v{OLD}</param>",
+      "replace": "<param name=\"revision\">v{NEW}</param>"
+    },
+    {
+      "path": "packaging/obs/_service",
+      "pattern": "<param name=\"versionformat\">{OLD}</param>",
+      "replace": "<param name=\"versionformat\">{NEW}</param>"
+    },
+    {
+      "path": "packaging/obs/defragr.spec",
+      "pattern": "Version:        {OLD}\n",
+      "replace": "Version:        {NEW}\n"
+    },
+    {
+      "path": "packaging/obs/PKGBUILD",
+      "pattern": "pkgver={OLD}\n",
+      "replace": "pkgver={NEW}\n"
+    },
+    {
+      "path": "packaging/obs/defragr.dsc",
+      "pattern": "Version: {OLD}-1\n",
+      "replace": "Version: {NEW}-1\n"
+    },
+    {
+      "path": "packaging/obs/defragr.dsc",
+      "pattern": "DEBTRANSFORM-TAR: defragr-{OLD}.tar.gz",
+      "replace": "DEBTRANSFORM-TAR: defragr-{NEW}.tar.gz"
     }
   ],
-  "tag": "v{NEW}"
+  "tag": "v{NEW}",
+  "todos": [
+    "Prepend an entry for {NEW} to packaging/obs/defragr.changes, in the existing entry's shape: the dashed line, the release date {TODAY} as `date -u` writes it with the maintainer line, a blank line, then `- Version {NEW}: ` and the CHANGELOG section's theme.",
+    "Prepend an entry for {NEW}-1 to packaging/obs/debian.changelog, in the existing entry's shape, with the CHANGELOG section's theme as its bullet and {TODAY} as `date -R` writes it.",
+    "If packaging/obs/PKGBUILD's pkgrel is above 1, set it to 1."
+  ],
+  "post_check": "bash scripts/check-version-drift.sh",
+  "publish_precheck": "bash scripts/obs-publish.sh --check",
+  "$obs": "After the tag is pushed, run scripts/obs-publish.sh under cc-job: it uploads packaging/obs/ to OBS and waits for every repository to build the new version. The recipe has no step that runs after the push."
 }

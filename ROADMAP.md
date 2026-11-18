@@ -1744,13 +1744,23 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: ci-run-44320090496-2026-11-18.
   Lanes: Window tests.
 
-- 📋 [DFR-0095] **The release recipe bumps the OBS packaging's version too.**
+- ✅ [DFR-0095] **The release recipe bumps the OBS packaging's version too.**
   packaging/obs/ hard-codes the version in _service (revision and
   versionformat), defragr.spec, PKGBUILD, defragr.dsc and
   debian.changelog; .claude/bump.json lists none of them. Add them to its
   files, add todos for the defragr.changes and debian.changelog entries,
   and a step that uploads to OBS and waits for every repository to read
   succeeded. Reset Arch's pkgrel per release.
+  Done 2026-11-18: bump.json bumps the version lines in _service,
+  defragr.spec, PKGBUILD and defragr.dsc; todos add the defragr.changes
+  and debian.changelog entries and reset pkgrel; post_check is
+  scripts/check-version-drift.sh; publish_precheck is
+  scripts/obs-publish.sh --check. obs-publish.sh uploads after the tag
+  push and waits until every repository's built files carry the version;
+  CLAUDE.md § Release names it, since the recipe has no after-push step.
+  Rehearsed with commits stubbed out: no-change run at 0.2.1, and a 0.2.0
+  copy reaching the commit and the wait. No real upload yet: 0.3.0 is the
+  first. No CHANGELOG entry: release tooling only.
   **Layman:** Each new release reaches the OBS packages without anyone remembering to update them by hand.
   Kind: chore.
   Source: dfr-0092-session-2026-11-18.

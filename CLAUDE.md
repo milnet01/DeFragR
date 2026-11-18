@@ -44,6 +44,14 @@ part of the push gate: the same gate in a Podman image of GitHub's
 runner. Run it before pushing a toolchain-sensitive change. The runner's
 pins (base image, CMake, core count) live at the top of that script.
 
+### Release
+
+`.claude/bump.json` is the release recipe; it bumps the OBS packaging in
+`packaging/obs/` too. After the tag is pushed, run
+`scripts/obs-publish.sh` under `cc-job`: it uploads to OBS
+(`home:milnet:DeFragR`) and waits until every repository has built the
+new version. The recipe has no step that runs after the push.
+
 ### Roadmap IDs
 
 `DFR-NNNN`, per `roadmap-format.md` § 3.5.1. Commit subjects
