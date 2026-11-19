@@ -441,10 +441,11 @@ private slots:
     // whole view afresh and would hide a row a frame forgot.
     void onlyWhatMovesIsRepainted()
     {
-        const int rows = 12;
+        // Rows enough that the marker and its pulse are a small part.
+        const int rows = 20;
         DriveMap map;
         map.add({MapFragmentedFile, {{10, 10}}});
-        map.add({MapFree, {{20, 100}}});
+        map.add({MapFree, {{20, 180}}});
         map.add({MapWholeFile, {{0, 10}}});
         const auto view = settledViewOf(map, rows);
         QVERIFY(QTest::qWaitForWindowExposed(view.get()));
@@ -494,13 +495,21 @@ private slots:
         QCOMPARE(view->cells(), map.cells(view->capacity()));
         QCOMPARE(view->markerCell(), 86);
         const QImage shot = screen();
-        // The marker's outline lies over the edges of the cells round
-        // it: 75 to 77, 85, 87, and 95 to 97.
-        QCOMPARE(unsettled(shot, 0, 74), 0);
-        QCOMPARE(unsettled(shot, 78, 84), 0);
-        QCOMPARE(unsettled(shot, 86, 86), 0);
-        QCOMPARE(unsettled(shot, 88, 94), 0);
-        QCOMPARE(unsettled(shot, 98, kColumns * rows - 1), 0);
+        // The marker's outline goes round cell 86 and its neighbours,
+        // which show whole inside it. It lies over the edges of the
+        // cells one further out: 64 to 68, 74, 78, 84, 88, 94, 98 and
+        // 104 to 108. The pulse has gone and left nothing behind.
+        QVERIFY(!view->isPulsing());
+        QCOMPARE(unsettled(shot, 0, 63), 0);
+        QCOMPARE(unsettled(shot, 69, 73), 0);
+        QCOMPARE(unsettled(shot, 75, 77), 0);
+        QCOMPARE(unsettled(shot, 79, 83), 0);
+        QCOMPARE(unsettled(shot, 85, 87), 0);
+        QCOMPARE(unsettled(shot, 89, 93), 0);
+        QCOMPARE(unsettled(shot, 95, 97), 0);
+        QCOMPARE(unsettled(shot, 99, 103), 0);
+        QCOMPARE(unsettled(shot, 109, kColumns * rows - 1), 0);
+        QVERIFY(unsettled(shot, 64, 68) > 0);
     }
 
     // DFR-0018 INV-10: with the desktop's animations off, a move shows at
@@ -523,9 +532,43 @@ private slots:
         const QImage shot = view->grab().toImage();
         for (const int cell : {10, 11})
             QVERIFY(samePixels(shot, cellAt(cell), cellImage(m_theme, CellState::Free)));
-        // Cell 38 is whole too, under the edge of the marker's outline.
-        QVERIFY(samePixels(shot, cellAt(39), cellImage(m_theme, CellState::Whole)));
+        // Both show whole inside the marker's outline, which does not
+        // pulse.
+        for (const int cell : {38, 39})
+            QVERIFY(samePixels(shot, cellAt(cell), cellImage(m_theme, CellState::Whole)));
         QCOMPARE(view->markerCell(), 39);
+        QVERIFY(!view->isPulsing());
+        QVERIFY(!view->isMoving());
+    }
+
+    // DFR-0098, S10: the marker's pulse closes in when the marker moves,
+    // and begins at most once a second however fast the moves come.
+    void markerPulsesAtMostOnceASecond()
+    {
+        DriveMap map = rowsMap();
+        const auto view = settledViewOf(map);
+        QVERIFY(!view->isPulsing());
+        int begun = 0;
+        bool pulsing = false;
+        const qint64 start = m_now;
+        // A move every 100 ms for three seconds, each to and fro.
+        for (int step = 0; m_now < start + 3000; ++step) {
+            const BlocksMoved blocks = step % 2 == 0 ? BlocksMoved{{{10, 1}}, {{30, 1}}}
+                                                     : BlocksMoved{{{30, 1}}, {{10, 1}}};
+            map.move(blocks);
+            view->showMove(blocks);
+            for (int tick = 0; tick < 10; ++tick) {
+                m_now += 10;
+                view->followMap();
+                const bool now = view->isPulsing();
+                begun += now && !pulsing;
+                pulsing = now;
+            }
+        }
+        QVERIFY2(begun >= 2 && begun <= 3, qPrintable(QString::number(begun)));
+        QVERIFY(view->markerCell() >= 0);
+        m_now += DriveMapView::kPulseMs;
+        QVERIFY(!view->isPulsing());
     }
 
     // No map: no cells, and no frame timer waking to sweep them in.

@@ -362,9 +362,15 @@ void DriveMapView::launch(qint64 now)
         stillAt = std::max(stillAt, now + kLandSpreadMs + kFlightMs);
     }
     if (!m_toCells.isEmpty()) {
-        update(markerRect());
+        update(outline(markerRect()));
         m_marker = m_toCells.last();
-        update(markerRect());
+        update(outline(markerRect()));
+        // The pulse shows where the marker has gone. One a second at
+        // most: launches come faster than anyone should see flashes.
+        if (m_motion && (!m_pulseStart || now >= *m_pulseStart + kPulseGapMs)) {
+            m_pulseStart = now;
+            stillAt = std::max(stillAt, now + kPulseMs);
+        }
     }
     m_fromCells.clear();
     m_toCells.clear();
@@ -376,8 +382,49 @@ QRect DriveMapView::markerRect() const
 {
     if (m_marker < 0 || m_marker >= m_cells.size())
         return {};
-    const int out = m_theme.cellGap() + m_theme.markerWidth();
+    const int out = Theme::markerReach * pitch() + m_theme.cellGap() + m_theme.markerWidth() + 1;
     return cellRect(m_marker).adjusted(-out, -out, out, out);
+}
+
+bool DriveMapView::isPulsing() const
+{
+    return !pulseRect(m_now()).isNull();
+}
+
+QRect DriveMapView::pulseRect(qint64 now) const
+{
+    const QRect rest = markerRect();
+    if (rest.isNull() || !m_pulseStart || now < *m_pulseStart || now >= *m_pulseStart + kPulseMs)
+        return {};
+    const int out = int((1 - progress(*m_pulseStart, kPulseMs, now)) * kPulseReach * pitch());
+    return rest.adjusted(-out, -out, out, out);
+}
+
+QRegion DriveMapView::outline(const QRect &rect) const
+{
+    if (rect.isNull())
+        return {};
+    const int width = m_theme.markerWidth() + 2;
+    QRegion strips;
+    strips += QRect(rect.left(), rect.top(), rect.width(), width);
+    strips += QRect(rect.left(), rect.bottom() - width + 1, rect.width(), width);
+    strips += QRect(rect.left(), rect.top(), width, rect.height());
+    strips += QRect(rect.right() - width + 1, rect.top(), width, rect.height());
+    return strips;
+}
+
+void DriveMapView::paintOutline(QPainter &painter, const QRect &rect) const
+{
+    const int width = m_theme.markerWidth();
+    const qreal in = width / 2.0 + 1;
+    const QRectF line = QRectF(rect).adjusted(in, in, -in, -in);
+    // Rounded outside and square inside, so no corner reaches over the
+    // cells it goes round.
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(m_theme.markerEdge(), width + 2));
+    painter.drawRoundedRect(line, in, in);
+    painter.setPen(QPen(m_theme.markerColour(), width));
+    painter.drawRoundedRect(line, in, in);
 }
 
 void DriveMapView::changeCells(const QList<CellState> &cells)
@@ -488,13 +535,14 @@ void DriveMapView::paintEvent(QPaintEvent *event)
     painter.setOpacity(1);
 
     if (const QRect marker = markerRect(); !marker.isNull()) {
-        const int width = m_theme.markerWidth();
         painter.setRenderHint(QPainter::Antialiasing);
-        painter.setPen(QPen(m_theme.markerColour(), width));
-        painter.setBrush(Qt::NoBrush);
-        const QRectF line = QRectF(marker).adjusted(width / 2.0, width / 2.0, -width / 2.0,
-                                                    -width / 2.0);
-        painter.drawRoundedRect(line, width * 1.5, width * 1.5);
+        paintOutline(painter, marker);
+        if (const QRect pulse = pulseRect(now); !pulse.isNull()) {
+            // Faint far out, full as it closes on the marker.
+            painter.setOpacity(0.3 + 0.7 * progress(*m_pulseStart, kPulseMs, now));
+            paintOutline(painter, pulse);
+            painter.setOpacity(1);
+        }
         painter.setRenderHint(QPainter::Antialiasing, false);
     }
 
@@ -537,6 +585,7 @@ void DriveMapView::fitMapToCells(bool sweep)
     m_toCells.clear();
     m_launchDue = false;
     m_marker = -1;
+    m_pulseStart.reset();
     m_cells.clear();
     m_fittedFor = capacity();
     const qint64 now = m_now();
@@ -608,6 +657,13 @@ QRegion DriveMapView::movedBetween(qint64 since, qint64 now) const
         if (first <= last)
             moved += QRect(0, int(first) * pitch(), width(), int(last - first + 1) * pitch());
         paintedTo = std::max(paintedTo, last);
+    }
+    // The marker's pulse, where it was and where it is, and the marker
+    // it uncovers.
+    if (m_pulseStart && *m_pulseStart <= now && *m_pulseStart + kPulseMs >= since) {
+        moved += outline(pulseRect(std::max(since, *m_pulseStart)));
+        moved += outline(pulseRect(now));
+        moved += outline(markerRect());
     }
     // Each small block's trail, where it was and where it is.
     const qreal margin = m_theme.moteSide() / 2.0 + 1;

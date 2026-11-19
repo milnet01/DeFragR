@@ -51,6 +51,12 @@ public:
     static constexpr int kFlightMs = 600;
     static constexpr int kLandSpreadMs = 200;
     static constexpr int kMotesMax = 16;
+    // The marker's pulse: a second outline that closes in on the marker
+    // from kPulseReach cells further out, how long it takes, and the
+    // least time from one pulse's start to the next.
+    static constexpr int kPulseMs = 600;
+    static constexpr int kPulseGapMs = 1000;
+    static constexpr int kPulseReach = 3;
 
     explicit DriveMapView(const Theme &theme, QWidget *parent = nullptr);
 
@@ -87,6 +93,8 @@ public:
     // The small blocks in flight, and the cell the marker rests on, or -1.
     int motesInFlight() const;
     int markerCell() const { return int(m_marker); }
+    // Whether the marker's pulse is closing in.
+    bool isPulsing() const;
 
     // The clock the motion reads, in milliseconds; tests set their own.
     void setClock(std::function<qint64()> now);
@@ -145,7 +153,13 @@ private:
     void noteCells(QList<qsizetype> &cells, const QList<engine::MapRun> &runs) const;
     // What changed on screen between two frames.
     QRegion movedBetween(qint64 since, qint64 now) const;
+    // The marker's outline, at rest; and its pulse's at `now`, or none.
     QRect markerRect() const;
+    QRect pulseRect(qint64 now) const;
+    // The four strips an outline of the marker's width covers, edge
+    // included.
+    QRegion outline(const QRect &rect) const;
+    void paintOutline(QPainter &painter, const QRect &rect) const;
     int changeLength() const { return m_motion ? kChangeMs : 0; }
     int pitch() const;
     int columns() const;
@@ -172,6 +186,7 @@ private:
     std::optional<qint64> m_lastLaunch;
     QList<Mote> m_motes;
     qsizetype m_marker = -1;
+    std::optional<qint64> m_pulseStart;
     QElapsedTimer m_elapsed;
     std::function<qint64()> m_now;
     QTimer m_frame;

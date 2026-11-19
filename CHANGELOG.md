@@ -31,6 +31,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   (DFR-0100).
 
 ### Changed
+- The marker on the map during a defrag is easier to find: a thicker
+  outline with a dark or light edge, round a bigger patch, and a second
+  outline that closes in on it when it moves. With the desktop's
+  animations turned off it does not pulse (DFR-0098).
 - On a processor without SSE4.2, such as Intel's before 2008, early
   Atoms and AMD's before 2011, every drive is report only, and the drive list says the
   processor is too old to defrag safely (DFR-0017).

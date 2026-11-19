@@ -188,6 +188,11 @@ QColor Theme::markerColour() const
     return isDark(m_map.background) ? QColor(Qt::white) : QColor(Qt::black);
 }
 
+QColor Theme::markerEdge() const
+{
+    return isDark(m_map.background) ? QColor(Qt::black) : QColor(Qt::white);
+}
+
 int Theme::cellGap() const { return std::max(1, m_cellSide / 10); }
 
 void Theme::paintCell(QPainter &painter, const QRect &cell, CellState state) const

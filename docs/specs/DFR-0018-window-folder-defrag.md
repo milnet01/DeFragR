@@ -167,13 +167,18 @@ void setMotion(bool on);
   little to one side. They fly whether or not a cell's pattern changes.
 - **A from cell** glows in its old pattern, then fades to its new one.
   **A to cell** changes as `changeCells` changes one.
-- **The marker** is an outline round the last to cell of the latest
-  launch. It stays until `showMap` or a resize.
+- **The marker** is a thick outline, edged in the opposite shade,
+  round the last to cell of the latest launch and the cells next to it.
+  It stays until `showMap` or a resize. When it moves, a second outline
+  closes in on it from `kPulseReach` cells further out in `kPulseMs`:
+  the pulse, begun at most once every `kPulseGapMs` (owner, 2026-11-19:
+  the working spot was hard to find; ROADMAP DFR-0098).
 - **Only what moved is repainted**: each frame asks for the rows of
-  cells whose change is under way, and the small blocks' and marker's
-  rectangles.
+  cells whose change is under way, the small blocks' rectangles, and
+  the strips the marker's and the pulse's outlines cover.
 - **Motion off**: a launch happens at once, a cell changes with no
-  fade or glow, no small block flies, and the marker still shows.
+  fade or glow, no small block flies, and the marker still shows,
+  without its pulse.
   Qt 6.12 and later say so through
   `QStyleHints::accessibility()->motionPreference()`; before that, the
   style's `SH_Widget_Animation_Duration` of 0 does. On 2026-11-19, with
@@ -364,7 +369,7 @@ Each is seen to fail before the code it locks is written, per
 | INV-13 | `tests/app/tst_messages.cpp` |
 | § 3 the journey's look, and that it is pleasant to watch | **nothing**: judged by eye in `tests/map-demo` |
 | § 4.3 the desktop's setting turns motion off | `Partial:` INV-10 checks the view with motion off; **nothing** checks that the view reads the desktop's setting |
-| § 4.3 the marker | **nothing** |
+| § 4.3 the marker | `Partial:` `tests/app/tst_drivemapview.cpp`: `markerPulsesAtMostOnceASecond` for the pulse's pace, `onlyWhatMovesIsRepainted` for where the outline lies and that the pulse leaves nothing behind, `motionOffChangesAtOnce` for no pulse. **Nothing** checks that it is easy to find: judged by eye |
 | § 6 a stale map | **nothing** |
 | § 4.4 the new screens read right to left | **nothing**: checked by eye with `defragr -reverse` (`docs/design.md` § Wording and languages) |
 

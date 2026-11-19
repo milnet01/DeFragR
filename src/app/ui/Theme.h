@@ -76,12 +76,16 @@ public:
     QGradientStops glowHalo(CellState state) const;
     QColor glowWash(CellState state) const;
     // During a defrag: the small blocks that fly from a file's old place
-    // to its new one, and the outline round the cell last filled. The
-    // outline is a shape, so it reads without colour.
+    // to its new one, and the outline round the place last filled. The
+    // outline is a shape, so it reads without colour: a thick line with
+    // an edge of the opposite shade, so it shows on every pattern, round
+    // the cell and markerReach cells each way.
     QColor moteColour() const;
     int moteSide() const { return std::max(4, m_cellSide / 2); }
     QColor markerColour() const;
-    int markerWidth() const { return std::max(2, m_cellSide / 5); }
+    QColor markerEdge() const;
+    int markerWidth() const { return std::max(3, m_cellSide / 3); }
+    static constexpr int markerReach = 1;
 
     // The map's colours. Public so the table of themes in Theme.cpp can
     // name them.
