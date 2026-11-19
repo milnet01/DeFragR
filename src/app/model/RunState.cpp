@@ -56,15 +56,56 @@ QStringList countLines(const RunState::Counts &counts)
     return lines;
 }
 
+namespace {
+
+// The least work, in seconds, that a pace is read from.
+constexpr qint64 kPaceSeconds = 10;
+
+struct Share {
+    quint64 done;
+    quint64 total;
+};
+
+// How much of the work is done: by files, where the blocks say nothing.
+Share shareDone(const DefragProgress &work)
+{
+    return work.blocksTotal > 0 ? Share{work.blocksDone, work.blocksTotal}
+                                : Share{work.filesDone, work.filesTotal};
+}
+
+}  // namespace
+
 int percentDone(const DefragProgress &work)
 {
-    // Files, where the blocks say nothing.
-    const quint64 done = work.blocksTotal > 0 ? work.blocksDone : work.filesDone;
-    const quint64 total = work.blocksTotal > 0 ? work.blocksTotal : work.filesTotal;
-    if (done >= total)
+    const Share share = shareDone(work);
+    if (share.done >= share.total)
         return 100;
     // Doubles, so a huge count cannot overflow.
-    return std::min(100, int(100.0 * double(done) / double(total)));
+    return std::min(100, int(100.0 * double(share.done) / double(share.total)));
+}
+
+qint64 secondsLeft(const DefragProgress &work, qint64 workSeconds)
+{
+    const Share share = shareDone(work);
+    if (workSeconds < kPaceSeconds || share.done == 0)
+        return -1;
+    if (share.done >= share.total)
+        return 0;
+    // Doubles, so a huge count cannot overflow.
+    return qint64(double(workSeconds) * double(share.total - share.done) / double(share.done));
+}
+
+QString timeLeftLine(qint64 seconds)
+{
+    const auto number = [](qint64 n) { return QLocale().toString(n); };
+    const qint64 minutes = (seconds + 30) / 60;
+    if (seconds < 60)
+        return RunState::tr("Less than a minute left.");
+    if (minutes < 60)
+        //: %1 is a number of minutes, from 1 to 59.
+        return RunState::tr("About %1 min left.").arg(number(minutes));
+    //: Hours and minutes, short.
+    return RunState::tr("About %1 h %2 min left.").arg(number(minutes / 60), number(minutes % 60));
 }
 
 QString workLine(const DefragProgress &work)

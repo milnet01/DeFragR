@@ -223,6 +223,8 @@ void setMotion(bool on);
 - `ui/DefragView` shows a bar while a run goes: back and forth while
   the engine counts the folder's work, then `percentDone`, with
   `workLine` above it. Both follow the view's one-second tick.
+- The time line adds `timeLeftLine` once `secondsLeft` has an answer:
+  the work's time so far, scaled by the work left (ROADMAP DFR-0030).
 - In `ui/DefragView` the status, the counts, the key and the map each
   keep their room, shown or not, so none moves the map (ROADMAP
   DFR-0110). The status has room for three lines. The work line, the

@@ -280,6 +280,30 @@ private slots:
         QCOMPARE(workLine({0, 0, 0, 0}), QStringLiteral("No file in this folder is in pieces."));
     }
 
+    // DFR-0030: the time left is the time so far, scaled by the work
+    // left, once there is enough of both to go by.
+    void timeLeftFromThePaceSoFar()
+    {
+        // A quarter done in 30 s leaves three times that.
+        QCOMPARE(secondsLeft({1, 3, 40, 160}, 30), 90);
+        // By files, where the blocks say nothing.
+        QCOMPARE(secondsLeft({1, 2, 0, 0}, 30), 30);
+        // Too early: under ten seconds of work, or nothing done yet.
+        QCOMPARE(secondsLeft({1, 3, 40, 160}, 9), -1);
+        QCOMPARE(secondsLeft({0, 3, 0, 160}, 600), -1);
+        // No work to do, and a folder that changed since it was counted.
+        QCOMPARE(secondsLeft({0, 0, 0, 0}, 600), -1);
+        QCOMPARE(secondsLeft({4, 3, 900, 160}, 600), 0);
+
+        QCOMPARE(timeLeftLine(0), QStringLiteral("Less than a minute left."));
+        QCOMPARE(timeLeftLine(59), QStringLiteral("Less than a minute left."));
+        QCOMPARE(timeLeftLine(90), QStringLiteral("About 2 min left."));
+        QCOMPARE(timeLeftLine(3540), QStringLiteral("About 59 min left."));
+        // Rounding to the minute carries into the hour.
+        QCOMPARE(timeLeftLine(3590), QStringLiteral("About 1 h 0 min left."));
+        QCOMPARE(timeLeftLine(4000), QStringLiteral("About 1 h 7 min left."));
+    }
+
     // A new run starts with no word on its work.
     void aNewRunForgetsTheLastOnesWork()
     {

@@ -465,6 +465,20 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Less than a minute left.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>About %1 min left.</source>
+        <extracomment>%1 is a number of minutes, from 1 to 59.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>About %1 h %2 min left.</source>
+        <extracomment>Hours and minutes, short.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No file in this folder is in pieces.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -520,6 +534,11 @@
         <source>Running for %1</source>
         <extracomment>%1 is a time, such as &quot;2 min 5 s&quot;.</extracomment>
         <translation type="unfinished">A decorrer há %1</translation>
+    </message>
+    <message>
+        <source>Running for %1. %2</source>
+        <extracomment>%1 is a time, such as &quot;2 min 5 s&quot;. %2 is a whole sentence, such as &quot;About 5 min left.&quot;</extracomment>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Latest: %1</source>

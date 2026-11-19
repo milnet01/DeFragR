@@ -122,4 +122,11 @@ int percentDone(const engine::DefragProgress &work);
 // The same as a sentence naming the files done and to do.
 QString workLine(const engine::DefragProgress &work);
 
+// The seconds the rest of a defrag would take at its pace so far, where
+// workSeconds is how long it has been moving files. -1 while that says
+// too little: under ten seconds of work, or nothing done yet.
+qint64 secondsLeft(const engine::DefragProgress &work, qint64 workSeconds);
+// The same as a sentence, to the minute: it is an estimate.
+QString timeLeftLine(qint64 seconds);
+
 }  // namespace defragr::model

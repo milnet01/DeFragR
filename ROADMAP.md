@@ -2158,7 +2158,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: ux.
   Source: user-request-2026-11-19.
 
-- 📋 [DFR-0030] **Time remaining.**
+- ✅ [DFR-0030] **Time remaining.**
   `model/RunState` estimates time left from blocks moved per second,
   shown beside the progress bar.
   Owner, 2026-11-19: asked for an estimated time remaining "option"
@@ -2169,11 +2169,15 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   is a setting. Claude's recommendation: 0.3.0, always shown beside the
   bar once enough has moved to estimate from.
   Owner, 2026-11-19: release 0.3.0, always shown, no setting.
+  Done 2026-11-19 for a folder defrag: the time line reads "Running
+  for 2 min 5 s. About 10 min left." once ten seconds of moving files
+  give a pace, from the share of blocks done. It is the average pace
+  since the files began to move, to the minute. The line on the page has
+  no test of its own, and the owner has not seen it on a real run.
   **Layman:** Shows roughly how long the defrag has left.
   Kind: feature.
   Source: design-2026-11-15.
   Lanes: Run.
-  Blocked-by: DFR-0021.
 
 - 📋 [DFR-0109] **The window remembers its size and position between runs.**
   The owner asked for this on 2026-11-19. Position under KDE Wayland:

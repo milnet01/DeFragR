@@ -172,6 +172,7 @@ void DefragView::showStage()
         m_status->setText(tr("Joining up the files in this folder. Each move shows on the "
                              "map: blocks leave a file's old places and land together in its "
                              "new one. You can keep using the PC."));
+        m_workClock.start();
         // The run's own map, sweeping in; the moves then play on it.
         m_map->showMap(&m_run.map());
         // Moves back and forth until the engine has counted the work.
@@ -220,8 +221,18 @@ void DefragView::showMapProgress(quint64 names, quint64 estimate)
 
 void DefragView::showTick()
 {
-    //: %1 is a time, such as "2 min 5 s".
-    m_elapsed->setText(tr("Running for %1").arg(model::elapsedText(m_clock.elapsed() / 1000)));
+    const QString running = model::elapsedText(m_clock.elapsed() / 1000);
+    // DFR-0030: the time left, once the defrag's pace says enough.
+    const qint64 left = m_run.stage() == Stage::Defragging && m_run.work()
+                            ? model::secondsLeft(*m_run.work(), m_workClock.elapsed() / 1000)
+                            : -1;
+    if (left < 0)
+        //: %1 is a time, such as "2 min 5 s".
+        m_elapsed->setText(tr("Running for %1").arg(running));
+    else
+        //: %1 is a time, such as "2 min 5 s". %2 is a whole sentence, such
+        //: as "About 5 min left."
+        m_elapsed->setText(tr("Running for %1. %2").arg(running, model::timeLeftLine(left)));
     showCounts();
 }
 

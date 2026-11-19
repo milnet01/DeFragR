@@ -59,6 +59,8 @@ private:
     QLabel *m_latest = nullptr;
     QLabel *m_elapsed = nullptr;
     QElapsedTimer m_clock;
+    // Since the files began to move: the pace the time left is read from.
+    QElapsedTimer m_workClock;
     QTimer m_tick;
     QWidget *m_mapKey = nullptr;
     DriveMapView *m_map = nullptr;
