@@ -69,7 +69,7 @@ set_tests_properties(tst_report PROPERTIES
 # One defrag of a folder, from a fake engine: DFR-0018.
 add_executable(tst_runstate tst_runstate.cpp)
 target_compile_options(tst_runstate PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(tst_runstate PRIVATE defragr-model Qt6::Test)
+target_link_libraries(tst_runstate PRIVATE defragr-model defragr-languages Qt6::Test)
 add_test(NAME tst_runstate COMMAND tst_runstate)
 set_tests_properties(tst_runstate PROPERTIES
     ENVIRONMENT "DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")

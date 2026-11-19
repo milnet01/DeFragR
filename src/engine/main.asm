@@ -61,6 +61,8 @@ folder_path:    resb STRING_MAX + 8     ; defrag's folder argument, decoded
 folder_len:     resq 1                  ; its length, up to any \000
 mount_arg:      resq 1                  ; defrag's mount point argument, as given
 map_wanted:     resq 1                  ; not 0: defrag sends the drive's map first
+work:           resb defrag_progress_size  ; defrag's DEFRAG_PROGRESS, as it stands
+file_blocks:    resq 1                  ; the file being moved: its share of the work
 
 section .text
 global _start
@@ -415,13 +417,15 @@ drive_open:
 ;   size 0 and FINISHED with its result.
 ; The rest of a defrag stream (DFR-0002 § 4.12), from the mount-point
 ; check on: the drive rules, the folder, HELLO with the block size, the
-; map when asked for, then each file's records from move_file, or a
-; FILE_SKIPPED where the walk could not reach one, then FINISHED.
-; The map needs a walk of the whole drive, so with it the folder is
-; checked first, the drive walked to read, and then the mount point and
-; the folder are opened again to move: the drive may have changed in
-; between, and those checks then end the run after HELLO. The folder
-; opened for the first check stays open until exit, which closes it.
+; map when asked for, the folder's work counted and sent as the first
+; DEFRAG_PROGRESS, then each file's records from move_file, or a
+; FILE_SKIPPED where the walk could not reach one, with a
+; DEFRAG_PROGRESS after each file that was work, then FINISHED.
+; The folder is checked first, before a walk of the whole drive for the
+; map. It is then walked twice, to count and to move, and the mount
+; point and the folder are opened again for each: the drive may have
+; changed in between, and those checks then end the run after HELLO.
+; Each folder opened for a check stays open until exit, which closes it.
 defrag_run:
     push rbx
     mov [mount_arg], rdi
@@ -473,13 +477,10 @@ defrag_run:
 .entered:
     cmp qword [map_wanted], 0
     jne .with_map
-    mov edi, r15d
-    mov rsi, r14
-    call move_setup
     mov edi, CMD_DEFRAG
     mov esi, r15d
     call rec_hello
-    jmp .next
+    jmp .count
 
 .with_map:
     mov rdi, [mount_arg]
@@ -493,26 +494,44 @@ defrag_run:
     mov esi, r15d
     call rec_hello
     call send_map
-    ; Back to the folder, as at the start, now to move.
-    mov rdi, [mount_arg]
-    mov esi, WALK_TO_MOVE
-    call drive_open
+
+    ; The folder's work: every file in two or more pieces, and the
+    ; blocks they hold. Opened as the move opens them, so a file the
+    ; move cannot open is in neither count.
+.count:
+    call folder_to_move
     test eax, eax
     jnz .finish_with
-    mov r15d, edx
-    mov r14, r9                     ; r14 = the mount id
-    mov eax, RESULT_REFUSED
-    xor edx, edx
-    test r8d, r8d
-    jnz .finish_with
-    lea rdi, [folder_path]
-    mov rsi, [folder_len]
-    call walk_enter
+.count_next:
+    call walk_next
+    cmp eax, WALK_FILE
+    je .count_file
+    cmp eax, WALK_SKIPPED
+    je .count_next
+    cmp eax, WALK_END
+    je .counted
+    mov edi, RESULT_DRIVE_ERROR     ; WALK_ERROR: the top folder failed
+    mov esi, edx
+    call rec_finish
+.count_file:
+    mov ebx, edx                    ; ebx = the file
+    mov edi, ebx
+    mov esi, r15d
+    call fragmented_blocks
     test rax, rax
+    jz .count_close
+    inc qword [work + defrag_progress.files_total]
+    add [work + defrag_progress.blocks_total], rax
+.count_close:
+    mov edi, ebx
+    call sys_close                  ; nothing was written through it
+    jmp .count_next
+.counted:
+    call send_work
+    ; Back to the folder, as at the start, now to move.
+    call folder_to_move
+    test eax, eax
     jz .moving
-    neg eax
-    mov edx, eax
-    mov eax, RESULT_NO_FOLDER
 .finish_with:                       ; eax = result, edx = errno; HELLO is sent
     mov edi, eax
     mov esi, edx
@@ -536,8 +555,13 @@ defrag_run:
 
 .file:
     mov ebx, edx                    ; ebx = the file
-    mov edi, edx
-    mov esi, ecx                    ; its folder
+    mov r13d, ecx                   ; r13d = its folder
+    mov edi, ebx
+    mov esi, r15d
+    call fragmented_blocks          ; before the move changes its pieces
+    mov [file_blocks], rax
+    mov edi, ebx
+    mov esi, r13d
     lea rdx, [walk_path]
     mov rcx, [walk_path_len]
     call move_file
@@ -545,7 +569,15 @@ defrag_run:
     mov edi, ebx
     call sys_close                  ; its data is synced; a close adds nothing
     test r12d, r12d
-    jz .next
+    jnz .file_ended_run
+    mov rax, [file_blocks]
+    test rax, rax
+    jz .next                        ; in one piece: no work, no record
+    inc qword [work + defrag_progress.files_done]
+    add [work + defrag_progress.blocks_done], rax
+    call send_work
+    jmp .next
+.file_ended_run:
     mov edi, r12d
     xor esi, esi
     call rec_finish
@@ -574,6 +606,77 @@ defrag_run:
     mov edi, ebx
     mov esi, r12d
     call rec_finish
+
+; folder_to_move() -> eax = OK, or the result the run must finish with
+;   and edx = its errno or 0; on OK, r15d = the block size and r14 = the
+;   mount id, with the walk started in defrag's folder, to move.
+; Opens the mount point and the folder again, with every check of the
+; first time (DFR-0002 § 4.12). Clobbers rcx, rdx, rsi, rdi, r8 to r11.
+folder_to_move:
+    sub rsp, 8
+    mov rdi, [mount_arg]
+    mov esi, WALK_TO_MOVE
+    call drive_open
+    test eax, eax
+    jnz .return
+    mov r15d, edx
+    mov r14, r9
+    mov eax, RESULT_REFUSED
+    xor edx, edx
+    test r8d, r8d
+    jnz .return
+    lea rdi, [folder_path]
+    mov rsi, [folder_len]
+    call walk_enter
+    test rax, rax
+    jz .return                      ; eax = 0, which is OK
+    neg eax
+    mov edx, eax
+    mov eax, RESULT_NO_FOLDER
+.return:
+    add rsp, 8
+    ret
+
+; fragmented_blocks(edi = an open regular file, esi = the block size)
+;   -> rax = the blocks its extents cover when it is in two or more
+;   pieces, which is then 2 or more; 0 when it is in one piece, or its
+;   pieces cannot be read. A file's share of a defrag's work
+;   (DEFRAG_PROGRESS, DFR-0002 § 4.12). Clobbers rcx, rdx, rsi, rdi, r8
+;   to r11.
+fragmented_blocks:
+    sub rsp, 8
+    xor edx, edx                    ; count only
+    call extents_count
+    cmp rax, -MAX_ERRNO
+    jae .none
+    cmp rax, 2
+    jb .none
+    mov rax, rdx
+    jmp .return
+.none:
+    xor eax, eax
+.return:
+    add rsp, 8
+    ret
+
+; send_work() -> rax = 0. Sends DEFRAG_PROGRESS as `work` stands.
+; Clobbers as rec_send.
+send_work:
+    sub rsp, 8
+    mov edi, REC_DEFRAG_PROGRESS
+    mov esi, defrag_progress_size
+    call rec_start
+    mov rcx, [work + defrag_progress.files_done]
+    mov [rax + defrag_progress.files_done], rcx
+    mov rcx, [work + defrag_progress.files_total]
+    mov [rax + defrag_progress.files_total], rcx
+    mov rcx, [work + defrag_progress.blocks_done]
+    mov [rax + defrag_progress.blocks_done], rcx
+    mov rcx, [work + defrag_progress.blocks_total]
+    mov [rax + defrag_progress.blocks_total], rcx
+    call rec_send
+    add rsp, 8
+    ret
 
 ; send_map(r14d = the top folder, open, r15d = the block size), with the
 ;   walk started at the top folder to read. Returns once the map is sent.

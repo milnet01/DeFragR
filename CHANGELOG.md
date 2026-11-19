@@ -29,6 +29,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A report of a drive that can be defragged has a "Defrag a folder"
   button, so there is no need to go back to the drive list first
   (DFR-0100).
+- A defrag shows a progress bar. The engine first counts the folder's
+  files that are in pieces, then the bar fills as each is finished,
+  with "Finished with 3 of 40 files in pieces" above it (DFR-0099).
 
 ### Changed
 - The marker on the map during a defrag is easier to find: a thicker

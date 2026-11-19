@@ -2,6 +2,8 @@
 // INV-3 to INV-5), run against fakes/window.sh through stand-in pkexecs.
 // The fake logs each command line it is started with, so the test sees
 // which engine runs were made and with what arguments.
+#include "FakeHold.h"
+#include "ui/Languages.h"
 #include "model/RunState.h"
 
 #include <QDir>
@@ -41,6 +43,8 @@ QList<CellState> fakeCells(bool afterDefrag)
 class TestRunState : public QObject {
     Q_OBJECT
 
+    // English's plural forms, as the window has them.
+    defragr::ui::Languages m_english{QLocale(QLocale::English)};
     QDir m_fakes;
     QTemporaryDir m_scratch;
     QString m_log;
@@ -151,6 +155,8 @@ private slots:
         QCOMPARE(beforeTheMoves, fakeCells(false));
         QCOMPARE(moves, 1);
         QCOMPARE(run.counts(), (Run::Counts{1, 1, 1, 40}));
+        // DFR-0002 INV-26: the last word on how far it got.
+        QCOMPARE(run.work(), std::optional(DefragProgress{3, 3, 160, 160}));
         QCOMPARE(run.latestPath(), QByteArray("games/<b>busy</b>.bin"));
         QCOMPARE(run.skipped().size(), 1);
         QCOMPARE(run.skipped().first().stage, quint16(StageChanged));
@@ -238,6 +244,40 @@ private slots:
                  QStringList{QStringLiteral("defrag /mnt/<img src=x> games map")});
         QCOMPARE(run.stage(), Run::Stage::Done);
         QCOMPARE(run.counts(), (Run::Counts{1, 1, 1, 40}));
+    }
+
+    // DFR-0099: how far a run has got, by blocks, and never past whole.
+    void workAsAPercentageAndASentence()
+    {
+        QCOMPARE(percentDone({0, 3, 0, 160}), 0);
+        QCOMPARE(percentDone({1, 3, 40, 160}), 25);
+        QCOMPARE(percentDone({3, 3, 160, 160}), 100);
+        // A folder that changed since it was counted, and one with no work.
+        QCOMPARE(percentDone({4, 3, 900, 160}), 100);
+        QCOMPARE(percentDone({0, 0, 0, 0}), 100);
+        // By files, where the blocks say nothing.
+        QCOMPARE(percentDone({1, 2, 0, 0}), 50);
+
+        QCOMPARE(workLine({1, 3, 40, 160}),
+                 QStringLiteral("Finished with 1 of 3 files in pieces (25%)."));
+        QCOMPARE(workLine({4, 3, 900, 160}),
+                 QStringLiteral("Finished with 3 of 3 files in pieces (100%)."));
+        QCOMPARE(workLine({0, 1, 0, 2}),
+                 QStringLiteral("Finished with 0 of 1 file in pieces (0%)."));
+        QCOMPARE(workLine({0, 0, 0, 0}), QStringLiteral("No file in this folder is in pieces."));
+    }
+
+    // A new run starts with no word on its work.
+    void aNewRunForgetsTheLastOnesWork()
+    {
+        Run run(launcher("pkexec-pass"));
+        QVERIFY(runToEnd(run, "games"));
+        QVERIFY(run.work());
+        FakeHold hold;
+        QVERIFY(hold.isValid());
+        run.start(kMount, "games");
+        QVERIFY(!run.work());
+        QVERIFY(hold.release());
     }
 
     // INV-5: a run that ends before its map is whole shows no part of

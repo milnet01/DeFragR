@@ -38,11 +38,15 @@ QString shortest(double value)
     return QLocale().toString(value, 'g', QLocale::FloatingPointShortest);
 }
 
+}  // namespace
+
 QString percentText(double percent)
 {
     //: A percentage, such as 1.5%.
     return Report::tr("%1%").arg(shortest(percent));
 }
+
+namespace {
 
 QString percentFragmented(quint64 fragmented, quint64 files)
 {

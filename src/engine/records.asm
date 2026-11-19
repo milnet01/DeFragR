@@ -449,6 +449,19 @@ rec_selftest:
     call rec_start
     call rec_send
 
+    mov edi, REC_DEFRAG_PROGRESS
+    mov esi, defrag_progress_size
+    call rec_start
+    mov rcx, 0xD1D2D3D4D5D6D7D8
+    mov [rax + defrag_progress.files_done], rcx
+    mov rcx, 0xD9DADBDCDDDEDFE0
+    mov [rax + defrag_progress.files_total], rcx
+    mov rcx, 0xC9CACBCCCDCECFD0
+    mov [rax + defrag_progress.blocks_done], rcx
+    mov rcx, 0xB9BABBBCBDBEBFC0
+    mov [rax + defrag_progress.blocks_total], rcx
+    call rec_send
+
     mov edi, RESULT_OK
     xor esi, esi
     call rec_finish

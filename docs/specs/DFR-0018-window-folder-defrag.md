@@ -129,6 +129,9 @@ signals:
 - It counts files joined up (`moved_blocks` above 0), left as they
   were (`moved_blocks` 0) and skipped, and blocks moved. It keeps the
   first `kSkippedListed` skipped files to show; the count goes on.
+- The latest `DEFRAG_PROGRESS` is kept as `work()`, nothing until the
+  first arrives. `percentDone` gives it as 0 to 100 by blocks, and
+  `workLine` as a sentence (ROADMAP DFR-0099).
 - A run that ends `Finished` keeps its map for the next run on that
   drive, whatever the result code: every record before `FINISHED` was
   true. Any other end drops the map.
@@ -197,6 +200,9 @@ void setMotion(bool on);
 - `ui/DefragView` (new, part of Screens): the heading, what the run is
   doing, the map key and map, the counts, and at the end the skipped
   files with why. "Back to drives" is off while a run goes.
+- `ui/DefragView` shows a bar while a run goes: back and forth while
+  the engine counts the folder's work, then `percentDone`, with
+  `workLine` above it. Both follow the view's one-second tick.
 - `ui/ReportView` tells `MainWindow` when a report has loaded, and
   `MainWindow` hands its map to the defrag page. A loaded report of a
   drive that can be defragged shows "Defrag a folder", which does as
@@ -354,7 +360,8 @@ Each is seen to fail before the code it locks is written, per
 
 ## 9. Out of scope
 
-- The status bar, progress bar and percentage — tracked by DFR-0021.
+- The status bar, and a whole-drive defrag's progress — tracked by
+  DFR-0021.
 - Pause and cancel — tracked by DFR-0023 and DFR-0024.
 - Translating the new sentences — tracked by DFR-0067.
 

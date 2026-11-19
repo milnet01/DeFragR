@@ -1,10 +1,13 @@
 #include "model/RunState.h"
 
+#include "model/Report.h"
+
 #include <QDir>
 #include <QFile>
 #include <QLocale>
 #include <QStringList>
 
+#include <algorithm>
 #include <utility>
 
 namespace defragr::model {
@@ -53,6 +56,29 @@ QStringList countLines(const RunState::Counts &counts)
     return lines;
 }
 
+int percentDone(const DefragProgress &work)
+{
+    // Files, where the blocks say nothing.
+    const quint64 done = work.blocksTotal > 0 ? work.blocksDone : work.filesDone;
+    const quint64 total = work.blocksTotal > 0 ? work.blocksTotal : work.filesTotal;
+    if (done >= total)
+        return 100;
+    // Doubles, so a huge count cannot overflow.
+    return std::min(100, int(100.0 * double(done) / double(total)));
+}
+
+QString workLine(const DefragProgress &work)
+{
+    if (work.filesTotal == 0)
+        return RunState::tr("No file in this folder is in pieces.");
+    //: %1 and %2 count files, %3 is a percentage, such as 50%. The
+    //: plural follows %2.
+    return RunState::tr("Finished with %1 of %2 file(s) in pieces (%3).", nullptr,
+                        messages::pluralOf(work.filesTotal))
+        .arg(QLocale().toString(std::min(work.filesDone, work.filesTotal)),
+             QLocale().toString(work.filesTotal), percentText(percentDone(work)));
+}
+
 RunState::RunState(QString launcher, QObject *parent)
     : QObject(parent), m_engine(std::move(launcher))
 {
@@ -80,6 +106,7 @@ void RunState::start(const QByteArray &mountPoint, const QByteArray &folder)
     m_mountPoint = mountPoint;
     m_folder = folder;
     m_counts = {};
+    m_work.reset();
     m_latestPath.clear();
     m_skipped.clear();
     m_problem = {};
@@ -137,6 +164,9 @@ void RunState::collect(const QList<Record> &records)
             if (m_skipped.size() < kSkippedListed)
                 m_skipped.append(*skip);
             m_latestPath = skip->path;
+            any = true;
+        } else if (const auto *work = std::get_if<DefragProgress>(&record)) {
+            m_work = *work;
             any = true;
         }
     }

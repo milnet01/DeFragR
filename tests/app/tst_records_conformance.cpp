@@ -59,9 +59,9 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-records")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.exitCode, 0);
-        QCOMPARE(run.records.size(), 12);
+        QCOMPARE(run.records.size(), 13);
 
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 5, 255, 0x01020304}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 6, 255, 0x01020304}));
 
         Drive drive;
         drive.totalBlocks = 0x1112131415161718;
@@ -98,7 +98,10 @@ private slots:
                               {{0x9192939495969798, 0xA1A2A3A4A5A6A7A8},
                                {0xB1B2B3B4B5B6B7B8, 0xC1C2C3C4C5C6C7C8}}}));
         QCOMPARE(std::get<MapDone>(run.records[10]), MapDone{});
-        QCOMPARE(std::get<Finished>(run.records[11]), (Finished{0, 0}));
+        QCOMPARE(std::get<DefragProgress>(run.records[11]),
+                 (DefragProgress{0xD1D2D3D4D5D6D7D8, 0xD9DADBDCDDDEDFE0, 0xC9CACBCCCDCECFD0,
+                                 0xB9BABBBCBDBEBFC0}));
+        QCOMPARE(std::get<Finished>(run.records[12]), (Finished{0, 0}));
     }
 
     // INV-18: the engine's CRC32C gives every published value § 4.11 lists.
@@ -107,7 +110,7 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-crc32c")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.records.size(), 2);
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 5, CommandSelftestCrc32c, 0}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 6, CommandSelftestCrc32c, 0}));
         QCOMPARE(std::get<Finished>(run.records[1]).result, int(ResultOk));
         QCOMPARE(run.exitCode, 0);
     }

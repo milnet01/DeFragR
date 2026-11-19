@@ -70,6 +70,9 @@ public:
     // The drive's map, with every move so far; empty when none is held.
     const DriveMap &map() const { return m_map; }
     const Counts &counts() const { return m_counts; }
+    // How far the defrag has got; nothing until the engine has counted
+    // the folder's work.
+    const std::optional<engine::DefragProgress> &work() const { return m_work; }
     // The file whose turn ended last, relative to the mount point.
     const QByteArray &latestPath() const { return m_latestPath; }
     const QList<engine::FileSkipped> &skipped() const { return m_skipped; }
@@ -101,6 +104,7 @@ private:
     QByteArray m_mapMount;  // the drive m_map is of; empty when it holds none
     DriveMap m_incomingMap;  // the map so far, until the engine says it is whole
     Counts m_counts;
+    std::optional<engine::DefragProgress> m_work;
     QByteArray m_latestPath;
     QList<engine::FileSkipped> m_skipped;
     Message m_problem;
@@ -110,5 +114,11 @@ private:
 // as they were, files skipped. A count of none gets no sentence, except
 // that a run with nothing to say says so.
 QStringList countLines(const RunState::Counts &counts);
+
+// How far a defrag has got, 0 to 100: by blocks, so a big file counts
+// for more than a small one. 100 with no work to do, and never more.
+int percentDone(const engine::DefragProgress &work);
+// The same as a sentence naming the files done and to do.
+QString workLine(const engine::DefragProgress &work);
 
 }  // namespace defragr::model

@@ -6,8 +6,8 @@
 # look at the window mid-run. The report maps the drive's 1000 blocks. Its
 # defrag of any folder on the first drive moves one file's 40 blocks,
 # pauses in the same way, then joins that file up, leaves a second as it
-# was and skips a third. Asked for the map, the defrag sends the report's
-# map first. Any other command line gets no stream.
+# was and skips a third, saying how far it has got before the first and
+# after each. Asked for the map, the defrag sends the report's map first. Any other command line gets no stream.
 #   /mnt/<img src=x>            ext4, report and defrag
 #   /mnt/other  on <b>zfs</b>   not ext4, report only
 # DEFRAGR_TEST_LOG, when set, names a file that gains each command line.
@@ -105,9 +105,12 @@ the_map() {
     map_runs 1 200 100 320 680
 }
 
+# DEFRAG_PROGRESS: $1 files done of 3, $2 blocks done of 160.
+work() { header 66 32; le "$1" 8; le 3 8; le "$2" 8; le 160 8; }
+
 if [ "$1" = defrag ]; then
-    # HELLO: version 1.5, defrag, block size 4096.
-    header 1 16; le 1 2; le 5 2; le 3 4; le 4096 4; zeros 4
+    # HELLO: version 1.6, defrag, block size 4096.
+    header 1 16; le 1 2; le 6 2; le 3 4; le 4096 4; zeros 4
     if [ "${4:-}" = map ]; then
         # REPORT_PROGRESS: names 0, then 300, of an estimated 300.
         header 35 16; le 0 8; le 300 8
@@ -121,6 +124,7 @@ if [ "$1" = defrag ]; then
         # MAP_DONE.
         header 37 8; zeros 8
     fi
+    work 0 0
     blocks_moved 2 100 20 300 20 400 40
     if [ "${DEFRAGR_TEST_DEFRAG:-}" = broken ]; then
         # A second HELLO breaks the stream's order.
@@ -130,6 +134,7 @@ if [ "$1" = defrag ]; then
     hold_sent
     hold_wait
     defragged 2 1 40 'games/<img src=x>.bin'
+    work 1 40
     if [ "${DEFRAGR_TEST_DEFRAG:-}" = mismatch ]; then
         blocks_moved 1 320 10 500 10
         skipped 0 11 'games/bad.bin'
@@ -138,7 +143,9 @@ if [ "$1" = defrag ]; then
         exit 11
     fi
     defragged 3 3 0 'games/full.bin'
+    work 2 100
     skipped 0 10 'games/<b>busy</b>.bin'
+    work 3 160
 elif [ "$1" = probe ]; then
     # HELLO: version 1.1, probe, block size 0.
     header 1 16; le 1 2; le 1 2; le 1 4; zeros 8

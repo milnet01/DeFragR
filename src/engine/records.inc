@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 5
+PROTOCOL_MINOR      equ 6
 
 ; § 4.1 framing.
 struc rec_header
@@ -31,6 +31,7 @@ REC_MAP_DONE        equ 0x0025
 REC_RUN_STATE       equ 0x0030
 REC_FILE_DEFRAGGED  equ 0x0040
 REC_BLOCKS_MOVED    equ 0x0041
+REC_DEFRAG_PROGRESS equ 0x0042
 
 ; Fixed parts. Each size is a multiple of 8, so strings start aligned.
 struc hello
@@ -96,6 +97,13 @@ MAP_RUNS_MAX        equ (PAYLOAD_MAX - map_runs_size) / map_run_size
 
 struc map_done
     .reserved       resq 1
+endstruc
+
+struc defrag_progress
+    .files_done     resq 1
+    .files_total    resq 1
+    .blocks_done    resq 1
+    .blocks_total   resq 1
 endstruc
 
 struc run_state

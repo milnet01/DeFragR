@@ -36,6 +36,7 @@ enum RecordType : quint16 {
     TypeRunState = 0x0030,
     TypeFileDefragged = 0x0040,
     TypeBlocksMoved = 0x0041,
+    TypeDefragProgress = 0x0042,
 };
 
 // HELLO.command (§ 4.4).
@@ -206,6 +207,17 @@ struct BlocksMoved {
     bool operator==(const BlocksMoved &) const = default;
 };
 
+// How far a defrag has got (§ 4.12): the files in two or more pieces it
+// has finished with, of those the folder held when it was counted, and
+// the blocks those files hold. Done can pass total: the folder may change.
+struct DefragProgress {
+    quint64 filesDone = 0;
+    quint64 filesTotal = 0;
+    quint64 blocksDone = 0;
+    quint64 blocksTotal = 0;
+    bool operator==(const DefragProgress &) const = default;
+};
+
 // A record of a type this window does not know; its payload is skipped.
 struct Unknown {
     quint16 type = 0;
@@ -214,7 +226,7 @@ struct Unknown {
 
 using Record = std::variant<Hello, Finished, Drive, FragmentedFile, FileSkipped,
                             ReportSummary, ReportProgress, MapRuns, MapDone, RunState,
-                            FileDefragged, BlocksMoved, Unknown>;
+                            FileDefragged, BlocksMoved, DefragProgress, Unknown>;
 
 enum class StreamError { Malformed, VersionMismatch };
 

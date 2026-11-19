@@ -140,6 +140,10 @@ void DefragView::showStage()
                              "new one. You can keep using the PC."));
         // The run's own map, sweeping in; the moves then play on it.
         m_map->showMap(&m_run.map());
+        // Moves back and forth until the engine has counted the work.
+        m_checked->setText(tr("Counting the files in this folder that are in pieces."));
+        m_progress->setRange(0, 0);
+        showWork();
         break;
     case Stage::Done:
         m_status->setText(tr("Done. The map shows the drive as it is now."));
@@ -153,9 +157,8 @@ void DefragView::showStage()
     }
     }
 
-    const bool reading = stage == Stage::ReadingMap;
-    m_checked->setVisible(reading);
-    m_progress->setVisible(reading);
+    m_checked->setVisible(running);
+    m_progress->setVisible(running);
     const bool begun = stage == Stage::Defragging || stage == Stage::Done
                        || (stage == Stage::Failed && !m_run.map().isEmpty());
     m_counts->setVisible(begun);
@@ -187,8 +190,18 @@ void DefragView::showTick()
     showCounts();
 }
 
+void DefragView::showWork()
+{
+    if (m_run.stage() != Stage::Defragging || !m_run.work())
+        return;
+    m_checked->setText(model::workLine(*m_run.work()));
+    m_progress->setRange(0, 100);
+    m_progress->setValue(model::percentDone(*m_run.work()));
+}
+
 void DefragView::showCounts()
 {
+    showWork();
     m_counts->setText(model::countLines(m_run.counts()).join(QLatin1Char('\n')));
     if (m_run.latestPath().isEmpty())
         return;

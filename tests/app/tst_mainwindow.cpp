@@ -292,6 +292,16 @@ private slots:
         QVERIFY(!back->isEnabled());
         QVERIFY(showsAsWritten(label(defragView(), QStringLiteral("Defragging")), kMarkupDrive));
         QVERIFY(label(defragView(), QStringLiteral("Joining up the files")));
+        // DFR-0099: the bar shows the work the engine counted, on the
+        // view's next 1 s tick.
+        auto *bar = defragView()->findChild<QProgressBar *>();
+        QVERIFY(bar->isVisibleTo(m_window.get()));
+        QVERIFY2(QTest::qWaitFor(
+                     [&] { return label(defragView(), QStringLiteral("Finished with 0 of 3 files")); },
+                     kWaitMs),
+                 "the work was not shown");
+        QCOMPARE(bar->maximum(), 100);
+        QCOMPARE(bar->value(), 0);
         QVERIFY(map->isVisibleTo(m_window.get()));
         QVERIFY2(QTest::qWaitFor([&] { return map->markerCell() >= 0; }, kWaitMs),
                  "the move did not reach the map");
@@ -303,6 +313,7 @@ private slots:
                  "the defrag did not end");
         QCOMPARE(commandLines(), QStringList{QStringLiteral("defrag /mnt/<img src=x> games")});
         QVERIFY(label(defragView(), QStringLiteral("Done.")));
+        QVERIFY(!bar->isVisibleTo(m_window.get()));
         auto *counts = label(defragView(), QStringLiteral("1 file joined up."));
         QVERIFY(counts);
         QVERIFY(counts->text().contains(QStringLiteral("1 file left as it was")));

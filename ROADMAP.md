@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=102 -->
+<!-- ants-roadmap-id-high-water: DFR=104 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1860,37 +1860,54 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   file's. Not measured: how many files end in one piece, and what
   limits the rest. Owner's choice that day: measure that run when it
   ends, then bring options with numbers; 0.3.0 waits.
+  2026-11-19: `image_defrag` failed 2 runs of about 15 while DFR-0099
+  was built, once with "deep/big: moved, into fewer pieces": the same
+  donor-no-better case DFR-0096's note records. The checker fails what
+  § 4.12 allows. Fix it with this item.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
   Lanes: Move, Map.
 
-- 📋 [DFR-0098] **Make the working spot on the map easy to find.**
+- ✅ [DFR-0098] **Make the working spot on the map easy to find.**
   Owner, 2026-11-19: hard to see where to look during a run. Owner's
   choice that day: stronger for everyone, with a thicker, brighter,
   pulsing ring and a line above the map naming the file just finished.
   The pulse keeps to three a second at most and stops with motion off.
   A high-visibility setting waits for DFR-0028.
+  Done 2026-11-19. The outline is thicker, edged in the opposite shade,
+  and goes round the cell last filled and the cells next to it. A
+  second outline closes in on it when it moves, at most once a second,
+  and not with motion off. The line naming the latest file was already
+  there. Left: whether it is easy to find is the owner's to judge.
   **Layman:** A bolder, gently pulsing ring where DeFragR is working, and a line of text naming the file it just finished.
   Kind: ux.
   Source: user-test-2026-11-19.
   Lanes: Map, Screens.
 
-- 📋 [DFR-0099] **Progress bar for a folder defrag.**
+- ✅ [DFR-0099] **Progress bar for a folder defrag.**
   Owner, 2026-11-19: a 234 GB folder ran with no bar and no cancel.
   Owner's choice that day: in 0.3.0, not 0.4.0. The engine says how
   much work the folder holds before it moves anything, a protocol
   amendment. Overlaps DFR-0020 and DFR-0021, which keep whole-drive
   progress, the menu and the status bar. Time remaining stays DFR-0030.
+  Done 2026-11-19. The engine walks the folder once to count, then
+  sends `DEFRAG_PROGRESS` before the first file and after each file
+  that was work (protocol 1.6, `docs/specs/DFR-0002-engine-protocol.md`
+  § 4.12, INV-26, INV-27). The defrag page's bar fills by blocks.
+  Left: the count is one more walk of the folder, not timed on a real
+  drive.
   **Layman:** A bar and 'file X of Y' while a folder is defragged, so a long run shows how far it is.
   Kind: feature.
   Source: user-test-2026-11-19.
   Lanes: Move, Run, Screens.
 
-- 📋 [DFR-0100] **Defrag a folder from the report screen.**
+- ✅ [DFR-0100] **Defrag a folder from the report screen.**
   Owner, 2026-11-19: on the report screen, asked how to defrag a
   folder; the only button is on the drive list. Owner's choice that
   day: before 0.3.0.
+  Done 2026-11-19. A loaded report of a drive that can be defragged
+  shows "Defrag a folder". The words are untranslated (DFR-0067).
   **Layman:** A 'Defrag a folder' button on the report, so you need not go back to the drive list first.
   Kind: ux.
   Source: user-test-2026-11-19.
@@ -1906,11 +1923,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-test-2026-11-19.
   Lanes: Extents, Map, Screens.
 
-- 📋 [DFR-0102] **The dev build gives its engine the label pkexec needs.**
+- ✅ [DFR-0102] **The dev build gives its engine the label pkexec needs.**
   2026-11-19: a rebuilt `build/dev/bin/defragr-engine` on /mnt/Games
   came out labelled samba_share_t, and pkexec printed "Error executing
   ...: Permission denied" (DFR-0042). `chcon -t bin_t` on it, as the
   file's owner, let it run. Owner's choice that day: before 0.3.0.
+  Done 2026-11-19, in `src/engine/CMakeLists.txt`: the engine's build
+  ends with `chcon -t bin_t`, and goes on where that fails.
   **Layman:** The test build fixes its own security label after each rebuild, so the window can start the engine.
   Kind: chore.
   Source: user-test-2026-11-19.
@@ -2013,6 +2032,30 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0019, DFR-0020, DFR-0021.
+
+- 📋 [DFR-0103] **Decide where a defragged file should go.**
+  Owner, 2026-11-19: files should be placed so that apps get faster.
+  Today the donor's one `fallocate` lets ext4 choose the place
+  (`src/engine/move.asm`), and no document asks for more. To weigh: a
+  folder's files next to each other, free space gathered into long
+  stretches, and which part of a spinning drive is fastest. Nothing is
+  measured. DFR-0097's numbers come first. Its release is the owner's
+  to choose; filed under 0.4.0 as a guess.
+  **Layman:** Today Linux picks where a moved file lands; work out whether DeFragR should choose, so apps load faster.
+  Kind: research.
+  Source: user-request-2026-11-19.
+  Lanes: Move.
+
+- 📋 [DFR-0104] **Defrag several folders in one run.**
+  Owner, 2026-11-19: asked how to defrag more than one folder. Today
+  each folder is its own run. The drive's top folder already defrags
+  the whole drive (DFR-0002 § 4.3). Whether the window queues runs or
+  the engine takes several folders is undesigned. Its release is the
+  owner's to choose; filed under 0.4.0 as a guess.
+  **Layman:** Pick more than one folder and DeFragR works through them one after another.
+  Kind: feature.
+  Source: user-request-2026-11-19.
+  Lanes: Run, Screens.
 
 ## 0.5.0 — Pause, cancel and background mode
 

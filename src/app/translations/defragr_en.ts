@@ -83,5 +83,13 @@
             <numerusform>%1 files skipped.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Finished with %1 of %2 file(s) in pieces (%3).</source>
+        <extracomment>%1 and %2 count files, %3 is a percentage, such as 50%. The plural follows %2.</extracomment>
+        <translation>
+            <numerusform>Finished with %1 of %2 file in pieces (%3).</numerusform>
+            <numerusform>Finished with %1 of %2 files in pieces (%3).</numerusform>
+        </translation>
+    </message>
 </context>
 </TS>

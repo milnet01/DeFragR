@@ -25,6 +25,9 @@ int percentChecked(quint64 names, quint64 estimate);
 // The same as a sentence for the running report.
 QString progressLine(quint64 names, quint64 estimate);
 
+// A percentage in the reader's own digits, such as 1.5%.
+QString percentText(double percent);
+
 // How long a report has run, such as "2 min 5 s".
 QString elapsedText(qint64 seconds);
 // While a report runs: how many fragmented files it has found.

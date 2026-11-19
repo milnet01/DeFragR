@@ -168,6 +168,14 @@ QByteArray defragged(const QByteArray &path)
     putString(p, path);
     return record(TypeFileDefragged, p);
 }
+QByteArray defragProgress(quint64 filesDone, quint64 filesTotal, quint64 blocksDone,
+                          quint64 blocksTotal)
+{
+    QByteArray p;
+    for (const quint64 field : {filesDone, filesTotal, blocksDone, blocksTotal})
+        put64(p, field);
+    return record(TypeDefragProgress, p);
+}
 // A BLOCKS_MOVED record, with `toCount` written in place of the real
 // number of to runs when given.
 QByteArray blocksMoved(const QList<MapRun> &from, const QList<MapRun> &to,
@@ -519,6 +527,35 @@ private slots:
         // OK needs the block size its runs are counted in.
         QCOMPARE(errorOf(hello(CommandDefrag, 0) + body + finished()), kMalformed);
         QCOMPARE(errorOf(hello(CommandDefrag, 0) + finished(ResultRefused)), kNoError);
+    }
+
+    // INV-26: a defrag says how far it has got, among its files' records
+    // and after its map, and nowhere else.
+    void defragProgressRecords()
+    {
+        const QByteArray d = hello(CommandDefrag);
+        const QByteArray moves = blocksMoved({{8, 2}}, {{0, 2}}) + defragged("a/b");
+        const Outcome run = decode(d + defragProgress(0, 1, 0, 2) + moves
+                                   + defragProgress(1, 1, 2, 2) + finished());
+        QCOMPARE(run.error, kNoError);
+        QCOMPARE(run.records.size(), 6);
+        QCOMPARE(std::get<DefragProgress>(run.records[1]), (DefragProgress{0, 1, 0, 2}));
+        QCOMPARE(std::get<DefragProgress>(run.records[4]), (DefragProgress{1, 1, 2, 2}));
+        // A folder with no work, and one that changed: done past total.
+        QCOMPARE(errorOf(d + defragProgress(0, 0, 0, 0) + finished()), kNoError);
+        QCOMPARE(errorOf(d + defragProgress(2, 1, 9, 2) + finished()), kNoError);
+
+        // It closes the map, as a file's record does.
+        const QByteArray map = progress(0, 9) + ::mapRuns(MapFree, {{0, 8}});
+        QCOMPARE(errorOf(d + map + mapDone() + defragProgress(0, 1, 0, 2) + finished()), kNoError);
+        QCOMPARE(errorOf(d + defragProgress(0, 1, 0, 2) + ::mapRuns(MapFree, {{0, 8}})
+                         + finished()),
+                 kMalformed);
+        QCOMPARE(errorOf(d + defragProgress(0, 1, 0, 2) + mapDone() + finished()), kMalformed);
+        // A fixed part cut short, and in a report.
+        QCOMPARE(errorOf(d + record(TypeDefragProgress, QByteArray(24, '\0')) + finished()),
+                 kMalformed);
+        QCOMPARE(errorOf(reportStream(defragProgress(0, 1, 0, 2), 0, 0)), kMalformed);
     }
 
     // INV-24: a defrag asked for the map sends it first, closed by

@@ -46,6 +46,8 @@ private:
     // Each second: how long it has run, and what it has done since.
     void showTick();
     void showCounts();
+    // The bar and its sentence, once the engine has counted the work.
+    void showWork();
 
     model::RunState m_run;
     QLabel *m_heading = nullptr;

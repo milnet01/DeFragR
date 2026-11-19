@@ -235,6 +235,12 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         record = std::move(b);
         break;
     }
+    case TypeDefragProgress:
+        record = DefragProgress{.filesDone = in.at<quint64>(0),
+                                .filesTotal = in.at<quint64>(8),
+                                .blocksDone = in.at<quint64>(16),
+                                .blocksTotal = in.at<quint64>(24)};
+        break;
     case TypeRunState:
         record = RunState{.state = in.at<quint32>(0)};
         break;
@@ -329,8 +335,8 @@ bool RecordDecoder::orderAllows(const Record &record)
 
     if (m_command == CommandDefrag) {
         // § 4.12, INV-19 and INV-24: first the map, when asked for, closed
-        // by MAP_DONE; then moves, files and run states. OK needs the
-        // block size the runs are counted in.
+        // by MAP_DONE; then progress, moves, files and run states. OK
+        // needs the block size the runs are counted in.
         if (finished)
             return finished->result != ResultOk || m_blockSize != 0 ? true : malformed();
         if (std::holds_alternative<RunState>(record))
@@ -345,7 +351,8 @@ bool RecordDecoder::orderAllows(const Record &record)
         }
         if (std::holds_alternative<FileDefragged>(record)
             || std::holds_alternative<FileSkipped>(record)
-            || std::holds_alternative<BlocksMoved>(record)) {
+            || std::holds_alternative<BlocksMoved>(record)
+            || std::holds_alternative<DefragProgress>(record)) {
             m_mapClosed = true;
             return true;
         }

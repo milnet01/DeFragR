@@ -23,6 +23,8 @@
 
 #include <QFile>
 #include <QMap>
+
+#include <optional>
 #include <QSet>
 
 #include <algorithm>
@@ -240,6 +242,55 @@ int checkDefrag(char **argv, int argc)
                   name + ": its blocks did not move" + in);
     }
     check(skipped == mustSkip, "exactly the files that must be skipped are" + in);
+
+    // INV-26: the folder's work, counted before any file's record, then
+    // one more file done after each file that was work.
+    quint64 wantedFiles = 0, wantedBlocks = 0, skippedInPieces = 0;
+    for (auto it = countBefore.begin(); it != countBefore.end(); ++it) {
+        if (!it.key().startsWith(prefix) || it.value() < 2)
+            continue;
+        if (mustSkip.contains(it.key())) {
+            ++skippedInPieces;
+        } else {
+            ++wantedFiles;
+            wantedBlocks += quint64(blocksBefore.value(it.key()).size());
+        }
+    }
+    std::optional<DefragProgress> last;
+    bool fileSince = false, steady = true, firstIsFirst = true;
+    for (const Record &record : run.records) {
+        if (std::holds_alternative<BlocksMoved>(record)
+            || std::holds_alternative<FileDefragged>(record)
+            || std::holds_alternative<FileSkipped>(record)) {
+            firstIsFirst = firstIsFirst && last.has_value();
+            fileSince = true;
+            continue;
+        }
+        const auto *work = std::get_if<DefragProgress>(&record);
+        if (!work)
+            continue;
+        if (last)
+            steady = steady && fileSince && work->filesDone == last->filesDone + 1
+                     && work->blocksDone > last->blocksDone
+                     && work->filesTotal == last->filesTotal
+                     && work->blocksTotal == last->blocksTotal;
+        else
+            steady = work->filesDone == 0 && work->blocksDone == 0;
+        last = *work;
+        fileSince = false;
+    }
+    check(last.has_value() && firstIsFirst, "DEFRAG_PROGRESS comes before any file's record" + in);
+    check(steady, "each DEFRAG_PROGRESS is one file on from the last" + in);
+    // A file that must be skipped is work only when the engine could
+    // open it to count.
+    check(last && last->filesTotal >= wantedFiles
+              && last->filesTotal <= wantedFiles + skippedInPieces
+              && last->blocksTotal >= wantedBlocks,
+          "DEFRAG_PROGRESS counts the folder's files in pieces, and their blocks" + in);
+    check(last && last->filesTotal == wantedFiles ? last->blocksTotal == wantedBlocks : true,
+          "its blocks are filefrag's" + in);
+    check(last && last->filesDone == last->filesTotal && last->blocksDone == last->blocksTotal,
+          "the last DEFRAG_PROGRESS says all of it is done" + in);
     return failures == 0 ? 0 : 1;
 }
 

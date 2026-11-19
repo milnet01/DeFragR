@@ -460,6 +460,18 @@
         <source>No file in pieces found yet.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>No file in this folder is in pieces.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Finished with %1 of %2 file(s) in pieces (%3).</source>
+        <extracomment>%1 and %2 count files, %3 is a percentage, such as 50%. The plural follows %2.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>defragr::ui::DefragView</name>
@@ -490,6 +502,10 @@
     </message>
     <message>
         <source>Joining up the files in this folder. Each move shows on the map: blocks leave a file&apos;s old places and land together in its new one. You can keep using the PC.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counting the files in this folder that are in pieces.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
