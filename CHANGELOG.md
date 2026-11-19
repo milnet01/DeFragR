@@ -53,6 +53,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - When a defrag ends, the skipped files are listed where the progress
   bar was, above the map. The list used to open below the map and
   shrink it (DFR-0113).
+- On the report page the map and the list of fragmented files have
+  their places from the start, and the report's figures show where
+  the progress was. Nothing shifts when the report ends (DFR-0114).
 - While DeFragR reads a drive's free space, before it checks any file,
   the report and the defrag say so. They used to show "Checked 0" for
   as long as that took, which on a big drive is minutes (DFR-0108).

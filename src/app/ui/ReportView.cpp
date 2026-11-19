@@ -1,6 +1,7 @@
 #include "ui/ReportView.h"
 
 #include "ui/DriveMapView.h"
+#include "ui/FixedRoom.h"
 #include "ui/ReadOnlyTable.h"
 #include "ui/Theme.h"
 
@@ -13,6 +14,14 @@
 #include <QVBoxLayout>
 
 namespace defragr::ui {
+
+namespace {
+
+// The most lines the words above a running report's progress take at the
+// window's usual widths.
+constexpr int kExplainLines = 2;
+
+}  // namespace
 
 ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
 {
@@ -52,21 +61,40 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
 
     m_table = readOnlyTable(&m_report);
 
+    // DFR-0114: one room, as tall as a running report's lines. The
+    // report's figures have all of it once the progress has gone, so the
+    // map and the list below stay where they are.
+    keepLines(m_figures, kExplainLines);
+    for (QLabel *line : {m_checked, m_found, m_latest, m_elapsed})
+        keepLines(line, 1);
+    // A file's name can hold glyphs taller than the window's own, which
+    // would make the line taller: it stays at the height of one line.
+    m_latest->setMaximumHeight(m_latest->minimumHeight());
+    auto *room = new QWidget;
+    auto *lines = new QVBoxLayout(room);
+    lines->setContentsMargins(0, 0, 0, 0);
+    lines->addWidget(m_figures);
+    lines->addWidget(m_checked);
+    lines->addWidget(m_progress);
+    lines->addWidget(m_found);
+    lines->addWidget(m_latest);
+    lines->addWidget(m_elapsed);
+    lines->addStretch();
+    room->setFixedHeight(room->sizeHint().height());
+
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(top);
-    layout->addWidget(m_figures);
-    layout->addWidget(m_checked);
-    layout->addWidget(m_progress);
-    layout->addWidget(m_found);
-    layout->addWidget(m_latest);
-    layout->addWidget(m_elapsed);
+    layout->addWidget(room);
     layout->addWidget(m_mapKey);
     layout->addWidget(m_map, 1);
     layout->addWidget(m_filesHeading);
     layout->addWidget(m_table, 1);
-    // Takes the space only while the table is hidden, so the text stays
-    // at the top.
-    layout->addStretch();
+    // The map and the list have their room before they have anything to
+    // show, and keep it when they have nothing.
+    for (QWidget *widget : {m_mapKey, static_cast<QWidget *>(m_map),
+                            static_cast<QWidget *>(m_filesHeading),
+                            static_cast<QWidget *>(m_table)})
+        keepPlace(widget);
 
     connect(m_back, &QPushButton::clicked, this, &ReportView::backRequested);
     connect(m_defrag, &QPushButton::clicked, this, &ReportView::defragRequested);

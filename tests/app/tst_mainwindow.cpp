@@ -400,6 +400,12 @@ private slots:
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Report on")), kMarkupDrive));
         QVERIFY(showsAsWritten(label(reportView(), QStringLiteral("Latest:")), kMarkupFile));
         QVERIFY(tipShowsAsWritten(label(reportView(), QStringLiteral("Latest:")), kMarkupFile));
+        // DFR-0114: the map and the list have their room before they
+        // have anything to show.
+        auto *reportMap = reportView()->findChild<ui::DriveMapView *>();
+        auto *files = reportView()->findChild<QTableView *>();
+        const QRect mapRoom = reportMap->geometry();
+        const QRect filesRoom = files->geometry();
 
         // The end: the figures replace the progress, and the file is listed.
         QVERIFY(hold.release());
@@ -407,8 +413,10 @@ private slots:
                                  kWaitMs),
                  "the report did not end");
         QVERIFY(!progress()->isVisibleTo(m_window.get()));
-        auto *files = reportView()->findChild<QTableView *>();
         QVERIFY(files->isVisibleTo(m_window.get()));
+        QVERIFY(reportMap->isVisibleTo(m_window.get()));
+        QTRY_COMPARE_WITH_TIMEOUT(reportMap->geometry(), mapRoom, kWaitMs);
+        QCOMPARE(files->geometry(), filesRoom);
         QCOMPARE(files->model()->rowCount(), 1);
         QVERIFY(files->model()->index(0, 0).data().toString().contains(kMarkupFile)
                 || files->model()->index(0, 1).data().toString().contains(kMarkupFile)

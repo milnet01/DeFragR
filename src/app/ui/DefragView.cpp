@@ -2,6 +2,7 @@
 
 #include "model/Report.h"
 #include "ui/DriveMapView.h"
+#include "ui/FixedRoom.h"
 #include "ui/ReadOnlyTable.h"
 #include "ui/Theme.h"
 
@@ -32,27 +33,6 @@ QByteArray wholePath(const QByteArray &mountPoint, const QByteArray &below)
     if (below.isEmpty())
         return mountPoint;
     return mountPoint.endsWith('/') ? mountPoint + below : mountPoint + '/' + below;
-}
-
-// The widget keeps its place while hidden, so nothing below it moves.
-void keepPlace(QWidget *widget)
-{
-    QSizePolicy policy = widget->sizePolicy();
-    policy.setRetainSizeWhenHidden(true);
-    widget->setSizePolicy(policy);
-}
-
-// The label has room for this many lines from the start, text at the top,
-// so a line more or fewer moves nothing below it.
-void keepLines(QLabel *label, int lines)
-{
-    label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    // The label's own measure of that many lines, with the mark an
-    // elided path carries.
-    const QString was = label->text();
-    label->setText(QStringList(lines, QStringLiteral("X\u2026")).join(QLatin1Char('\n')));
-    label->setMinimumHeight(label->sizeHint().height());
-    label->setText(was);
 }
 
 }  // namespace
