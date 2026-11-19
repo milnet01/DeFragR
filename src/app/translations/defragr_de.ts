@@ -543,6 +543,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Files in large pieces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Fragmented files</source>
         <translation type="unfinished"></translation>
     </message>

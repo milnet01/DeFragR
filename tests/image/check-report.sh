@@ -42,6 +42,13 @@ fallocate -l 65536 /mnt/img/joined &&
 check "joined is written" $? 0
 check "joined is three extents to FIEMAP" \
     "$(filefrag -v /mnt/img/joined | grep -cE '^ *[0-9]+:')" 3
+# INV-28's file in large pieces: 40 MiB of space reserved in one go, a
+# spacer's space reserved after it, then 40 MiB more for the file.
+fallocate -l 41943040 /mnt/img/large &&
+    fallocate -l 41943040 /mnt/img/large-spacer &&
+    fallocate -o 41943040 -l 41943040 /mnt/img/large &&
+    rm /mnt/img/large-spacer && sync /mnt/img/large
+check "large is written" $? 0
 # A name the walk reads but never visits: INV-14 counts it.
 ln -s whole /mnt/img/link
 check "link is made" $? 0
@@ -56,6 +63,9 @@ check "the image is mounted afresh" $? 0
 describe_files /mnt/img >/tmp/reference
 check "filefrag counts joined as one piece" \
     "$(awk '$3 == "joined" { print $1 }' /tmp/reference)" 1
+# 80 MiB in two to five pieces averages 16 MiB or more a piece.
+check "filefrag counts large in pieces averaging 16 MiB or more" \
+    "$(awk '$3 == "large" { print ($1 >= 2 && $1 <= 5) }' /tmp/reference)" 1
 
 # strictatime: any folder or file the engine reads would now get a new
 # access time, and so change the disk. The default, relatime, updates

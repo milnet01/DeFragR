@@ -278,10 +278,11 @@ report_run:
     ; Its map runs, now its pieces say which kind they are. A failure here
     ; skips the file as a failed count would; runs already sent stand
     ; (DFR-0002 § 4.6).
-    mov edx, MAP_WHOLE_FILE
-    mov eax, MAP_FRAGMENTED_FILE
-    cmp r12, 2
-    cmovae edx, eax
+    mov rdi, r12
+    mov rsi, r13
+    mov edx, r15d
+    call map_kind_of
+    mov edx, eax
     mov edi, ebx
     mov esi, r15d
     call extents_count
@@ -716,10 +717,11 @@ send_map:
     cmp rax, -MAX_ERRNO
     jae .close
     ; Its runs, now its pieces say which kind they are.
-    mov edx, MAP_WHOLE_FILE
-    mov ecx, MAP_FRAGMENTED_FILE
-    cmp rax, 2
-    cmovae edx, ecx
+    mov rdi, rax
+    mov rsi, rdx
+    mov edx, r15d
+    call map_kind_of
+    mov edx, eax
     mov edi, ebx
     mov esi, r15d
     call extents_count
@@ -735,6 +737,24 @@ send_map:
     call rec_start
     call rec_send
     add rsp, 8
+    ret
+
+; map_kind_of(rdi = a file's pieces, rsi = the blocks its extents
+;   cover, edx = the block size) -> eax = the MAP_ kind its runs are sent
+;   as (DFR-0002 § 4.6). Clobbers rcx, rdx.
+map_kind_of:
+    mov eax, MAP_WHOLE_FILE
+    cmp rdi, 2
+    jb .done
+    mov eax, MAP_FRAGMENTED_FILE
+    mov ecx, edx
+    imul rcx, rsi                   ; rcx = its bytes
+    mov rdx, rdi
+    shl rdx, LARGE_PIECE_SHIFT      ; rdx = as many pieces of 16 MiB
+    cmp rcx, rdx
+    jb .done
+    mov eax, MAP_LARGE_PIECE_FILE
+.done:
     ret
 
 ; send_progress() -> rax = 0. Sends REPORT_PROGRESS with the walk's

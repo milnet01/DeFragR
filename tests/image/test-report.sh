@@ -10,7 +10,7 @@ usage="usage: test-report.sh WORKDIR ENGINE REPORT_CHECK HOLD_LEASE"
 work=${1:?$usage} engine=${2:?$usage} checker=${3:?$usage} lease=${4:?$usage}
 mkdir -p "$work"
 rm -f "$work/img.img"
-truncate -s 64M "$work/img.img"
+truncate -s 256M "$work/img.img"
 
 rc=0
 "$here/../vm/run.sh" --work "$work/machine" \

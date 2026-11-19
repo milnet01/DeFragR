@@ -66,8 +66,8 @@ public:
     int cellSide() const { return m_cellSide; }
     int cellGap() const;
     // Paints the whole of one cell, background included: whole is solid,
-    // fragmented is diagonal stripes, filesystem is four dots, free is a
-    // faint outline.
+    // large pieces is solid with one diagonal cut, fragmented is diagonal
+    // stripes, filesystem is four dots, free is a faint outline.
     void paintCell(QPainter &painter, const QRect &cell, CellState state) const;
     // A changing cell's glow: a round halo, its colours from the centre
     // (0) to the edge (1), and a wash over the cell. On a dark map both

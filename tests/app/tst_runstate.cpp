@@ -205,6 +205,19 @@ private slots:
         QVERIFY(run.map().isEmpty());
     }
 
+    // DFR-0106: a file that ends in two or more pieces averaging 16 MiB,
+    // by its FILE_DEFRAGGED and the run's HELLO's block size, shows as
+    // large pieces where it landed.
+    void aFileInLargePiecesShowsSo()
+    {
+        qputenv("DEFRAGR_TEST_DEFRAG", "large");
+        Run run(launcher("pkexec-pass"));
+        QVERIFY(runToEnd(run, "games"));
+        QCOMPARE(run.stage(), Run::Stage::Done);
+        QCOMPARE(run.map().cells(1000).mid(400, 40),
+                 QList<CellState>(40, CellState::LargePieces));
+    }
+
     // INV-5: a run the engine stops still finished its stream, so the
     // counts and the map so far stand, and the result's words are given.
     void aStoppedRunKeepsWhatItDid()

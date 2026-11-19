@@ -109,10 +109,10 @@ Padding bytes and `flags` are not checked.
 ### 4.2 Versioning
 
 The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
-defines **1.6**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
+defines **1.7**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
 (§ 4.6), `selftest-crc32c` in 1.3 (§ 4.11), `defrag` in 1.4 (§ 4.12),
-`defrag`'s map and `MAP_DONE` in 1.5, and `DEFRAG_PROGRESS` in 1.6
-(§ 4.12).
+`defrag`'s map and `MAP_DONE` in 1.5, `DEFRAG_PROGRESS` in 1.6
+(§ 4.12), and `MAP_RUNS` kind 5 in 1.7 (§ 4.6).
 
 - **Minor** changes add, and never change: a new record or command type,
   a field appended to a payload, a new value of an enumerated field. An
@@ -289,7 +289,8 @@ inode; inodes the filesystem keeps for itself have no name. On
 
 ```
 offset      size  field
-0           4     kind     1 free, 2 the filesystem's own, 3 a file in one piece, 4 a file in two or more pieces
+0           4     kind     1 free, 2 the filesystem's own, 3 a file in one piece, 4 a file in two or more
+                           pieces, 5 such a file whose pieces are large
 4           4     count    runs after the fixed part
 8 + 16 × i  8     start    run i's first block
 16 + 16 × i 8     length   run i's blocks
@@ -307,9 +308,14 @@ the last run are trailing bytes (§ 4.1).
   lets them go.
 - A drive that cannot give that map sends no runs of kinds 1 and 2, or
   only those read before GETFSMAP failed. The report goes on.
-- Kinds 3 and 4 come from each visited file's extents
-  (`FS_IOC_FIEMAP`). Kind 4 is a file in two or more pieces, as
-  `FRAGMENTED_FILE` counts them. An extent flagged unknown or not aligned
+- Kinds 3, 4 and 5 come from each visited file's extents
+  (`FS_IOC_FIEMAP`). Kinds 4 and 5 are a file in two or more pieces, as
+  `FRAGMENTED_FILE` counts them. It is kind 5 where its blocks, as
+  `FRAGMENTED_FILE` counts `size_blocks`, times the block size are at
+  least its pieces times `LARGE_PIECE_BYTES`, 16 MiB: its average piece
+  is that large. Otherwise it is kind 4. Added in 1.7; an engine before
+  it sends kind 4 for both. 16 MiB is a judgement, measured on no drive
+  (ROADMAP DFR-0106). An extent flagged unknown or not aligned
   has no blocks of its own yet, and is not sent. A file skipped at stage
   3 may have sent some runs first.
 - A run starting where the last run of its kind ends is joined onto it,
@@ -393,7 +399,7 @@ result and errno, and `BLOCKS_MOVED`' counts.
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 6, command 255, block_size `0x01020304` |
+| `HELLO` | major 1, minor 7, command 255, block_size `0x01020304` |
 | `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
 | `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
@@ -413,7 +419,7 @@ it. The `HELLO` record is these 24 bytes:
 
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
-01 00 06 00 ff 00 00 00   major 1, minor 6, command 255
+01 00 07 00 ff 00 00 00   major 1, minor 7, command 255
 04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
@@ -760,8 +766,8 @@ isolates.
   links, a report that finishes `OK` sends runs that share no block.
   Kind 1 covers as many blocks as `statfs` gives free. Kind 3 covers
   exactly the blocks
-  `filefrag -v` lists for files in one piece, and kind 4 those of files
-  in two or more. Block 0, the superblock's, is in a kind 2 run.
+  `filefrag -v` lists for files in one piece, and kinds 4 and 5 those of
+  files in two or more, each file's as INV-28 says. Block 0, the superblock's, is in a kind 2 run.
   *Test:* `tests/image/report-check.cpp`, the `image_report` test. The
   image's free space lies in more runs than one GETFSMAP call returns
   (`FSMAP_PER_CALL`, `src/engine/extents.asm`), so a second call is
@@ -881,6 +887,18 @@ isolates.
   *Breaks when:* the engine counts files in one piece, counts after it
   has moved a file, or sends progress for a file that was not work.
 
+- **INV-28** — A report sends a file in two or more pieces as kind 5
+  where its blocks times the block size are at least its pieces times
+  16 MiB, by `filefrag`'s pieces and blocks, and as kind 4 otherwise.
+  *Test:* `tests/image/report-check.cpp`, the `image_report` test. The
+  image holds `large`, its space reserved in two goes with another
+  file's between, which the test machine must show in pieces averaging
+  16 MiB or more; `build_image`'s fragmented files are in one-block
+  pieces.
+  *Breaks when:* the engine compares blocks with bytes, never sends
+  kind 5, or sends it for every file in pieces. The fixture does not
+  tell an average from a largest piece, or from the file's size.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -934,7 +952,7 @@ fail against an engine that accepts any folder under a mount point.
 | `tests/app/tst_records_conformance.cpp` | INV-10, INV-11, INV-18, INV-21 and INV-25's arguments without root | No |
 | `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
 | `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
-| `tests/image/report-check.cpp` | INV-14, INV-17 | Yes, its input comes from the test machine |
+| `tests/image/report-check.cpp` | INV-14, INV-17, INV-28 | Yes, its input comes from the test machine |
 | `tests/image/check-defrag.sh` | INV-21 as root, INV-23, INV-25's arguments and folder check | Yes, inside the test machine |
 | `tests/image/defrag-check.cpp` | INV-20, INV-22's probe record, INV-25's map, INV-27 | Yes, its input comes from the test machine |
 | `tests/image/check-old-cpu.sh` | INV-22 | Yes, inside a test machine with no SSE4.2 |
@@ -944,7 +962,8 @@ DFR-0011 does the same for INV-16's and INV-17's, DFR-0016 for INV-18's,
 DFR-0017 for INV-19's to INV-23's, and DFR-0096 for INV-24's and
 INV-25's. DFR-0099 writes INV-26's and INV-27's. INV-27's was seen
 failing on 2026-11-19 against an engine that counted files in one piece
-too. INV-26's was not seen failing.
+too. INV-26's was not seen failing. DFR-0106 writes INV-28's, seen
+failing on 2026-11-19 against an engine that sent `large` as kind 4.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -980,7 +999,7 @@ engine. The conformance and image tests read real engine output.
 | INV-1 to INV-9, INV-13, INV-16, INV-19, INV-24, INV-26 | `tests/app/tst_records.cpp` |
 | INV-10, INV-11, INV-18 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
-| INV-14, INV-17 | `tests/image/report-check.cpp` (`image_report`) |
+| INV-14, INV-17, INV-28 | `tests/image/report-check.cpp` (`image_report`) |
 | INV-15 | `tests/image/check-report.sh` (`image_report`); `tests/app/tst_engineprocess.cpp::pathArgument` |
 | INV-20 | `tests/image/defrag-check.cpp` (`image_defrag`) |
 | INV-21 | `tests/app/tst_records_conformance.cpp`; `tests/image/check-defrag.sh` (`image_defrag`) |
@@ -988,6 +1007,7 @@ engine. The conformance and image tests read real engine output.
 | INV-23 | `tests/image/check-defrag.sh` (`image_defrag`) |
 | INV-25 | `tests/image/defrag-check.cpp` and `tests/image/check-defrag.sh` (`image_defrag`); `tests/app/tst_records_conformance.cpp` |
 | INV-27 | `tests/image/defrag-check.cpp` (`image_defrag`); `tests/app/tst_records_conformance.cpp` for the bytes |
+| INV-28 | `tests/image/report-check.cpp` (`image_report`) |
 | § 4.12 `DEFRAG_PROGRESS` when the folder changes between the count and the move | **nothing**: it needs a change timed between the two walks |
 | § 4.12 with `map`, a drive or folder that changes during the map's walk | **nothing**: it needs a change timed between the two walks |
 | § 4.7 check order | INV-11 and INV-21 |

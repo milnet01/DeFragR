@@ -23,12 +23,18 @@
 
 namespace defragr::model {
 
-// What one map cell shows.
-enum class CellState { Free, Filesystem, Whole, Fragmented };
+// What one map cell shows. LargePieces is a file in two or more pieces
+// that average engine::LargePieceBytes or more; Fragmented, one whose
+// pieces are smaller.
+enum class CellState { Free, Filesystem, Whole, LargePieces, Fragmented };
 // How many states there are, for arrays indexed by CellState. A state
 // added after Fragmented fails the assert until this counts it.
-inline constexpr std::size_t kCellStates = 4;
+inline constexpr std::size_t kCellStates = 5;
 static_assert(kCellStates == std::size_t(CellState::Fragmented) + 1);
+
+// A file's state from its pieces and the blocks they hold, as the engine
+// grades a map's runs (DFR-0002 § 4.6): Whole, LargePieces or Fragmented.
+CellState fileState(quint64 pieces, quint64 blocks, quint32 blockSize);
 
 class DriveMap {
 public:
@@ -39,14 +45,15 @@ public:
     bool isEmpty() const { return m_end == 0; }
 
     // A move the engine made: its from blocks now count as free, its to
-    // blocks as a whole file's. The map may be stale or coarse, so where
+    // blocks as a whole file's. A from block is a fragmented file's, or
+    // else one in large pieces. The map may be stale or coarse, so where
     // a bin lacks the blocks a move names, they are taken from blocks in
     // no run, then from the other kinds. A run past the map's end grows
     // the map, as add() does.
     void move(const engine::BlocksMoved &move);
-    // The file those moves belonged to is done. Not in one piece: the
-    // blocks that landed for it count as a fragmented file's.
-    void endTurn(bool inOnePiece);
+    // The file those moves belonged to is done, and is this state: where
+    // it is not Whole, the blocks that landed for it count as that.
+    void endTurn(CellState file);
 
     // One past the last block any run names. A drive whose GETFSMAP
     // worked has free or filesystem runs to its end; one whose GETFSMAP

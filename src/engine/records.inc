@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 6
+PROTOCOL_MINOR      equ 7
 
 ; § 4.1 framing.
 struc rec_header
@@ -143,7 +143,11 @@ MAP_FREE            equ 1
 MAP_FILESYSTEM      equ 2
 MAP_WHOLE_FILE      equ 3
 MAP_FRAGMENTED_FILE equ 4
-MAP_KINDS           equ 4
+MAP_LARGE_PIECE_FILE equ 5
+MAP_KINDS           equ 5
+; A file in two or more pieces is MAP_LARGE_PIECE_FILE where its bytes
+; are at least its pieces shifted left by this: times 16 MiB.
+LARGE_PIECE_SHIFT   equ 24
 
 ; FILE_SKIPPED.stage (§ 4.6; 6 to 11 in defrag only, § 4.12).
 STAGE_OPEN          equ 1

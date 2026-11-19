@@ -61,7 +61,7 @@ private slots:
         QCOMPARE(run.exitCode, 0);
         QCOMPARE(run.records.size(), 13);
 
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 6, 255, 0x01020304}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 7, 255, 0x01020304}));
 
         Drive drive;
         drive.totalBlocks = 0x1112131415161718;
@@ -110,7 +110,7 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-crc32c")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.records.size(), 2);
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 6, CommandSelftestCrc32c, 0}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 7, CommandSelftestCrc32c, 0}));
         QCOMPARE(std::get<Finished>(run.records[1]).result, int(ResultOk));
         QCOMPARE(run.exitCode, 0);
     }

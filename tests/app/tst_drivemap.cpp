@@ -12,6 +12,7 @@
 using namespace defragr::engine;
 using defragr::model::CellState;
 using defragr::model::DriveMap;
+using defragr::model::fileState;
 
 namespace {
 
@@ -207,16 +208,16 @@ private slots:
         map.move({{{0, 2}}, {{6, 2}}});
         QCOMPARE(map.cells(12), (QList<CellState>{Free, Free, Free, Free, Fragmented, Fragmented,
                                                   Whole, Whole, Free, Free, Free, Free}));
-        map.endTurn(true);
+        map.endTurn(Whole);
 
         // The second: blocks 4-5 go to 8-9, and it ends in two pieces.
         map.move({{{4, 2}}, {{8, 2}}});
         QCOMPARE(map.cells(12).mid(8, 2), (QList<CellState>{Whole, Whole}));
-        map.endTurn(false);
+        map.endTurn(Fragmented);
         QCOMPARE(map.cells(12), (QList<CellState>{Free, Free, Free, Free, Free, Free, Whole,
                                                   Whole, Fragmented, Fragmented, Free, Free}));
         // A turn's end with nothing landed changes nothing.
-        map.endTurn(false);
+        map.endTurn(Fragmented);
         QCOMPARE(map.cells(12).mid(6, 4), (QList<CellState>{Whole, Whole, Fragmented, Fragmented}));
     }
 
@@ -237,9 +238,50 @@ private slots:
         map.move({{{6, 2}}, {{8, 2}}});
         QCOMPARE(map.blocks(), quint64(10));
         QCOMPARE(map.cells(10).mid(6), (QList<CellState>{Free, Free, Whole, Whole}));
-        map.endTurn(false);
+        map.endTurn(Fragmented);
         QCOMPARE(map.cells(10), (QList<CellState>{Free, Free, Fragmented, Filesystem, Fragmented,
                                                   Filesystem, Free, Free, Fragmented, Fragmented}));
+    }
+
+    // DFR-0106: a file in pieces averaging 16 MiB or more is in large
+    // pieces, by the engine's own rule (DFR-0002 § 4.6).
+    void fileStateGradesByAveragePiece()
+    {
+        using enum CellState;
+        const quint64 piece = LargePieceBytes / 4096;  // 16 MiB of 4 KiB blocks
+        QCOMPARE(fileState(1, 3 * piece, 4096), Whole);
+        QCOMPARE(fileState(0, 0, 4096), Whole);
+        QCOMPARE(fileState(2, 2 * piece, 4096), LargePieces);
+        QCOMPARE(fileState(2, 2 * piece - 2, 4096), Fragmented);
+        QCOMPARE(fileState(3, 2 * piece, 4096), Fragmented);
+        // The same bytes in 1 KiB blocks.
+        QCOMPARE(fileState(2, 8 * piece, 1024), LargePieces);
+        QCOMPARE(fileState(2, 2 * piece, 1024), Fragmented);
+        // A block size of 0 and counts at the top of the range wrap nothing.
+        QCOMPARE(fileState(2, 100, 0), Fragmented);
+        const quint64 top = std::numeric_limits<quint64>::max();
+        QCOMPARE(fileState(2, top, 4096), LargePieces);
+        QCOMPARE(fileState(top, top, 4096), Fragmented);
+    }
+
+    // DFR-0106: the map shows kind 5's blocks as large pieces. A move
+    // frees them as it frees a fragmented file's, and a file that ends
+    // in large pieces shows so where it landed. One block per cell.
+    void largePiecesShowAndMove()
+    {
+        using enum CellState;
+        DriveMap map;
+        map.add(runs(MapLargePieceFile, {{0, 2}}));
+        map.add(runs(MapFragmentedFile, {{2, 2}}));
+        map.add(runs(MapFree, {{4, 4}}));
+        QCOMPARE(map.cells(8), (QList<CellState>{LargePieces, LargePieces, Fragmented, Fragmented,
+                                                 Free, Free, Free, Free}));
+        map.move({{{0, 2}}, {{4, 2}}});
+        map.endTurn(Whole);
+        map.move({{{2, 2}}, {{6, 2}}});
+        map.endTurn(LargePieces);
+        QCOMPARE(map.cells(8), (QList<CellState>{Free, Free, Free, Free, Whole, Whole,
+                                                 LargePieces, LargePieces}));
     }
 
     // A turn's landed blocks follow the bins when the map outgrows them.
@@ -251,7 +293,7 @@ private slots:
         map.move({{}, {{0, size / 2}}});
         // Past the end: the bins double in width.
         map.move({{}, {{size, size}}});
-        map.endTurn(false);
+        map.endTurn(CellState::Fragmented);
         QCOMPARE(map.cells(4), (QList<CellState>{CellState::Fragmented, CellState::Free,
                                                  CellState::Fragmented, CellState::Fragmented}));
     }

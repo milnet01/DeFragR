@@ -1951,7 +1951,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-test-2026-11-19.
   Lanes: Map.
 
-- 📋 [DFR-0106] **The map shows how fragmented a file is.**
+- ✅ [DFR-0106] **The map shows how fragmented a file is.**
   Owner, 2026-11-19: asked for shading or some other way to show how
   defragmented a block is, and left the design to Claude. Claude's
   call that day, from DFR-0097's numbers: a third pattern, a solid
@@ -1960,6 +1960,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   engine grades each file's blocks in the map it sends, a protocol
   amendment; the window grades what a defrag lands. 16 MiB is a
   judgement, not measured on any drive.
+  Done 2026-11-19: protocol 1.7, `MAP_RUNS` kind 5
+  (`docs/specs/DFR-0002-engine-protocol.md` § 4.6, INV-28), and
+  `LargePieces` in the window
+  (`docs/specs/DFR-0018-window-folder-defrag.md` § 4.1). Left: whether
+  the cut reads well is the owner's to judge. The engine still moves a
+  file that is already in large pieces; whether it should is DFR-0103's.
   **Layman:** Three looks instead of two: solid for whole files, solid with one cut for files in a few big pieces, stripes for badly fragmented ones.
   Kind: feature.
   Source: user-test-2026-11-19.

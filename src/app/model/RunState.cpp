@@ -131,6 +131,8 @@ void RunState::collect(const QList<Record> &records)
     std::optional<ReportProgress> progress;
     bool any = false;
     for (const Record &record : records) {
+        if (const auto *hello = std::get_if<Hello>(&record))
+            m_blockSize = hello->blockSize;
         if (m_stage == Stage::ReadingMap) {
             if (const auto *runs = std::get_if<MapRuns>(&record)) {
                 m_incomingMap.add(*runs);
@@ -152,14 +154,14 @@ void RunState::collect(const QList<Record> &records)
             emit blocksMoved(*move);
             any = true;
         } else if (const auto *file = std::get_if<FileDefragged>(&record)) {
-            m_map.endTurn(file->extentsAfter <= 1);
+            m_map.endTurn(fileState(file->extentsAfter, file->movedBlocks, m_blockSize));
             ++(file->movedBlocks > 0 ? m_counts.joined : m_counts.left);
             m_latestPath = file->path;
             any = true;
         } else if (const auto *skip = std::get_if<FileSkipped>(&record)) {
             // Blocks moved before a skip stay moved (§ 4.12, stage 9), and
             // the file is not known to be in one piece.
-            m_map.endTurn(false);
+            m_map.endTurn(CellState::Fragmented);
             ++m_counts.skipped;
             if (m_skipped.size() < kSkippedListed)
                 m_skipped.append(*skip);
@@ -201,7 +203,7 @@ void RunState::engineEnded(const RunOutcome &outcome)
         m_mapMount.clear();
     } else {
         // A stream may end in mid-turn, as on CHECKSUM_MISMATCH's last skip.
-        m_map.endTurn(false);
+        m_map.endTurn(CellState::Fragmented);
     }
     if (!problem.what.isEmpty()) {
         fail(problem);

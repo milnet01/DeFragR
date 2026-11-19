@@ -102,7 +102,11 @@ enum MapKind : quint32 {
     MapFilesystem = 2,
     MapWholeFile = 3,
     MapFragmentedFile = 4,
+    MapLargePieceFile = 5,
 };
+// A file in two or more pieces is MapLargePieceFile where its bytes are
+// at least its pieces times this (§ 4.6).
+inline constexpr quint64 LargePieceBytes = quint64(16) << 20;
 
 // Enumerated fields stay plain integers: a value this window does not
 // know decodes as itself, never as an error (§ 4.2, INV-9).

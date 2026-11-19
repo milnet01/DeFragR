@@ -32,11 +32,23 @@ std::optional<CellState> stateOf(quint32 kind)
         return CellState::Whole;
     case MapFragmentedFile:
         return CellState::Fragmented;
+    case MapLargePieceFile:
+        return CellState::LargePieces;
     }
     return std::nullopt;
 }
 
 }  // namespace
+
+CellState fileState(quint64 pieces, quint64 blocks, quint32 blockSize)
+{
+    if (pieces <= 1)
+        return CellState::Whole;
+    // Divided, not multiplied: the decoder takes any count (INV-16).
+    return blocks / pieces >= LargePieceBytes / std::max<quint32>(blockSize, 1)
+               ? CellState::LargePieces
+               : CellState::Fragmented;
+}
 
 void DriveMap::clear()
 {
@@ -125,9 +137,15 @@ void DriveMap::recount(const MapRun &run, CellState was, CellState now, bool lan
         const quint64 taken = std::min(blocks, tally[size_t(was)]);
         tally[size_t(was)] -= taken;
         tally[size_t(now)] += blocks;
+        quint64 lacking = blocks - taken;
+        // A file in pieces may be in large ones.
+        if (was == CellState::Fragmented) {
+            const quint64 large = std::min(lacking, tally[size_t(CellState::LargePieces)]);
+            tally[size_t(CellState::LargePieces)] -= large;
+            lacking -= large;
+        }
         // The rest were not `was` here: blocks in no run first, which
         // need no change, then whichever other kind has most.
-        quint64 lacking = blocks - taken;
         lacking -= std::min(lacking, width > named ? width - named : 0);
         while (lacking > 0) {
             quint64 *most = nullptr;
@@ -153,14 +171,14 @@ void DriveMap::move(const BlocksMoved &move)
         recount(run, CellState::Free, CellState::Whole, true);
 }
 
-void DriveMap::endTurn(bool inOnePiece)
+void DriveMap::endTurn(CellState file)
 {
-    if (!inOnePiece) {
+    if (file != CellState::Whole) {
         for (auto it = m_landed.cbegin(); it != m_landed.cend(); ++it) {
             Tally &tally = m_bins[it.key()];
             const quint64 blocks = std::min(it.value(), tally[size_t(CellState::Whole)]);
             tally[size_t(CellState::Whole)] -= blocks;
-            tally[size_t(CellState::Fragmented)] += blocks;
+            tally[size_t(file)] += blocks;
         }
     }
     m_landed.clear();

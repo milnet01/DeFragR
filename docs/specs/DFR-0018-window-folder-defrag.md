@@ -76,9 +76,12 @@ owner:
 // A move the engine made (BLOCKS_MOVED): its from blocks now count as
 // free, its to blocks as a whole file's.
 void move(const engine::BlocksMoved &move);
-// The file those moves belonged to is done. Not in one piece: the
-// blocks that landed for it count as a fragmented file's.
-void endTurn(bool inOnePiece);
+// The file those moves belonged to is done, and is this state: where
+// it is not Whole, the blocks that landed for it count as that.
+void endTurn(CellState file);
+// A file's state from its pieces and blocks, as the engine grades a
+// map's (DFR-0002 § 4.6): Whole, LargePieces or Fragmented.
+CellState fileState(quint64 pieces, quint64 blocks, quint32 blockSize);
 // How many blocks each of cells(count)'s cells holds.
 quint64 blocksPerCell(int count) const;
 ```
@@ -88,6 +91,16 @@ as something else, or past its end. `move` then takes the shortfall
 from blocks in no run, then from the other kinds, and grows the map as
 `add` does. No tally goes below zero. The blocks landed in a turn are
 kept per bin, so their number is bounded by `kBinsMax`.
+
+`CellState` gains `LargePieces`, between `Whole` and `Fragmented`: a
+file in two or more pieces averaging 16 MiB or more, `MAP_RUNS` kind 5.
+`RunState` grades a `FILE_DEFRAGGED` by its `extents_after` and
+`moved_blocks`, and ends a skipped file's turn as `Fragmented`. A from
+run is taken from `Fragmented` blocks, then from `LargePieces`, before
+the other kinds. `ui/Theme` paints `LargePieces` in the whole file's
+colour, solid but for one diagonal cut, and the map's key names it
+(owner, 2026-11-19: asked to see how fragmented a block is, and left
+the look to Claude; ROADMAP DFR-0106).
 
 ### 4.2 Run: `model/RunState`
 
@@ -384,6 +397,7 @@ Each is seen to fail before the code it locks is written, per
 | § 3 the journey's look, and that it is pleasant to watch | **nothing**: judged by eye in `tests/map-demo` |
 | § 4.3 the desktop's setting turns motion off | `Partial:` INV-10 checks the view with motion off; **nothing** checks that the view reads the desktop's setting |
 | § 4.3 the marker | `Partial:` `tests/app/tst_drivemapview.cpp`: `markerPulsesAtMostOnceASecond` for the pulse's pace, `onlyWhatMovesIsRepainted` for where the outline lies and that the pulse leaves nothing behind, `motionOffChangesAtOnce` for no pulse. **Nothing** checks that it is easy to find: judged by eye |
+| § 4.1 `LargePieces` | `tests/app/tst_drivemap.cpp`: `fileStateGradesByAveragePiece` and `largePiecesShowAndMove`; `tests/app/tst_runstate.cpp::aFileInLargePiecesShowsSo`; `tests/app/tst_theme.cpp` for a pattern unlike the others'. **Nothing** checks that the cut reads as nearly whole: judged by eye |
 | § 4.3 the source outline | `tests/app/tst_drivemapview.cpp`: `sourceOutlineIsDashed` for where it lies and its dashes, `onlyWhatMovesIsRepainted` for the cells it crosses. **Nothing** checks that it reads apart from the marker by eye |
 | § 6 a stale map | **nothing** |
 | § 4.4 the new screens read right to left | **nothing**: checked by eye with `defragr -reverse` (`docs/design.md` § Wording and languages) |

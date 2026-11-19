@@ -106,6 +106,7 @@ private:
     Counts m_counts;
     std::optional<engine::DefragProgress> m_work;
     QByteArray m_latestPath;
+    quint32 m_blockSize = 0;  // the run's HELLO's
     QList<engine::FileSkipped> m_skipped;
     Message m_problem;
 };

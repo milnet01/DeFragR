@@ -97,7 +97,7 @@ public:
         m_view.showMove(move);
         // A file's turn ends every few pieces, in one piece.
         if (++m_pieces % 4 == 0) {
-            m_map.endTurn(true);
+            m_map.endTurn(model::CellState::Whole);
             m_view.followMap();
         }
         return true;

@@ -221,9 +221,24 @@ void checkMap(const QByteArray &referenceText, const QByteArray &spaceText,
     check(total > 0 && kindOf[0] == MapFilesystem,
           QStringLiteral("block 0, the superblock's, is in a filesystem run"));
 
-    // Every file's blocks, as kind 4 when filefrag counts two or more
-    // pieces and kind 3 otherwise; every other block is no file's.
+    // Every file's blocks, as kind 3 when filefrag counts one piece,
+    // and otherwise as kind 5 when its 4 KiB blocks average 16 MiB or
+    // more a piece and kind 4 when they do not (INV-28); every other
+    // block is no file's.
     const QMap<QByteArray, quint64> pieces = numberByPath(referenceText);
+    QMap<QByteArray, quint64> blocksOf;
+    for (const QByteArray &line : extentsText.split('\n')) {
+        const QList<QByteArray> fields = line.split(' ');
+        if (fields.size() >= 3)
+            blocksOf[fields.mid(2).join(' ')] += fields[1].toULongLong();
+    }
+    const auto kindFor = [&](const QByteArray &path) -> quint32 {
+        if (pieces.value(path) < 2)
+            return MapWholeFile;
+        return blocksOf.value(path) * 4096 >= pieces.value(path) * LargePieceBytes
+                   ? MapLargePieceFile
+                   : MapFragmentedFile;
+    };
     QList<quint32> expected(qsizetype(total), 0);
     for (const QByteArray &line : extentsText.split('\n')) {
         const QList<QByteArray> fields = line.split(' ');
@@ -231,13 +246,15 @@ void checkMap(const QByteArray &referenceText, const QByteArray &spaceText,
             continue;
         const quint64 start = fields[0].toULongLong();
         const quint64 length = fields[1].toULongLong();
-        const quint32 kind =
-            pieces.value(fields.mid(2).join(' ')) >= 2 ? MapFragmentedFile : MapWholeFile;
+        const quint32 kind = kindFor(fields.mid(2).join(' '));
         for (quint64 b = start; b < start + length && b < total; ++b)
             expected[qsizetype(b)] = kind;
     }
+    for (const quint32 kind : {MapWholeFile, MapFragmentedFile, MapLargePieceFile})
+        check(expected.contains(kind),
+              QStringLiteral("filefrag shows a file of kind %1").arg(kind));
     const auto isFile = [](quint32 kind) {
-        return kind == MapWholeFile || kind == MapFragmentedFile;
+        return kind == MapWholeFile || kind == MapFragmentedFile || kind == MapLargePieceFile;
     };
     qsizetype wrong = 0;
     qsizetype first = -1;

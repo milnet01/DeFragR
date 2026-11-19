@@ -13,7 +13,8 @@
 # DEFRAGR_TEST_LOG, when set, names a file that gains each command line.
 # DEFRAGR_TEST_DEFRAG changes how the defrag ends: "mismatch" stops it at
 # a file that reads back differently; "broken" breaks its stream; "no-map"
-# ends it with a drive error before its map is whole.
+# ends it with a drive error before its map is whole; "large" ends its
+# first file in two large pieces.
 # Records: docs/specs/DFR-0002-engine-protocol.md § 4.
 [ -z "${DEFRAGR_TEST_LOG:-}" ] || printf '%s\n' "$*" >>"$DEFRAGR_TEST_LOG"
 case "$1" in
@@ -109,8 +110,8 @@ the_map() {
 work() { header 66 32; le "$1" 8; le 3 8; le "$2" 8; le 160 8; }
 
 if [ "$1" = defrag ]; then
-    # HELLO: version 1.6, defrag, block size 4096.
-    header 1 16; le 1 2; le 6 2; le 3 4; le 4096 4; zeros 4
+    # HELLO: version 1.7, defrag, block size 4096.
+    header 1 16; le 1 2; le 7 2; le 3 4; le 4096 4; zeros 4
     if [ "${4:-}" = map ]; then
         # REPORT_PROGRESS: names 0, then 300, of an estimated 300.
         header 35 16; le 0 8; le 300 8
@@ -133,7 +134,12 @@ if [ "$1" = defrag ]; then
     fi
     hold_sent
     hold_wait
-    defragged 2 1 40 'games/<img src=x>.bin'
+    if [ "${DEFRAGR_TEST_DEFRAG:-}" = large ]; then
+        # It ends in two pieces of 16 MiB: 8192 blocks of 4 KiB.
+        defragged 2 2 8192 'games/<img src=x>.bin'
+    else
+        defragged 2 1 40 'games/<img src=x>.bin'
+    fi
     work 1 40
     if [ "${DEFRAGR_TEST_DEFRAG:-}" = mismatch ]; then
         blocks_moved 1 320 10 500 10

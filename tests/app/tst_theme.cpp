@@ -17,7 +17,7 @@ using defragr::ui::Theme;
 namespace {
 
 constexpr std::array kStates{CellState::Free, CellState::Filesystem, CellState::Whole,
-                             CellState::Fragmented};
+                             CellState::LargePieces, CellState::Fragmented};
 
 double luminance(const QColor &colour)
 {

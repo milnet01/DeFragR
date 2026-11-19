@@ -153,6 +153,7 @@ QColor Theme::cellColour(CellState state) const
     case CellState::Filesystem:
         return m_map.filesystem;
     case CellState::Whole:
+    case CellState::LargePieces:  // nearly whole: told apart by its cut
         return m_map.whole;
     case CellState::Fragmented:
         return m_map.fragmented;
@@ -206,6 +207,17 @@ void Theme::paintCell(QPainter &painter, const QRect &cell, CellState state) con
     case CellState::Whole:
         painter.fillRect(cell, ink);
         break;
+    case CellState::LargePieces: {
+        // Solid, with one cut falling left to right: across the way
+        // fragmented's stripes rise, so the two differ in more than how
+        // much of the cell is inked.
+        painter.fillRect(cell, ink);
+        painter.setClipRect(cell);
+        painter.setPen(QPen(m_map.background, std::max(2.0, side / 5), Qt::SolidLine, Qt::FlatCap));
+        painter.drawLine(QPointF(cell.left(), cell.top()),
+                         QPointF(cell.right() + 1, cell.bottom() + 1));
+        break;
+    }
     case CellState::Fragmented: {
         // Three stripes rising left to right, cut off at the cell's edge.
         // Crisp: smoothed edges fill a small cell's gaps until it reads as

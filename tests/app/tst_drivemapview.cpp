@@ -344,12 +344,12 @@ private slots:
         m_now += 50;
         move({{{12, 3}}, {{32, 3}}});
         m_now += 20;
-        map.endTurn(false);
+        map.endTurn(CellState::Fragmented);
         view->followMap();
         m_now += 30;
         // Before the first blocks have landed, they move on.
         move({{{30, 2}}, {{36, 2}}});
-        map.endTurn(true);
+        map.endTurn(CellState::Whole);
         view->followMap();
         QVERIFY(view->isMoving());
         QVERIFY(view->cells() != map.cells(view->capacity()));

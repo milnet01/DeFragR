@@ -775,6 +775,7 @@ QWidget *mapKey(const Theme &theme, QWidget *parent)
     layout->setContentsMargins({});
     const std::pair<CellState, QString> entries[] = {
         {CellState::Whole, DriveMapView::tr("Whole files")},
+        {CellState::LargePieces, DriveMapView::tr("Files in large pieces")},
         {CellState::Fragmented, DriveMapView::tr("Fragmented files")},
         {CellState::Filesystem, DriveMapView::tr("Folders and filesystem")},
         {CellState::Free, DriveMapView::tr("Free space")},

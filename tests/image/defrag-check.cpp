@@ -165,7 +165,8 @@ void checkMap(const Decoded &run, const char *reportPath, const QString &in)
     const auto sent = mapBlocks(run.records);
     check(!wanted.value(MapFragmentedFile).isEmpty() && !wanted.value(MapFree).isEmpty(),
           "the report's map has fragmented files and free space" + in);
-    for (const quint32 kind : {MapFree, MapFilesystem, MapWholeFile, MapFragmentedFile})
+    for (const quint32 kind :
+         {MapFree, MapFilesystem, MapWholeFile, MapFragmentedFile, MapLargePieceFile})
         check(sent.value(kind) == wanted.value(kind),
               QStringLiteral("the map's blocks of kind %1 are the report's").arg(kind) + in);
 }
