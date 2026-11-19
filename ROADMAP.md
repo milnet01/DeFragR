@@ -1896,6 +1896,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   files that ended in fewer pieces without ending whole. The map in
   that screenshot covers the whole drive, and still shows wide striped
   bands; which folders those blocks belong to was not measured.
+  The owner's report on /mnt/Emulators in the build with DFR-0106
+  (screenshot of 2026-11-19, 16:17): 9,223 of 2,576,745 files
+  fragmented (0.4%). Most of what the earlier build painted striped
+  now shows as large pieces; a few short striped runs remain.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -2201,10 +2205,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Build.
   Blocked-by: DFR-0025, DFR-0026.
 
-- 📋 [DFR-0107] **The report has two tabs: the list of files and the drive map.**
+- 🚫 [DFR-0107] **The report has two tabs: the list of files and the drive map.**
   The owner asked for this on 2026-11-19. Today ReportView stacks the
   map above the table of fragmented files, and the two share the page's
   height. Which release it goes in is the owner's to say.
+  Dropped by the owner on 2026-11-19, after seeing the report's page
+  in the new build: the map above the list is fine as it is.
   **Layman:** The report page shows the file list and the drive map on separate tabs, so each gets the whole page.
   Kind: ux.
   Source: user-request-2026-11-19.
