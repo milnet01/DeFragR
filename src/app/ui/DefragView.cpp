@@ -20,12 +20,38 @@ using Stage = model::RunState::Stage;
 
 namespace {
 
+// The most lines the status takes at the window's usual widths, and the
+// most countLines gives.
+constexpr int kStatusLines = 3;
+constexpr int kCountLines = 3;
+
 // A folder on a drive, as one path.
 QByteArray wholePath(const QByteArray &mountPoint, const QByteArray &below)
 {
     if (below.isEmpty())
         return mountPoint;
     return mountPoint.endsWith('/') ? mountPoint + below : mountPoint + '/' + below;
+}
+
+// The widget keeps its place while hidden, so nothing below it moves.
+void keepPlace(QWidget *widget)
+{
+    QSizePolicy policy = widget->sizePolicy();
+    policy.setRetainSizeWhenHidden(true);
+    widget->setSizePolicy(policy);
+}
+
+// The label has room for this many lines from the start, text at the top,
+// so a line more or fewer moves nothing below it.
+void keepLines(QLabel *label, int lines)
+{
+    label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    // The label's own measure of that many lines, with the mark an
+    // elided path carries.
+    const QString was = label->text();
+    label->setText(QStringList(lines, QStringLiteral("X\u2026")).join(QLatin1Char('\n')));
+    label->setMinimumHeight(label->sizeHint().height());
+    label->setText(was);
 }
 
 }  // namespace
@@ -75,11 +101,21 @@ DefragView::DefragView(const Theme &theme, QWidget *parent) : QWidget(parent)
     layout->addWidget(m_elapsed);
     layout->addWidget(m_mapKey);
     layout->addWidget(m_map, 2);
+    // DFR-0110: each thing above the map has its own room, shown or not,
+    // so the map stays where it is through a run and after it.
+    keepLines(m_status, kStatusLines);
+    keepLines(m_counts, kCountLines);
+    keepLines(m_latest, 1);
+    // A file's name can hold glyphs taller than the window's own, which
+    // would make the line taller: it stays at the height of one line.
+    m_latest->setMaximumHeight(m_latest->minimumHeight());
+    for (QWidget *widget : {static_cast<QWidget *>(m_checked), static_cast<QWidget *>(m_progress),
+                            static_cast<QWidget *>(m_counts), static_cast<QWidget *>(m_latest),
+                            static_cast<QWidget *>(m_elapsed), m_mapKey,
+                            static_cast<QWidget *>(m_map)})
+        keepPlace(widget);
     layout->addWidget(m_skippedHeading);
     layout->addWidget(m_skippedTable, 1);
-    // Takes the space only while the map and the table are hidden, so the
-    // text stays at the top.
-    layout->addStretch();
 
     connect(m_back, &QPushButton::clicked, this, &DefragView::backRequested);
     connect(&m_run, &model::RunState::stageChanged, this, &DefragView::showStage);

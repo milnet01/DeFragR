@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=109 -->
+<!-- ants-roadmap-id-high-water: DFR=111 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -2067,6 +2067,32 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   same way.
   **Layman:** On a big drive the report sits at "Checked 0" for a couple of minutes before anything moves; it should say what it is doing.
   Kind: ux.
+  Source: user-request-2026-11-19.
+
+- ✅ [DFR-0110] **Nothing on the defrag page moves the map.**
+  The owner saw the map move down and back up during a run on
+  2026-11-19, and set the rule: each thing on a page has its own fixed
+  room, and nothing moves anything else. On the defrag page the status,
+  the work line, the bar, the counts, the latest file, the time, the key
+  and the map now keep their room, shown or not. tst_mainwindow checks
+  the map's top is the same mid-run and after the end.
+  Not done: the list of skipped files still takes its room from the
+  map when a run ends with any; the report page still hides its
+  progress lines at the end, where the map is not yet shown. The status
+  has room for three lines; a window narrow enough to wrap it to more
+  still moves what is below.
+  **Layman:** Every line above the map keeps its own space, so the map no longer jumps down and up during a run.
+  Kind: ux.
+  Source: user-request-2026-11-19.
+
+- 📋 [DFR-0111] **DeFragR writes a log file while it is being developed.**
+  The owner asked for this on 2026-11-19, for Claude to read when
+  something goes wrong, such as a view that looks stuck or jumps. Not
+  decided: where the file lives, what goes in it, how big it may grow,
+  and whether a released build writes it. A log names the owner's files
+  and folders, so it stays on the machine.
+  **Layman:** The window keeps a log of what it and the engine did, so a problem can be looked into afterwards.
+  Kind: feature.
   Source: user-request-2026-11-19.
 
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress

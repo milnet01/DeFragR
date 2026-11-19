@@ -306,6 +306,7 @@ private slots:
         QVERIFY2(QTest::qWaitFor([&] { return map->markerCell() >= 0; }, kWaitMs),
                  "the move did not reach the map");
         QVERIFY(!defragView()->findChild<QTableView *>()->isVisibleTo(m_window.get()));
+        const int mapTop = map->mapTo(defragView(), QPoint(0, 0)).y();
 
         // The end: the counts, the latest file, and the skipped file.
         QVERIFY(hold.release());
@@ -332,6 +333,8 @@ private slots:
         // The map is the report's with the move made: its cells still
         // show a whole file where the blocks landed.
         QVERIFY(map->isVisibleTo(m_window.get()));
+        // DFR-0110: more lines of counts, and the bar gone, move nothing.
+        QTRY_COMPARE_WITH_TIMEOUT(map->mapTo(defragView(), QPoint(0, 0)).y(), mapTop, kWaitMs);
         QTRY_VERIFY_WITH_TIMEOUT(!map->isMoving(), kWaitMs);
         QVERIFY(map->cells().contains(model::CellState::Whole));
         QVERIFY(!map->cells().contains(model::CellState::Fragmented));
