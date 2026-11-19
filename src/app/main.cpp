@@ -1,11 +1,13 @@
 // Start-up: the application, its language, its theme, its icon, and the
 // main window.
+#include "engine/RunLog.h"
 #include "ui/Languages.h"
 #include "ui/MainWindow.h"
 #include "ui/Theme.h"
 
 #include <QApplication>
 #include <QIcon>
+#include <QSysInfo>
 
 int main(int argc, char *argv[])
 {
@@ -22,6 +24,14 @@ int main(int argc, char *argv[])
     theme.apply();
 
     defragr::ui::MainWindow window(theme);
+#ifdef DEFRAGR_LOG
+    // The developers' builds only (DFR-0111). Without the file the
+    // window runs as it would have.
+    if (defragr::engine::startRunLog(defragr::engine::runLogFolder()))
+        qCInfo(defragr::engine::runLog).noquote()
+            << "window starts:" << window.windowTitle() << "| Qt" << qVersion() << "on"
+            << QApplication::platformName() << "|" << QSysInfo::prettyProductName();
+#endif
     window.show();
 
     return QApplication::exec();

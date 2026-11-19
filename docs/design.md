@@ -43,7 +43,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 
 | Part | Responsible for | Files |
 |---|---|---|
-| Engine link | Starting the engine (plainly for `probe`, through `pkexec` otherwise), feeding it commands, turning its output into records, noticing it died | `engine/EngineProcess.{h,cpp}`, `engine/Records.{h,cpp}` |
+| Engine link | Starting the engine (plainly for `probe`, through `pkexec` otherwise), feeding it commands, turning its output into records, noticing it died; the developers' log of a run, in a build made with `DEFRAGR_LOG` | `engine/EngineProcess.{h,cpp}`, `engine/Records.{h,cpp}`, `engine/RunLog.{h,cpp}` |
 | Drives | The drive list from `probe`, and which actions each drive allows | `model/DriveList.{h,cpp}` |
 | Map | Turning extents into map cells, and change records into cell changes | `model/DriveMap.{h,cpp}` |
 | Run | Progress, current file, counts, time remaining, pause and cancel state | `model/RunState.{h,cpp}` |
@@ -52,7 +52,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Messages | Every engine error code and refusal reason, in plain words with what to do; how a path is shown | `model/Messages.{h,cpp}` |
 | Health | Drive health from UDisks2 over D-Bus | `health/DriveHealth.{h,cpp}` |
 | Theme | Colours, symbols and sizes for the map and text | `ui/Theme.{h,cpp}` |
-| Screens | Main window, start choice, the defrag page, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/DefragView.{h,cpp}`, `ui/ReadOnlyTable.h`, `ui/TrayIcon.{h,cpp}` |
+| Screens | Main window, start choice, the defrag page, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/DefragView.{h,cpp}`, `ui/FixedRoom.h`, `ui/ReadOnlyTable.h`, `ui/TrayIcon.{h,cpp}` |
 | Map view | Painting and animating the map | `ui/DriveMapView.{h,cpp}` |
 | Report view | Showing a report | `ui/ReportView.{h,cpp}` |
 | Settings view | The options dialog | `ui/SettingsDialog.{h,cpp}` |

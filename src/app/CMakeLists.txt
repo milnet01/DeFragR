@@ -7,7 +7,8 @@ qt_standard_project_setup()
 # own, so the window tests link them without the window or a screen.
 add_library(defragr-engine-link STATIC
     engine/EngineProcess.cpp
-    engine/Records.cpp)
+    engine/Records.cpp
+    engine/RunLog.cpp)
 target_include_directories(defragr-engine-link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(defragr-engine-link PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr-engine-link PUBLIC Qt6::Core)
@@ -81,6 +82,12 @@ target_include_directories(defragr-window PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(defragr main.cpp)
 target_compile_options(defragr PRIVATE -Wall -Wextra -Wpedantic)
+# The developers' log (engine/RunLog.h, ROADMAP DFR-0111). Off unless
+# asked for, so a package writes none: the log names the user's files.
+option(DEFRAGR_LOG "The window writes a log to ~/.local/state/defragr (developers' builds)" OFF)
+if(DEFRAGR_LOG)
+    target_compile_definitions(defragr PRIVATE DEFRAGR_LOG)
+endif()
 target_link_libraries(defragr PRIVATE defragr-window defragr-languages Qt6::Widgets Qt6::DBus)
 # Beside the engine, where EngineProcess looks for it when
 # DEFRAGR_ENGINE is unset; src/engine/CMakeLists.txt does the same.

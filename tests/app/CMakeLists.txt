@@ -9,6 +9,12 @@ target_compile_options(tst_records PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(tst_records PRIVATE defragr-engine-link Qt6::Test)
 add_test(NAME tst_records COMMAND tst_records)
 
+# The developers' log: DFR-0111.
+add_executable(tst_runlog tst_runlog.cpp)
+target_compile_options(tst_runlog PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_runlog PRIVATE defragr-engine-link Qt6::Test)
+add_test(NAME tst_runlog COMMAND tst_runlog)
+
 # The built engine through the decoder: INV-10 and INV-11.
 add_executable(tst_records_conformance tst_records_conformance.cpp)
 target_compile_options(tst_records_conformance PRIVATE -Wall -Wextra -Wpedantic)

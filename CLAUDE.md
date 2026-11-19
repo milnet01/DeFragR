@@ -40,6 +40,12 @@ cannot; `tests/vm/run.sh` says what the host needs.
 `src/engine/CMakeLists.txt`; the version CI builds is pinned in
 `scripts/local-ci.sh`.
 
+`build/dev`, the build the owner runs, is configured with
+`-DDEFRAGR_LOG=ON`: its window writes
+`~/.local/state/defragr/defragr.log`, for reading when a run looked
+wrong (`src/app/engine/RunLog.h`). The gate's build and the packages
+leave it off.
+
 `./scripts/ci-container.sh run [COMMIT]` is an opt-in parity check, not
 part of the push gate: the same gate in a Podman image of GitHub's
 runner. Run it before pushing a toolchain-sensitive change. The runner's

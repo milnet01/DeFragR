@@ -6,6 +6,7 @@
 #pragma once
 
 #include "engine/Records.h"
+#include "engine/RunLog.h"
 
 #include <QObject>
 #include <QProcess>
@@ -74,6 +75,7 @@ private:
     QString m_launcher;
     QProcess m_process;
     RecordDecoder m_decoder;
+    RecordNotes m_notes;  // what the developers' log says of this run
     RunOutcome m_outcome;
     Command m_command = CommandUnknown;  // the command start() was given
     quint32 m_helloCommand = 0;          // the command HELLO says it answers

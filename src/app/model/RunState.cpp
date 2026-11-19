@@ -1,5 +1,6 @@
 #include "model/RunState.h"
 
+#include "engine/RunLog.h"
 #include "model/Report.h"
 
 #include <QDir>
@@ -259,12 +260,14 @@ void RunState::setStage(Stage stage)
     if (m_stage == stage)
         return;
     m_stage = stage;
+    qCInfo(engine::runLog) << "defrag stage" << int(stage);
     emit stageChanged();
 }
 
 void RunState::fail(const Message &problem)
 {
     m_problem = problem;
+    qCInfo(engine::runLog).noquote() << "defrag failed:" << problem.what;
     setStage(Stage::Failed);
     emit ended();
 }

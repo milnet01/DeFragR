@@ -112,6 +112,7 @@ void EngineProcess::start(Command command, const QStringList &arguments)
     m_command = command;
     m_helloCommand = 0;
     m_viaLauncher = command != CommandProbe;
+    m_notes = RecordNotes();
 
     const QFileInfo engine(m_outcome.enginePath);
     if (!engine.isFile() || !engine.isExecutable()) {
@@ -121,6 +122,9 @@ void EngineProcess::start(Command command, const QStringList &arguments)
 
     QStringList engineLine{commandWord(command)};
     engineLine += arguments;
+    qCInfo(runLog).noquote() << "engine starts:" << m_outcome.enginePath
+                             << engineLine.join(QLatin1Char(' '))
+                             << (m_viaLauncher ? "through " + m_launcher : QString());
     if (m_viaLauncher)
         m_process.start(m_launcher, QStringList{m_outcome.enginePath} + engineLine);
     else
@@ -140,6 +144,11 @@ void EngineProcess::readOutput()
             m_outcome.finished = *finished;
         else if (const auto *hello = std::get_if<Hello>(&record))
             m_helloCommand = hello->command;
+        if (runLog().isInfoEnabled()) {
+            const QString note = m_notes.note(record);
+            if (!note.isEmpty())
+                qCInfo(runLog).noquote() << note;
+        }
     }
     if (!records.isEmpty())
         emit recordsReceived(records);
@@ -186,6 +195,7 @@ void EngineProcess::end(RunEnd how)
         return;
     m_ended = true;
     m_outcome.end = how;
+    qCInfo(runLog) << "engine ended: RunEnd" << int(how) << "exit code" << m_process.exitCode();
     emit ended(m_outcome);
 }
 

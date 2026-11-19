@@ -2099,7 +2099,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: ux.
   Source: user-request-2026-11-19.
 
-- 📋 [DFR-0111] **DeFragR writes a log file while it is being developed.**
+- ✅ [DFR-0111] **DeFragR writes a log file while it is being developed.**
   The owner asked for this on 2026-11-19, for Claude to read when
   something goes wrong, such as a view that looks stuck or jumps. Not
   decided: where the file lives, what goes in it, how big it may grow,
@@ -2111,6 +2111,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   not the owner's words: a build-time switch, off unless asked for, on
   in build/dev; release packages leave it off. File under
   ~/.local/state/defragr/, kept to a fixed size.
+  Done 2026-11-19: a build configured with `-DDEFRAGR_LOG=ON` writes
+  `~/.local/state/defragr/defragr.log` (`src/app/engine/RunLog.h`);
+  `build/dev` is configured so, and a package is not. It holds the
+  window's start, each engine start and end, the run's stages, progress
+  when its percentage changes, each skipped file, and every Qt warning.
+  A file past 8 MiB becomes `defragr.log.1`. Seen on a four-second
+  start of the window; not yet on a real report or defrag. To be taken
+  out, or decided again, at 1.0.0.
   **Layman:** The window keeps a log of what it and the engine did, so a problem can be looked into afterwards.
   Kind: feature.
   Source: user-request-2026-11-19.
