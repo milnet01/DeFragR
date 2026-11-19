@@ -218,13 +218,20 @@ int checkDefrag(char **argv, int argc)
               name + ": extents_before is filefrag's count before");
         check(f->extentsAfter == countAfter.value(f->path),
               name + ": extents_after is filefrag's count after");
-        check(f->movedBlocks > 0 && f->extentsAfter < f->extentsBefore,
-              name + ": moved, into fewer pieces");
         const QList<quint64> left = blocksOf(from), went = blocksOf(to);
-        check(left == blocksBefore.value(f->path),
-              name + ": the from runs are its blocks before, in order");
-        check(went == blocksAfter.value(f->path),
-              name + ": the to runs are its blocks after, in order");
+        if (f->movedBlocks == 0) {
+            // § 4.12 step 4: the donor was in no fewer pieces, so the
+            // file was left as it was.
+            check(left.isEmpty() && went.isEmpty()
+                      && blocksAfter.value(f->path) == blocksBefore.value(f->path),
+                  name + ": left as it was, with no BLOCKS_MOVED");
+        } else {
+            check(f->extentsAfter < f->extentsBefore, name + ": moved, into fewer pieces");
+            check(left == blocksBefore.value(f->path),
+                  name + ": the from runs are its blocks before, in order");
+            check(went == blocksAfter.value(f->path),
+                  name + ": the to runs are its blocks after, in order");
+        }
         check(f->movedBlocks == quint64(left.size()), name + ": moved_blocks counts them");
         from.clear();
         to.clear();
