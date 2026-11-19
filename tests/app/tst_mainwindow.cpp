@@ -315,7 +315,7 @@ private slots:
         QCOMPARE(commandLines(), QStringList{QStringLiteral("defrag /mnt/<img src=x> games")});
         QVERIFY(label(defragView(), QStringLiteral("Done.")));
         QVERIFY(!bar->isVisibleTo(m_window.get()));
-        auto *counts = label(defragView(), QStringLiteral("1 file joined up."));
+        auto *counts = label(defragView(), QStringLiteral("1 file moved into fewer pieces."));
         QVERIFY(counts);
         QVERIFY(counts->text().contains(QStringLiteral("1 file left as it was")));
         QVERIFY(counts->text().contains(QStringLiteral("1 file skipped.")));

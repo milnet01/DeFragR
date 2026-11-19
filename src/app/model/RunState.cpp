@@ -39,7 +39,7 @@ QStringList countLines(const RunState::Counts &counts)
     QStringList lines;
     if (counts.joined > 0)
         //: %1 is a count of files, more than zero.
-        lines += RunState::tr("%1 file(s) joined up.", nullptr, messages::pluralOf(counts.joined))
+        lines += RunState::tr("%1 file(s) moved into fewer pieces.", nullptr, messages::pluralOf(counts.joined))
                      .arg(number(counts.joined));
     if (counts.left > 0)
         //: %1 is a count of files, more than zero.

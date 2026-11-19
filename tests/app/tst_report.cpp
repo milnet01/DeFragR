@@ -304,9 +304,12 @@ private slots:
         QTest::addColumn<int>("percent");
         QTest::addColumn<QString>("line");
 
-        QTest::newRow("start") << quint64(0) << quint64(3200000) << 0
-                               << QStringLiteral("Checked 0 of about 3,200,000 files and "
-                                                 "folders (0%).");
+        // DFR-0108: the engine reads the drive's free space before it
+        // checks a name, and the line and the moving bar say so.
+        QTest::newRow("start") << quint64(0) << quint64(3200000) << -1
+                               << QStringLiteral("Reading the drive's free space, before any "
+                                                 "file is checked. On a big drive this can "
+                                                 "take a few minutes.");
         QTest::newRow("halfway") << quint64(1600000) << quint64(3200000) << 50
                                  << QStringLiteral("Checked 1,600,000 of about 3,200,000 "
                                                    "files and folders (50%).");

@@ -376,6 +376,10 @@
         </translation>
     </message>
     <message>
+        <source>Reading the drive&apos;s free space, before any file is checked. On a big drive this can take a few minutes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Files and folders checked so far: %1.</source>
         <translation>Pliki i katalogi sprawdzone do tej pory: %1.</translation>
     </message>
@@ -440,7 +444,7 @@
 <context>
     <name>defragr::model::RunState</name>
     <message numerus="yes">
-        <source>%1 file(s) joined up.</source>
+        <source>%1 file(s) moved into fewer pieces.</source>
         <extracomment>%1 is a count of files, more than zero.</extracomment>
         <translation type="unfinished">
             <numerusform></numerusform>

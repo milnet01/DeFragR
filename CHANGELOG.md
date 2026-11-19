@@ -20,7 +20,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   and DeFragR joins up that folder's files. The map shows each move:
   blocks light up where they were, fly across, and land together. A
   marker shows where it is working. At the end it says how many files
-  were joined up, left or skipped, and why each was skipped. With the
+  were moved into fewer pieces, left or skipped, and why each was
+  skipped. With the
   desktop's animations turned off, the map changes without motion
   (DFR-0018).
 - A defrag of a drive DeFragR has not looked at yet reads the drive's
@@ -49,6 +50,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - The map stays where it is during a defrag and after it. Every line
   above it keeps its own space, so a line that appears or goes no
   longer pushes the map down or up (DFR-0110).
+- While DeFragR reads a drive's free space, before it checks any file,
+  the report and the defrag say so. They used to show "Checked 0" for
+  as long as that took, which on a big drive is minutes (DFR-0108).
 - On a processor without SSE4.2, such as Intel's before 2008, early
   Atoms and AMD's before 2011, every drive is report only, and the drive list says the
   processor is too old to defrag safely (DFR-0017).

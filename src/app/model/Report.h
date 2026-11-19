@@ -20,7 +20,8 @@ QStringList summaryLines(const engine::ReportSummary &summary);
 
 // How far a running report has got, from REPORT_PROGRESS: a whole
 // percentage that stays below 100 until the report ends, since the
-// estimate is not exact; -1 when there is no estimate.
+// estimate is not exact; -1 when there is no estimate, or no name has
+// been checked yet.
 int percentChecked(quint64 names, quint64 estimate);
 // The same as a sentence for the running report.
 QString progressLine(quint64 names, quint64 estimate);

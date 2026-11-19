@@ -60,11 +60,11 @@
 <context>
     <name>defragr::model::RunState</name>
     <message numerus="yes">
-        <source>%1 file(s) joined up.</source>
+        <source>%1 file(s) moved into fewer pieces.</source>
         <extracomment>%1 is a count of files, more than zero.</extracomment>
         <translation>
-            <numerusform>%1 file joined up.</numerusform>
-            <numerusform>%1 files joined up.</numerusform>
+            <numerusform>%1 file moved into fewer pieces.</numerusform>
+            <numerusform>%1 files moved into fewer pieces.</numerusform>
         </translation>
     </message>
     <message numerus="yes">

@@ -2063,7 +2063,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: dfr-0018-build-2026-11-19.
   Lanes: Run, Entry, Packaging.
 
-- 📋 [DFR-0108] **A report looks stuck while the drive's free space is read.**
+- ✅ [DFR-0108] **A report looks stuck while the drive's free space is read.**
   The owner saw this on 2026-11-19 on /mnt/Emulators (ext4, 5.4T): the
   window read "Checked 0 of about 2,657,880 files and folders (0%)" at
   1 min 53 s, then went on by itself. report_run sends the first
@@ -2075,6 +2075,10 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   same way.
   Owner, 2026-11-19: the window says what it is doing until counting
   starts; no engine change. Release 0.3.0.
+  Done 2026-11-19: with no name checked yet the line reads "Reading
+  the drive's free space, before any file is checked. On a big drive
+  this can take a few minutes." and the bar keeps moving. Not seen on a
+  real big drive yet.
   **Layman:** On a big drive the report sits at "Checked 0" for a couple of minutes before anything moves; it should say what it is doing.
   Kind: ux.
   Source: user-request-2026-11-19.
@@ -2138,10 +2142,11 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: ux.
   Source: user-request-2026-11-19.
 
-- 📋 [DFR-0115] **"Joined up" is reworded for files that end in fewer pieces, not one.**
+- ✅ [DFR-0115] **"Joined up" is reworded for files that end in fewer pieces, not one.**
   DFR-0097's notes hold the measurement: 2,259 counted as joined up,
   108 files still in two or more pieces afterwards. Owner, 2026-11-19:
   reword the one line.
+  Done 2026-11-19: "%1 file(s) moved into fewer pieces."
   **Layman:** The end-of-run count says files were moved into fewer pieces, which is true of every file it counts.
   Kind: ux.
   Source: user-request-2026-11-19.

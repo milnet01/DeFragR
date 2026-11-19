@@ -104,7 +104,9 @@ QStringList summaryLines(const ReportSummary &summary)
 
 int percentChecked(quint64 names, quint64 estimate)
 {
-    if (estimate == 0)
+    // No name checked yet: the engine is still reading the drive's free
+    // space, which this estimate does not count (DFR-0108).
+    if (estimate == 0 || names == 0)
         return -1;
     if (names >= estimate)
         return 99;
@@ -115,6 +117,9 @@ int percentChecked(quint64 names, quint64 estimate)
 
 QString progressLine(quint64 names, quint64 estimate)
 {
+    if (names == 0)
+        return Report::tr("Reading the drive's free space, before any file is checked. On a "
+                          "big drive this can take a few minutes.");
     const int percent = percentChecked(names, estimate);
     if (percent < 0)
         return Report::tr("Files and folders checked so far: %1.")
