@@ -361,6 +361,11 @@ void DriveMapView::launch(qint64 now)
         }
         stillAt = std::max(stillAt, now + kLandSpreadMs + kFlightMs);
     }
+    if (!m_fromCells.isEmpty()) {
+        update(outline(outlineRect(m_source)));
+        m_source = m_fromCells.last();
+        update(outline(outlineRect(m_source)));
+    }
     if (!m_toCells.isEmpty()) {
         update(outline(markerRect()));
         m_marker = m_toCells.last();
@@ -378,12 +383,12 @@ void DriveMapView::launch(qint64 now)
         moveUntil(stillAt, false);
 }
 
-QRect DriveMapView::markerRect() const
+QRect DriveMapView::outlineRect(qsizetype cell) const
 {
-    if (m_marker < 0 || m_marker >= m_cells.size())
+    if (cell < 0 || cell >= m_cells.size())
         return {};
     const int out = Theme::markerReach * pitch() + m_theme.cellGap() + m_theme.markerWidth() + 1;
-    return cellRect(m_marker).adjusted(-out, -out, out, out);
+    return cellRect(cell).adjusted(-out, -out, out, out);
 }
 
 bool DriveMapView::isPulsing() const
@@ -413,7 +418,7 @@ QRegion DriveMapView::outline(const QRect &rect) const
     return strips;
 }
 
-void DriveMapView::paintOutline(QPainter &painter, const QRect &rect) const
+void DriveMapView::paintOutline(QPainter &painter, const QRect &rect, bool dashed) const
 {
     const int width = m_theme.markerWidth();
     const qreal in = width / 2.0 + 1;
@@ -423,7 +428,10 @@ void DriveMapView::paintOutline(QPainter &painter, const QRect &rect) const
     painter.setBrush(Qt::NoBrush);
     painter.setPen(QPen(m_theme.markerEdge(), width + 2));
     painter.drawRoundedRect(line, in, in);
-    painter.setPen(QPen(m_theme.markerColour(), width));
+    QPen pen(m_theme.markerColour(), width, Qt::SolidLine, Qt::FlatCap);
+    if (dashed)
+        pen.setDashPattern({2, 2});  // in pen widths
+    painter.setPen(pen);
     painter.drawRoundedRect(line, in, in);
 }
 
@@ -534,8 +542,11 @@ void DriveMapView::paintEvent(QPaintEvent *event)
     }
     painter.setOpacity(1);
 
+    // The marker last, so it shows whole where the two outlines cross.
+    painter.setRenderHint(QPainter::Antialiasing);
+    if (const QRect source = outlineRect(m_source); !source.isNull())
+        paintOutline(painter, source, true);
     if (const QRect marker = markerRect(); !marker.isNull()) {
-        painter.setRenderHint(QPainter::Antialiasing);
         paintOutline(painter, marker);
         if (const QRect pulse = pulseRect(now); !pulse.isNull()) {
             // Faint far out, full as it closes on the marker.
@@ -543,8 +554,8 @@ void DriveMapView::paintEvent(QPaintEvent *event)
             paintOutline(painter, pulse);
             painter.setOpacity(1);
         }
-        painter.setRenderHint(QPainter::Antialiasing, false);
     }
+    painter.setRenderHint(QPainter::Antialiasing, false);
 
     // Each small block leads a trail of fainter, smaller ones.
     const qreal side = m_theme.moteSide();
@@ -585,6 +596,7 @@ void DriveMapView::fitMapToCells(bool sweep)
     m_toCells.clear();
     m_launchDue = false;
     m_marker = -1;
+    m_source = -1;
     m_pulseStart.reset();
     m_cells.clear();
     m_fittedFor = capacity();

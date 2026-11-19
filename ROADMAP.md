@@ -1938,11 +1938,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-test-2026-11-19.
   Lanes: Build.
 
-- 📋 [DFR-0105] **Show where a file's blocks are coming from.**
+- ✅ [DFR-0105] **Show where a file's blocks are coming from.**
   Owner, 2026-11-19: the outline shows where data lands; asked how to
   show where it comes from. Claude's call, left to it by the owner that
   day: a second outline, dashed, round the cell last emptied. Filed
   before 0.3.0 as the day's other map asks were; the owner may move it.
+  Done 2026-11-19: `docs/specs/DFR-0018-window-folder-defrag.md` § 4.3,
+  the source outline. Left: whether it reads apart from the marker is
+  the owner's to judge.
   **Layman:** A dashed ring on the block being emptied, beside the solid ring on the block being filled.
   Kind: ux.
   Source: user-test-2026-11-19.

@@ -76,10 +76,11 @@ public:
     QGradientStops glowHalo(CellState state) const;
     QColor glowWash(CellState state) const;
     // During a defrag: the small blocks that fly from a file's old place
-    // to its new one, and the outline round the place last filled. The
-    // outline is a shape, so it reads without colour: a thick line with
-    // an edge of the opposite shade, so it shows on every pattern, round
-    // the cell and markerReach cells each way.
+    // to its new one, and the outlines round the place last filled and
+    // the place last emptied. An outline is a shape, so it reads without
+    // colour: a thick line with an edge of the opposite shade, so it
+    // shows on every pattern, round the cell and markerReach cells each
+    // way. The emptied place's line is dashed.
     QColor moteColour() const;
     int moteSide() const { return std::max(4, m_cellSide / 2); }
     QColor markerColour() const;

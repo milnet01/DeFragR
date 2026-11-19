@@ -93,6 +93,8 @@ public:
     // The small blocks in flight, and the cell the marker rests on, or -1.
     int motesInFlight() const;
     int markerCell() const { return int(m_marker); }
+    // The cell the dashed outline rests on, the last one emptied, or -1.
+    int sourceCell() const { return int(m_source); }
     // Whether the marker's pulse is closing in.
     bool isPulsing() const;
 
@@ -153,13 +155,16 @@ private:
     void noteCells(QList<qsizetype> &cells, const QList<engine::MapRun> &runs) const;
     // What changed on screen between two frames.
     QRegion movedBetween(qint64 since, qint64 now) const;
+    // The outline round `cell` and the cells next to it, or none.
+    QRect outlineRect(qsizetype cell) const;
     // The marker's outline, at rest; and its pulse's at `now`, or none.
-    QRect markerRect() const;
+    QRect markerRect() const { return outlineRect(m_marker); }
     QRect pulseRect(qint64 now) const;
     // The four strips an outline of the marker's width covers, edge
     // included.
     QRegion outline(const QRect &rect) const;
-    void paintOutline(QPainter &painter, const QRect &rect) const;
+    // Dashed: the line in dashes, its edge's shade between them.
+    void paintOutline(QPainter &painter, const QRect &rect, bool dashed = false) const;
     int changeLength() const { return m_motion ? kChangeMs : 0; }
     int pitch() const;
     int columns() const;
@@ -186,6 +191,7 @@ private:
     std::optional<qint64> m_lastLaunch;
     QList<Mote> m_motes;
     qsizetype m_marker = -1;
+    qsizetype m_source = -1;
     std::optional<qint64> m_pulseStart;
     QElapsedTimer m_elapsed;
     std::function<qint64()> m_now;

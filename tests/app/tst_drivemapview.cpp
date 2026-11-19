@@ -394,6 +394,7 @@ private slots:
         QCOMPARE(cells[34], CellState::Whole);
         QCOMPARE(cells[30], CellState::Whole);
         QCOMPARE(view->markerCell(), 34);
+        QCOMPARE(view->sourceCell(), 13);
     }
 
     // DFR-0018 INV-8, S10: blocks moved onto one cell and off it again
@@ -499,8 +500,14 @@ private slots:
         // which show whole inside it. It lies over the edges of the
         // cells one further out: 64 to 68, 74, 78, 84, 88, 94, 98 and
         // 104 to 108. The pulse has gone and left nothing behind.
+        // The dashed outline goes round cell 14, the last emptied, and
+        // lies over 2, 6, 12, 16, 22, 26 and 32 to 36.
+        QCOMPARE(view->sourceCell(), 14);
         QVERIFY(!view->isPulsing());
-        QCOMPARE(unsettled(shot, 0, 63), 0);
+        for (const auto &[first, last] : {std::pair{0, 1}, {3, 5}, {7, 11}, {13, 15}, {17, 21},
+                                          {23, 25}, {27, 31}, {37, 63}})
+            QCOMPARE(unsettled(shot, first, last), 0);
+        QCOMPARE(unsettled(shot, 0, 63), 11);
         QCOMPARE(unsettled(shot, 69, 73), 0);
         QCOMPARE(unsettled(shot, 75, 77), 0);
         QCOMPARE(unsettled(shot, 79, 83), 0);
@@ -569,6 +576,56 @@ private slots:
         QVERIFY(view->markerCell() >= 0);
         m_now += DriveMapView::kPulseMs;
         QVERIFY(!view->isPulsing());
+    }
+
+    // DFR-0105, S10: a dashed outline goes round the cell last emptied
+    // and its neighbours. Its line shows the marker's colour in dashes
+    // and the marker's edge between them, so it reads apart from the
+    // marker's solid line without colour.
+    void sourceOutlineIsDashed()
+    {
+        DriveMap map = rowsMap();
+        const auto view = makeView();
+        view->setMotion(false);
+        view->showMap(&map);
+        QCOMPARE(view->sourceCell(), -1);
+        const BlocksMoved blocks{{{10, 2}}, {{38, 2}}};
+        map.move(blocks);
+        view->showMove(blocks);
+        QCOMPARE(view->sourceCell(), 11);
+        QCOMPARE(view->markerCell(), 39);
+
+        const QImage shot = view->grab().toImage();
+        const QList<CellState> cells = map.cells(view->capacity());
+        // The outline's pixels over a cell, of the line's colour and of
+        // its edge's.
+        const auto line = [&](int cell) {
+            const QImage settled = cellImage(m_theme, cells[cell]);
+            std::pair<int, int> count{0, 0};
+            for (int y = 0; y < settled.height(); ++y)
+                for (int x = 0; x < settled.width(); ++x) {
+                    const QRgb pixel = shot.pixelColor(cellAt(cell) + QPoint(x, y)).rgb();
+                    if (pixel == settled.pixelColor(x, y).rgb())
+                        continue;
+                    count.first += pixel == m_theme.markerColour().rgb();
+                    count.second += pixel == m_theme.markerEdge().rgb();
+                }
+            return count;
+        };
+        // Cell 13 lies under the dashed outline's right side, cell 27
+        // under the marker's left side: the same length of line each.
+        const auto [dashes, gaps] = line(13);
+        const auto [solid, edge] = line(27);
+        QVERIFY(solid > 0);
+        QVERIFY2(dashes > 0 && dashes < solid, qPrintable(QString::number(dashes)));
+        QVERIFY2(gaps > edge, qPrintable(QString::number(gaps)));
+        // The cells inside it show their own patterns.
+        for (const int cell : {0, 1, 2, 10, 11, 12, 20, 21, 22})
+            QVERIFY2(samePixels(shot, cellAt(cell), cellImage(m_theme, cells[cell])),
+                     qPrintable(QString::number(cell)));
+
+        view->showMap(&map);
+        QCOMPARE(view->sourceCell(), -1);
     }
 
     // No map: no cells, and no frame timer waking to sweep them in.

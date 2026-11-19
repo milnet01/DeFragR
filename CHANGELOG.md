@@ -32,6 +32,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A defrag shows a progress bar. The engine first counts the folder's
   files that are in pieces, then the bar fills as each is finished,
   with "Finished with 3 of 40 files in pieces" above it (DFR-0099).
+- During a defrag a dashed outline on the map shows where data was
+  last taken from, beside the solid one showing where it was put
+  (DFR-0105).
 
 ### Changed
 - The marker on the map during a defrag is easier to find: a thicker

@@ -176,9 +176,16 @@ void setMotion(bool on);
   closes in on it from `kPulseReach` cells further out in `kPulseMs`:
   the pulse, begun at most once every `kPulseGapMs` (owner, 2026-11-19:
   the working spot was hard to find; ROADMAP DFR-0098).
+- **The source outline** is the marker's, dashed, round the last from
+  cell of the latest launch and the cells next to it: the line's colour
+  in dashes over its edge's shade. It does not pulse, and stays until
+  `showMap` or a resize. Where the two cross, the marker shows whole
+  (owner, 2026-11-19: asked to see where files come from; the look is
+  Claude's call; ROADMAP DFR-0105).
 - **Only what moved is repainted**: each frame asks for the rows of
   cells whose change is under way, the small blocks' rectangles, and
-  the strips the marker's and the pulse's outlines cover.
+  the strips the marker's, the pulse's and the source's outlines
+  cover.
 - **Motion off**: a launch happens at once, a cell changes with no
   fade or glow, no small block flies, and the marker still shows,
   without its pulse.
@@ -377,6 +384,7 @@ Each is seen to fail before the code it locks is written, per
 | § 3 the journey's look, and that it is pleasant to watch | **nothing**: judged by eye in `tests/map-demo` |
 | § 4.3 the desktop's setting turns motion off | `Partial:` INV-10 checks the view with motion off; **nothing** checks that the view reads the desktop's setting |
 | § 4.3 the marker | `Partial:` `tests/app/tst_drivemapview.cpp`: `markerPulsesAtMostOnceASecond` for the pulse's pace, `onlyWhatMovesIsRepainted` for where the outline lies and that the pulse leaves nothing behind, `motionOffChangesAtOnce` for no pulse. **Nothing** checks that it is easy to find: judged by eye |
+| § 4.3 the source outline | `tests/app/tst_drivemapview.cpp`: `sourceOutlineIsDashed` for where it lies and its dashes, `onlyWhatMovesIsRepainted` for the cells it crosses. **Nothing** checks that it reads apart from the marker by eye |
 | § 6 a stale map | **nothing** |
 | § 4.4 the new screens read right to left | **nothing**: checked by eye with `defragr -reverse` (`docs/design.md` § Wording and languages) |
 
