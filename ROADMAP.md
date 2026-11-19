@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=107 -->
+<!-- ants-roadmap-id-high-water: DFR=109 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -2051,6 +2051,20 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: dfr-0018-build-2026-11-19.
   Lanes: Run, Entry, Packaging.
 
+- 📋 [DFR-0108] **A report looks stuck while the drive's free space is read.**
+  The owner saw this on 2026-11-19 on /mnt/Emulators (ext4, 5.4T): the
+  window read "Checked 0 of about 2,657,880 files and folders (0%)" at
+  1 min 53 s, then went on by itself. report_run sends the first
+  REPORT_PROGRESS, then calls extents_space (GETFSMAP) before the walk
+  reads any name; the engine was at about 100% system time meanwhile.
+  That extents_space was the wait is read from the code, not traced.
+  Not decided: whether the window's wording alone changes, or the
+  engine reports this stage. A defrag that asks for the map starts the
+  same way.
+  **Layman:** On a big drive the report sits at "Checked 0" for a couple of minutes before anything moves; it should say what it is doing.
+  Kind: ux.
+  Source: user-request-2026-11-19.
+
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress
 
 - 📋 [DFR-0020] **Engine whole-drive defrag with progress records.**
@@ -2127,6 +2141,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: feature.
   Source: user-request-2026-11-19.
   Lanes: Run, Screens.
+
+- 📋 [DFR-0109] **The window remembers its size and position between runs.**
+  The owner asked for this on 2026-11-19. Position under KDE Wayland:
+  read ~/.claude/docs/kde-wayland-window-placement.md before building.
+  **Layman:** DeFragR opens at the size and place it was last closed at.
+  Kind: ux.
+  Source: user-request-2026-11-19.
 
 ## 0.5.0 — Pause, cancel and background mode
 
