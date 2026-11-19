@@ -50,15 +50,17 @@ Three facts shape the work:
   turns the motion off.
 - **The map comes first, in the same engine run** (owner, 2026-11-19:
   one password prompt, before 0.3.0; DFR-0096).
+- **A map the window already holds for the drive is used again**
+  (owner, 2026-11-19): one from a report viewed in this window, or from
+  its last defrag of that drive. Otherwise the run asks the engine for
+  one.
+- **The folder is picked in the desktop's folder dialog** (owner,
+  2026-11-19). The window lists the drive's folders to do so; it still
+  opens no file there.
 
 The rest are Claude's calls, 2026-11-19, not yet confirmed by the
 owner:
 
-- **A map the window already holds for the drive is used again**: one
-  from a report viewed in this window, or from its last defrag of that
-  drive. Otherwise the run asks the engine for one.
-- **The folder is picked in the desktop's folder dialog.** The window
-  lists the drive's folders to do so; it still opens no file there.
 - **A run cannot be paused or cancelled** until DFR-0024; the question
   before the run says so.
 - **The marker rests where the latest blocks landed.** No 1.4 record
