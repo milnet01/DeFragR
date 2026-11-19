@@ -156,7 +156,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>DeFragR joins up each file there that lies in pieces, and checks that every file still reads the same. You can keep using the PC. This version cannot pause or cancel a defrag once it has started, and it may ask for your password twice: once to read the drive&apos;s map, once to defrag.</source>
+        <source>DeFragR joins up each file there that lies in pieces, and checks that every file still reads the same. You can keep using the PC. This version cannot pause or cancel a defrag once it has started.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -495,7 +495,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>First DeFragR reads where everything on the drive lies, to draw its map. On a big drive this can take a few minutes. Nothing on the drive is changed yet. Then it asks for your password once more, to defrag.</source>
+        <source>First DeFragR reads where everything on the drive lies, to draw its map. On a big drive this can take a few minutes. Nothing on the drive is changed yet. The defrag follows by itself.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

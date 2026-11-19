@@ -1,6 +1,6 @@
-// RunState: one defrag of a folder, from start to end (S4, S7). Reads the
-// drive's map with a report unless it holds one, runs the engine's defrag,
-// applies each move to the map, and counts what happened to each file
+// RunState: one defrag of a folder, from start to end (S4, S7). Runs the
+// engine's defrag, asking it for the drive's map first unless it holds
+// one, applies each move to the map, and counts what happened to each file
 // (docs/specs/DFR-0018-window-folder-defrag.md § 4.2; the records are
 // docs/specs/DFR-0002-engine-protocol.md § 4.6 and § 4.12).
 #pragma once
@@ -32,7 +32,7 @@ class RunState : public QObject {
 public:
     enum class Stage {
         Idle,        // nothing has run
-        ReadingMap,  // the report that gives the map is running
+        ReadingMap,  // the engine is sending the drive's map, before it defrags
         Defragging,
         Done,        // the defrag finished OK
         Failed,      // it did not; problem() says how
@@ -90,7 +90,6 @@ signals:
 private:
     void collect(const QList<engine::Record> &records);
     void engineEnded(const engine::RunOutcome &outcome);
-    void startDefrag();
     void setStage(Stage stage);
     void fail(const Message &problem);
 
@@ -100,7 +99,7 @@ private:
     QByteArray m_folder;
     DriveMap m_map;
     QByteArray m_mapMount;  // the drive m_map is of; empty when it holds none
-    DriveMap m_incomingMap;  // the running report's map so far
+    DriveMap m_incomingMap;  // the map so far, until the engine says it is whole
     Counts m_counts;
     QByteArray m_latestPath;
     QList<engine::FileSkipped> m_skipped;

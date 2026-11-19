@@ -23,6 +23,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   were joined up, left or skipped, and why each was skipped. With the
   desktop's animations turned off, the map changes without motion
   (DFR-0018).
+- A defrag of a drive DeFragR has not looked at yet reads the drive's
+  map and defrags in one go, so it asks for your password once
+  (DFR-0096).
 
 ### Changed
 - On a processor without SSE4.2, such as Intel's before 2008, early

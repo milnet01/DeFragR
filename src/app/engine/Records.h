@@ -32,6 +32,7 @@ enum RecordType : quint16 {
     TypeReportSummary = 0x0022,
     TypeReportProgress = 0x0023,
     TypeMapRuns = 0x0024,
+    TypeMapDone = 0x0025,
     TypeRunState = 0x0030,
     TypeFileDefragged = 0x0040,
     TypeBlocksMoved = 0x0041,
@@ -180,6 +181,11 @@ struct MapRuns {
     bool operator==(const MapRuns &) const = default;
 };
 
+// The map a defrag was asked to send first is complete (§ 4.12).
+struct MapDone {
+    bool operator==(const MapDone &) const = default;
+};
+
 struct RunState {
     quint32 state = 0;
     bool operator==(const RunState &) const = default;
@@ -207,7 +213,7 @@ struct Unknown {
 };
 
 using Record = std::variant<Hello, Finished, Drive, FragmentedFile, FileSkipped,
-                            ReportSummary, ReportProgress, MapRuns, RunState,
+                            ReportSummary, ReportProgress, MapRuns, MapDone, RunState,
                             FileDefragged, BlocksMoved, Unknown>;
 
 enum class StreamError { Malformed, VersionMismatch };
@@ -241,6 +247,7 @@ private:
     quint64 m_fragmented = 0;
     quint64 m_skipped = 0;
     std::optional<ReportSummary> m_summary;
+    bool m_mapClosed = false;  // defrag: MAP_DONE or a file's record has come
 };
 
 }  // namespace defragr::engine

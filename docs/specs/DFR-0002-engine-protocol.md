@@ -109,9 +109,9 @@ Padding bytes and `flags` are not checked.
 ### 4.2 Versioning
 
 The `HELLO` record (§ 4.4) carries a major and a minor version. This spec
-defines **1.4**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
-(§ 4.6), `selftest-crc32c` in 1.3 (§ 4.11), and `defrag` in 1.4
-(§ 4.12).
+defines **1.5**: 1.0 plus `REPORT_PROGRESS` in 1.1, `MAP_RUNS` in 1.2
+(§ 4.6), `selftest-crc32c` in 1.3 (§ 4.11), `defrag` in 1.4 (§ 4.12),
+and `defrag`'s map and `MAP_DONE` in 1.5 (§ 4.12).
 
 - **Minor** changes add, and never change: a new record or command type,
   a field appended to a payload, a new value of an enumerated field. An
@@ -131,7 +131,7 @@ A reader handles a value it does not know in an enumerated field as
 ```
 defragr-engine probe                  list drives; no root needed
 defragr-engine report <mount-point>   report on one drive; needs root
-defragr-engine defrag <mount-point> <folder>
+defragr-engine defrag <mount-point> <folder> [map]
                                       defrag a folder and below (§ 4.12); needs root
 defragr-engine selftest-records       fixed records (§ 4.9); hidden
 defragr-engine selftest-crc32c        checksum test (§ 4.11); hidden
@@ -148,7 +148,8 @@ arguments, so this is how a name that is not UTF-8 reaches it.
 `defrag`'s mount point is written the same way, and so is its folder:
 a path relative to the mount point, its names joined by single `/`, with
 no leading or trailing `/` and no name `.` or `..`. The empty folder is
-the mount point's own.
+the mount point's own. A fourth word `map` asks for the drive's map
+first (§ 4.12). Any other fourth word, or a fifth, is `USAGE`.
 
 The stream is:
 
@@ -174,7 +175,7 @@ command, then `FINISHED` with `USAGE`.
 ```
 offset  size  field
 0       2     major        1
-2       2     minor        4
+2       2     minor        5
 4       4     command      0 unknown, 1 probe, 2 report, 3 defrag, 254 selftest-crc32c, 255 selftest-records
 8       4     block_size   the drive's statfs f_bsize in bytes; non-zero in a report or defrag whose result is OK; 0 for probe, or when not known
 12      4     reserved     0
@@ -391,7 +392,7 @@ result and errno, and `BLOCKS_MOVED`' counts.
 
 | Record | Field values |
 |---|---|
-| `HELLO` | major 1, minor 4, command 255, block_size `0x01020304` |
+| `HELLO` | major 1, minor 5, command 255, block_size `0x01020304` |
 | `DRIVE` | total_blocks `0x1112131415161718`, free_blocks `0x2122232425262728`, block_size `0x31323334`, dev_major `0x41424344`, dev_minor `0x51525354`, media 2, verdict 1, reason `0xD1D2`, mount_flags `0xE1E2E3E5`, mount_point the 7 bytes `/mnt/t` then `0xFF`, source empty, fs_type `ext4` |
 | `FRAGMENTED_FILE` | extents `0x61626364`, size_blocks `0x7172737475767778`, path `a/b` |
 | `FILE_SKIPPED` | errno `0x0A0B0C0D`, stage `0x0E0F`, path `c` |
@@ -401,6 +402,7 @@ result and errno, and `BLOCKS_MOVED`' counts.
 | `RUN_STATE` | state `0xF1F2F3F4` |
 | `FILE_DEFRAGGED` | extents_before `0x21222324`, extents_after `0x25262728`, moved_blocks `0x2A2B2C2D2E2F3031`, path `d/e` |
 | `BLOCKS_MOVED` | from_count 1, to_count 2, from run start `0x7172737475767778` and length `0x8182838485868788`, to run 0 start `0x9192939495969798` and length `0xA1A2A3A4A5A6A7A8`, to run 1 start `0xB1B2B3B4B5B6B7B8` and length `0xC1C2C3C4C5C6C7C8` |
+| `MAP_DONE` | none: its fixed part is reserved |
 | `FINISHED` | result 0, errno 0 |
 
 All reserved fields, flags and padding are 0. `BLOCKS_MOVED`' lengths
@@ -409,7 +411,7 @@ it. The `HELLO` record is these 24 bytes:
 
 ```
 01 00 00 00 10 00 00 00   type 1, flags 0, length 16
-01 00 04 00 ff 00 00 00   major 1, minor 4, command 255
+01 00 05 00 ff 00 00 00   major 1, minor 5, command 255
 04 03 02 01 00 00 00 00   block_size 0x01020304, reserved 0
 ```
 
@@ -469,6 +471,25 @@ the first, and from an address that is not a multiple of 8.
 The defrag stream is `HELLO`, then `FILE_DEFRAGGED`, `FILE_SKIPPED`,
 `BLOCKS_MOVED` and `RUN_STATE` in any order, then `FINISHED`. Added in
 1.4.
+
+**With `map`** (§ 4.3), the drive's map comes straight after `HELLO`:
+`REPORT_PROGRESS` and `MAP_RUNS` as a report sends them (§ 4.6), then
+one `MAP_DONE`. Added in 1.5, so a window asks for the drive's map and
+its defrag in one run, with admin rights asked for once.
+
+- The engine checks the folder first, so `NO_FOLDER` comes before
+  `HELLO` and before the walk.
+- It then walks the whole drive to read, as `report` does. A file or
+  folder it cannot read sends no record: its blocks are in no run.
+- It then opens the mount point and the folder again, to move. A drive
+  or folder that changed meanwhile ends the run after `MAP_DONE`, with
+  the result § 4.7 gives it.
+- No `MAP_RUNS` or `REPORT_PROGRESS` follows `MAP_DONE`, or a file's
+  record.
+- A run that ends before `MAP_DONE` has sent part of a map. A reader
+  shows none of it.
+
+**`MAP_DONE`** — type `0x0025`, fixed part 8 bytes, all reserved, 0.
 
 The engine visits each regular file in the folder and the folders below
 it, on that drive only, as `report` walks (`src/engine/walk.asm`). A file
@@ -781,6 +802,33 @@ isolates.
   *Breaks when:* the engine moves a file its checks should stop, or
   the kernel's swap-file refusal goes unreported.
 
+- **INV-24** — In a defrag stream, `MAP_RUNS`, `REPORT_PROGRESS` and
+  one `MAP_DONE` are accepted before the first `FILE_DEFRAGGED`,
+  `FILE_SKIPPED` or `BLOCKS_MOVED`. A `MAP_RUNS`, `REPORT_PROGRESS` or
+  `MAP_DONE` after `MAP_DONE` or after a file's record is malformed, as
+  is a `MAP_DONE` with no fixed part, and a `MAP_DONE` in a report.
+  *Test:* `tests/app/tst_records.cpp::defragStreamWithMap` — a valid
+  stream, then the same with one record moved or added, so only the
+  order rule can reject it.
+  *Breaks when:* the decoder reads `0x0025` as `Unknown`, or lets the
+  map resume after the files begin.
+
+- **INV-25** — `defrag <mount-point> <folder> map` sends
+  `REPORT_PROGRESS` with no names straight after `HELLO`, then
+  `MAP_RUNS` naming the blocks of each kind that a `report` run just
+  before it named, then one `MAP_DONE`, then defrags as INV-20 says.
+  Without `map` it sends none of the three. A fourth word other than
+  `map`, or a fifth, is `USAGE`. With `map`, a folder that does not
+  exist is `NO_FOLDER` with no record but `HELLO` and `FINISHED`.
+  *Test:* `tests/image/defrag-check.cpp` and
+  `tests/image/check-defrag.sh`, the `image_defrag` test: the defrag of
+  `deep` asks for the map, and the whole-drive one does not.
+  `tests/app/tst_records_conformance.cpp` for the argument rule without
+  root.
+  *Breaks when:* the engine skips GETFSMAP's runs, walks only the
+  folder for the map, sends `MAP_DONE` before the map's last runs, or
+  reads the map before it has checked the folder.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -830,18 +878,19 @@ fail against an engine that accepts any folder under a mount point.
 
 | Test | Locks | Needs root |
 |---|---|---|
-| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13, INV-16, INV-19 | No |
-| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11, INV-18, INV-21 without root | No |
+| `tests/app/tst_records.cpp` | INV-1 to INV-9, INV-13, INV-16, INV-19, INV-24 | No |
+| `tests/app/tst_records_conformance.cpp` | INV-10, INV-11, INV-18, INV-21 and INV-25's arguments without root | No |
 | `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
 | `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
 | `tests/image/report-check.cpp` | INV-14, INV-17 | Yes, its input comes from the test machine |
-| `tests/image/check-defrag.sh` | INV-21 as root, INV-23 | Yes, inside the test machine |
-| `tests/image/defrag-check.cpp` | INV-20, INV-22's probe record | Yes, its input comes from the test machine |
+| `tests/image/check-defrag.sh` | INV-21 as root, INV-23, INV-25's arguments and folder check | Yes, inside the test machine |
+| `tests/image/defrag-check.cpp` | INV-20, INV-22's probe record, INV-25's map | Yes, its input comes from the test machine |
 | `tests/image/check-old-cpu.sh` | INV-22 | Yes, inside a test machine with no SSE4.2 |
 
 DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
 DFR-0011 does the same for INV-16's and INV-17's, DFR-0016 for INV-18's,
-and DFR-0017 for INV-19's to INV-23's.
+DFR-0017 for INV-19's to INV-23's, and DFR-0096 for INV-24's and
+INV-25's.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -874,7 +923,7 @@ engine. The conformance and image tests read real engine output.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 to INV-9, INV-13, INV-16, INV-19 | `tests/app/tst_records.cpp` |
+| INV-1 to INV-9, INV-13, INV-16, INV-19, INV-24 | `tests/app/tst_records.cpp` |
 | INV-10, INV-11, INV-18 | `tests/app/tst_records_conformance.cpp` |
 | INV-12 | `tests/image/check-report.sh` (`image_report`) |
 | INV-14, INV-17 | `tests/image/report-check.cpp` (`image_report`) |
@@ -883,6 +932,8 @@ engine. The conformance and image tests read real engine output.
 | INV-21 | `tests/app/tst_records_conformance.cpp`; `tests/image/check-defrag.sh` (`image_defrag`) |
 | INV-22 | `tests/image/check-old-cpu.sh` and `tests/image/defrag-check.cpp` (`image_defrag`) |
 | INV-23 | `tests/image/check-defrag.sh` (`image_defrag`) |
+| INV-25 | `tests/image/defrag-check.cpp` and `tests/image/check-defrag.sh` (`image_defrag`); `tests/app/tst_records_conformance.cpp` |
+| § 4.12 with `map`, a drive or folder that changes during the map's walk | **nothing**: it needs a change timed between the two walks |
 | § 4.7 check order | INV-11 and INV-21 |
 | § 4.12 stages 7 to 11, `CHECKSUM_MISMATCH`, a donor in no fewer pieces | **nothing**: each needs a failing drive, a writer racing the move, or a full drive |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |

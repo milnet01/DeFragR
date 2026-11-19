@@ -59,9 +59,9 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-records")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.exitCode, 0);
-        QCOMPARE(run.records.size(), 11);
+        QCOMPARE(run.records.size(), 12);
 
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 4, 255, 0x01020304}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 5, 255, 0x01020304}));
 
         Drive drive;
         drive.totalBlocks = 0x1112131415161718;
@@ -97,7 +97,8 @@ private slots:
                  (BlocksMoved{{{0x7172737475767778, 0x8182838485868788}},
                               {{0x9192939495969798, 0xA1A2A3A4A5A6A7A8},
                                {0xB1B2B3B4B5B6B7B8, 0xC1C2C3C4C5C6C7C8}}}));
-        QCOMPARE(std::get<Finished>(run.records[10]), (Finished{0, 0}));
+        QCOMPARE(std::get<MapDone>(run.records[10]), MapDone{});
+        QCOMPARE(std::get<Finished>(run.records[11]), (Finished{0, 0}));
     }
 
     // INV-18: the engine's CRC32C gives every published value § 4.11 lists.
@@ -106,7 +107,7 @@ private slots:
         const Run run = runEngine({QStringLiteral("selftest-crc32c")});
         QCOMPARE(run.error, std::nullopt);
         QCOMPARE(run.records.size(), 2);
-        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 4, CommandSelftestCrc32c, 0}));
+        QCOMPARE(std::get<Hello>(run.records[0]), (Hello{1, 5, CommandSelftestCrc32c, 0}));
         QCOMPARE(std::get<Finished>(run.records[1]).result, int(ResultOk));
         QCOMPARE(run.exitCode, 0);
     }
@@ -132,6 +133,13 @@ private slots:
             << QStringList{"defrag", "/nonexistent"} << int(ResultUsage) << false;
         QTest::newRow("defrag, not root")
             << QStringList{"defrag", "/nonexistent", "x"} << int(ResultNotRoot) << true;
+        // INV-25: a fourth word must be "map", and nothing follows it.
+        QTest::newRow("defrag with the map, not root")
+            << QStringList{"defrag", "/nonexistent", "x", "map"} << int(ResultNotRoot) << true;
+        QTest::newRow("defrag, a fourth word that is not map")
+            << QStringList{"defrag", "/nonexistent", "x", "maps"} << int(ResultUsage) << false;
+        QTest::newRow("defrag, a word after map")
+            << QStringList{"defrag", "/nonexistent", "x", "map", "y"} << int(ResultUsage) << false;
         QTest::newRow("selftest-records") << QStringList{"selftest-records"} << int(ResultOk)
                                           << false;
         QTest::newRow("selftest-crc32c, extra argument")

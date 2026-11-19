@@ -206,6 +206,10 @@ bool RecordDecoder::decode(quint16 type, QByteArrayView payload)
         record = std::move(m);
         break;
     }
+    case TypeMapDone:
+        in.at<quint64>(0);  // reserved; read so a shorter payload is short
+        record = MapDone{};
+        break;
     case TypeFileDefragged: {
         FileDefragged f{.extentsBefore = in.at<quint32>(0),
                         .extentsAfter = in.at<quint32>(4),
@@ -324,15 +328,27 @@ bool RecordDecoder::orderAllows(const Record &record)
     }
 
     if (m_command == CommandDefrag) {
-        // § 4.12 and INV-19: moves, files and run states; OK needs the block
-        // size the runs are counted in.
+        // § 4.12, INV-19 and INV-24: first the map, when asked for, closed
+        // by MAP_DONE; then moves, files and run states. OK needs the
+        // block size the runs are counted in.
         if (finished)
             return finished->result != ResultOk || m_blockSize != 0 ? true : malformed();
+        if (std::holds_alternative<RunState>(record))
+            return true;
+        if (std::holds_alternative<MapRuns>(record)
+            || std::holds_alternative<ReportProgress>(record)
+            || std::holds_alternative<MapDone>(record)) {
+            if (m_mapClosed)
+                return malformed();
+            m_mapClosed = std::holds_alternative<MapDone>(record);
+            return true;
+        }
         if (std::holds_alternative<FileDefragged>(record)
             || std::holds_alternative<FileSkipped>(record)
-            || std::holds_alternative<BlocksMoved>(record)
-            || std::holds_alternative<RunState>(record))
+            || std::holds_alternative<BlocksMoved>(record)) {
+            m_mapClosed = true;
             return true;
+        }
         return malformed();
     }
 

@@ -6,12 +6,14 @@
 # look at the window mid-run. The report maps the drive's 1000 blocks. Its
 # defrag of any folder on the first drive moves one file's 40 blocks,
 # pauses in the same way, then joins that file up, leaves a second as it
-# was and skips a third. Any other command line gets no stream.
+# was and skips a third. Asked for the map, the defrag sends the report's
+# map first. Any other command line gets no stream.
 #   /mnt/<img src=x>            ext4, report and defrag
 #   /mnt/other  on <b>zfs</b>   not ext4, report only
 # DEFRAGR_TEST_LOG, when set, names a file that gains each command line.
 # DEFRAGR_TEST_DEFRAG changes how the defrag ends: "mismatch" stops it at
-# a file that reads back differently; "broken" breaks its stream.
+# a file that reads back differently; "broken" breaks its stream; "no-map"
+# ends it with a drive error before its map is whole.
 # Records: docs/specs/DFR-0002-engine-protocol.md § 4.
 [ -z "${DEFRAGR_TEST_LOG:-}" ] || printf '%s\n' "$*" >>"$DEFRAGR_TEST_LOG"
 case "$1" in
@@ -93,9 +95,31 @@ skipped() {
     le "$1" 4; le "$2" 2; zeros 2; string_part 8 "$3"
 }
 
+# The map: a whole file, a file in two pieces, the filesystem's own
+# blocks, and free space.
+the_map() {
+    map_runs 3 0 100
+    map_runs 4 100 20 300 20
+    map_runs 2 120 80
+    map_runs 1 200 100 320 680
+}
+
 if [ "$1" = defrag ]; then
-    # HELLO: version 1.4, defrag, block size 4096.
-    header 1 16; le 1 2; le 4 2; le 3 4; le 4096 4; zeros 4
+    # HELLO: version 1.5, defrag, block size 4096.
+    header 1 16; le 1 2; le 5 2; le 3 4; le 4096 4; zeros 4
+    if [ "${4:-}" = map ]; then
+        # REPORT_PROGRESS: names 0, then 300, of an estimated 300.
+        header 35 16; le 0 8; le 300 8
+        the_map
+        header 35 16; le 300 8; le 300 8
+        if [ "${DEFRAGR_TEST_DEFRAG:-}" = no-map ]; then
+            # FINISHED: DRIVE_ERROR, errno 5, before the map is whole.
+            header 2 8; le 5 4; le 5 4
+            exit 5
+        fi
+        # MAP_DONE.
+        header 37 8; zeros 8
+    fi
     blocks_moved 2 100 20 300 20 400 40
     if [ "${DEFRAGR_TEST_DEFRAG:-}" = broken ]; then
         # A second HELLO breaks the stream's order.
@@ -127,12 +151,7 @@ else
     fragmented 3 10 '<img src=x>.bin'
     # REPORT_PROGRESS: names 150 of an estimated 300.
     header 35 16; le 150 8; le 300 8
-    # The map: a whole file, a file in two pieces, the filesystem's own
-    # blocks, and free space.
-    map_runs 3 0 100
-    map_runs 4 100 20 300 20
-    map_runs 2 120 80
-    map_runs 1 200 100 320 680
+    the_map
     hold_sent
     hold_wait
     # REPORT_SUMMARY: files 200, fragmented 1, extents 3, file_blocks 5000,

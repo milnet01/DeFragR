@@ -444,6 +444,11 @@ rec_selftest:
     mov [rdx + map_run.length], rcx
     call rec_send
 
+    mov edi, REC_MAP_DONE
+    mov esi, map_done_size
+    call rec_start
+    call rec_send
+
     mov edi, RESULT_OK
     xor esi, esi
     call rec_finish

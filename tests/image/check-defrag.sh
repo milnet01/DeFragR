@@ -6,9 +6,11 @@
 # (INV-21); that an immutable file and a swap file in use are left as
 # they were (INV-23); and, around two defrags, one of the folder deep
 # and one of the whole drive, that every file reads the same, no name
-# appears or goes, and e2fsck finds nothing wrong (INV-20). Then prints
-# filefrag's view before and after each run, and the engine's output,
-# between marker lines, for test-defrag.sh to check on the host.
+# appears or goes, and e2fsck finds nothing wrong (INV-20). The first
+# defrag is asked for the drive's map, with a report taken just before
+# it to compare (INV-25). Then prints filefrag's view before and after
+# each run, and the engine's output, between marker lines, for
+# test-defrag.sh to check on the host.
 # shellcheck source=SCRIPTDIR/../vm/guard.sh
 . /test/guard.sh
 # shellcheck source=SCRIPTDIR/fragment.sh
@@ -102,10 +104,19 @@ check "a folder written with .. is NO_FOLDER" $? 10
 check "a folder with a leading / is NO_FOLDER" $? 10
 "$engine" defrag /mnt/img dlink >/dev/null
 check "a link to a folder is NO_FOLDER" $? 10
+# INV-25: the fourth word, and the folder checked before the map is read.
+"$engine" defrag /mnt/img deep maps >/dev/null
+check "a fourth word that is not map is USAGE" $? 1
+"$engine" defrag /mnt/img nowhere map >/tmp/nowhere
+check "with map, a folder that does not exist is NO_FOLDER" $? 10
+check "and nothing of the map was sent first: HELLO and FINISHED alone" \
+    "$(wc -c </tmp/nowhere)" 40
 umount /mnt/flash
 
-"$engine" defrag /mnt/img deep >/tmp/defrag.1
-check "defrag of deep exits OK" $? 0
+"$engine" report /mnt/img >/tmp/report.0
+check "the report before the defrag exits OK" $? 0
+"$engine" defrag /mnt/img deep map >/tmp/defrag.1
+check "defrag of deep, with the map, exits OK" $? 0
 measure 1
 check "every file reads the same after deep" "$(sums 1)" "$(sums 0)"
 check "no name came or went with deep" "$(cat /tmp/names.1)" "$(cat /tmp/names.0)"
@@ -128,6 +139,7 @@ for n in 0 1 2; do
     section "REF$n" <"/tmp/ref.$n"
     section "EXT$n" <"/tmp/ext.$n"
 done
+base64 </tmp/report.0 | section REPORT0
 base64 </tmp/defrag.1 | section DEFRAG1
 base64 </tmp/defrag.2 | section DEFRAG2
 [ "$failures" -eq 0 ]

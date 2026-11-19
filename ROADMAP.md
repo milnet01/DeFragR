@@ -1885,6 +1885,31 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: dfr-0060-measurement-2026-11-18.
   Lanes: Walk, Extents.
 
+- ✅ [DFR-0096] **One password prompt for a defrag that reads its map first.**
+  A defrag stream holds no map (DFR-0002 § 4.12), so `model/RunState`
+  runs `report`, then `defrag`: two pkexec runs, two prompts, unless the
+  window already holds that drive's map
+  (`docs/specs/DFR-0018-window-folder-defrag.md` § 3, § 8). Two ways,
+  the owner's choice: a polkit policy that keeps the password for a few
+  minutes, which a long report outlasts (DFR-0060 measured 19 min 56 s
+  cold on /mnt/Games); or the engine sends `MAP_RUNS` at the start of a
+  defrag stream, a protocol amendment, with the whole-drive walk before
+  every defrag. Neither is tried.
+  Done 2026-11-19, the owner's choice that day: fixed before 0.3.0, by
+  the engine. `defrag <mount> <folder> map` sends the drive's map, then
+  `MAP_DONE`, then defrags, in one run (protocol 1.5,
+  `docs/specs/DFR-0002-engine-protocol.md` § 4.12, INV-24, INV-25).
+  `model/RunState` asks for it when it holds no map of the drive. The
+  folder is checked before the map's walk. Seen once, with the engine
+  broken on purpose: `tests/image/defrag-check.cpp` fails a
+  `FILE_DEFRAGGED` whose `moved_blocks` is 0, which § 4.12 allows; three
+  unbroken runs passed. `tests/fixtures/image-report/report.bin` is
+  recorded again at 1.5.
+  **Layman:** Defragging a drive DeFragR has not looked at yet asks for the password twice; make it once.
+  Kind: ux.
+  Source: dfr-0018-build-2026-11-19.
+  Lanes: Run, Entry, Packaging.
+
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress
 
 - 📋 [DFR-0020] **Engine whole-drive defrag with progress records.**
@@ -1921,21 +1946,6 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0019, DFR-0020, DFR-0021.
-
-- 📋 [DFR-0096] **One password prompt for a defrag that reads its map first.**
-  A defrag stream holds no map (DFR-0002 § 4.12), so `model/RunState`
-  runs `report`, then `defrag`: two pkexec runs, two prompts, unless the
-  window already holds that drive's map
-  (`docs/specs/DFR-0018-window-folder-defrag.md` § 3, § 8). Two ways,
-  the owner's choice: a polkit policy that keeps the password for a few
-  minutes, which a long report outlasts (DFR-0060 measured 19 min 56 s
-  cold on /mnt/Games); or the engine sends `MAP_RUNS` at the start of a
-  defrag stream, a protocol amendment, with the whole-drive walk before
-  every defrag. Neither is tried.
-  **Layman:** Defragging a drive DeFragR has not looked at yet asks for the password twice; make it once.
-  Kind: ux.
-  Source: dfr-0018-build-2026-11-19.
-  Lanes: Run, Entry, Packaging.
 
 ## 0.5.0 — Pause, cancel and background mode
 

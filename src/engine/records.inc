@@ -6,7 +6,7 @@
 %define RECORDS_INC
 
 PROTOCOL_MAJOR      equ 1
-PROTOCOL_MINOR      equ 4
+PROTOCOL_MINOR      equ 5
 
 ; § 4.1 framing.
 struc rec_header
@@ -27,6 +27,7 @@ REC_FILE_SKIPPED    equ 0x0021
 REC_REPORT_SUMMARY  equ 0x0022
 REC_REPORT_PROGRESS equ 0x0023
 REC_MAP_RUNS        equ 0x0024
+REC_MAP_DONE        equ 0x0025
 REC_RUN_STATE       equ 0x0030
 REC_FILE_DEFRAGGED  equ 0x0040
 REC_BLOCKS_MOVED    equ 0x0041
@@ -92,6 +93,10 @@ struc map_run
     .length         resq 1
 endstruc
 MAP_RUNS_MAX        equ (PAYLOAD_MAX - map_runs_size) / map_run_size
+
+struc map_done
+    .reserved       resq 1
+endstruc
 
 struc run_state
     .state          resd 1

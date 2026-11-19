@@ -42,6 +42,7 @@ section .rodata
 arg_probe:      db "probe", 0
 arg_report:     db "report", 0
 arg_defrag:     db "defrag", 0
+arg_map:        db "map", 0
 arg_selftest:   db "selftest-records", 0
 arg_selftest_crc32c: db "selftest-crc32c", 0
 
@@ -57,6 +58,9 @@ summary:        resb report_summary_size   ; report's running totals
 progress_due:   resq 1                  ; walk_names at the next REPORT_PROGRESS
 mount_path:     resb STRING_MAX + 8     ; the mount point argument, decoded
 folder_path:    resb STRING_MAX + 8     ; defrag's folder argument, decoded
+folder_len:     resq 1                  ; its length, up to any \000
+mount_arg:      resq 1                  ; defrag's mount point argument, as given
+map_wanted:     resq 1                  ; not 0: defrag sends the drive's map first
 
 section .text
 global _start
@@ -148,14 +152,26 @@ _start:
 .defrag:
     ; HELLO waits for the block size, so each failure here sends it.
     mov edi, RESULT_USAGE
+    xor ebx, ebx                    ; ebx = 1 when the map is asked for
     cmp r12, 4
+    je .defrag_counted
+    cmp r12, 5
     jne .defrag_failed
+    mov rdi, [r13 + 32]             ; argv[4]: "map", or it is no defrag
+    lea rsi, [arg_map]
+    call str_equal
+    mov edi, RESULT_USAGE
+    test eax, eax
+    jz .defrag_failed
+    mov ebx, 1
+.defrag_counted:
     call sys_geteuid
     mov edi, RESULT_NOT_ROOT
     test eax, eax
     jnz .defrag_failed
     mov rdi, [r13 + 16]             ; argv[2], the mount point
     mov rsi, [r13 + 24]             ; argv[3], the folder
+    mov edx, ebx
     call defrag_run
 .defrag_failed:                     ; edi = result
     mov ebx, edi
@@ -394,14 +410,22 @@ drive_open:
     ret
 
 ; defrag_run(rdi = NUL-terminated mount point, rsi = NUL-terminated
-;   folder, both escaped) -> does not return. A failure before the walk
-;   starts sends HELLO with block size 0 and FINISHED with its result.
+;   folder, both escaped, edx = not 0 to send the drive's map first)
+;   -> does not return. A failure before HELLO sends HELLO with block
+;   size 0 and FINISHED with its result.
 ; The rest of a defrag stream (DFR-0002 § 4.12), from the mount-point
-; check on: the drive rules, the folder, HELLO with the block size, then
-; each file's records from move_file, or a FILE_SKIPPED where the walk
-; could not reach one, then FINISHED.
+; check on: the drive rules, the folder, HELLO with the block size, the
+; map when asked for, then each file's records from move_file, or a
+; FILE_SKIPPED where the walk could not reach one, then FINISHED.
+; The map needs a walk of the whole drive, so with it the folder is
+; checked first, the drive walked to read, and then the mount point and
+; the folder are opened again to move: the drive may have changed in
+; between, and those checks then end the run after HELLO. The folder
+; opened for the first check stays open until exit, which closes it.
 defrag_run:
     push rbx
+    mov [mount_arg], rdi
+    mov [map_wanted], rdx
     mov rbx, rsi                    ; rbx = the folder
     mov esi, WALK_TO_MOVE
     call drive_open
@@ -437,6 +461,7 @@ defrag_run:
     jmp .measure_decoded
 .measured_decoded:
     sub rsi, rdi
+    mov [folder_len], rsi
     call walk_enter
     test rax, rax
     jz .entered
@@ -446,12 +471,56 @@ defrag_run:
     mov eax, RESULT_NO_FOLDER
     jmp .failed
 .entered:
+    cmp qword [map_wanted], 0
+    jne .with_map
     mov edi, r15d
     mov rsi, r14
     call move_setup
     mov edi, CMD_DEFRAG
     mov esi, r15d
     call rec_hello
+    jmp .next
+
+.with_map:
+    mov rdi, [mount_arg]
+    mov esi, WALK_TO_READ
+    call drive_open
+    test eax, eax
+    jnz .failed
+    mov r15d, edx                   ; r15 = the block size
+    mov r14d, ecx                   ; r14 = the top folder, open during the walk
+    mov edi, CMD_DEFRAG
+    mov esi, r15d
+    call rec_hello
+    call send_map
+    ; Back to the folder, as at the start, now to move.
+    mov rdi, [mount_arg]
+    mov esi, WALK_TO_MOVE
+    call drive_open
+    test eax, eax
+    jnz .finish_with
+    mov r15d, edx
+    mov r14, r9                     ; r14 = the mount id
+    mov eax, RESULT_REFUSED
+    xor edx, edx
+    test r8d, r8d
+    jnz .finish_with
+    lea rdi, [folder_path]
+    mov rsi, [folder_len]
+    call walk_enter
+    test rax, rax
+    jz .moving
+    neg eax
+    mov edx, eax
+    mov eax, RESULT_NO_FOLDER
+.finish_with:                       ; eax = result, edx = errno; HELLO is sent
+    mov edi, eax
+    mov esi, edx
+    call rec_finish
+.moving:
+    mov edi, r15d
+    mov rsi, r14
+    call move_setup
 
 .next:
     call walk_next
@@ -505,6 +574,65 @@ defrag_run:
     mov edi, ebx
     mov esi, r12d
     call rec_finish
+
+; send_map(r14d = the top folder, open, r15d = the block size), with the
+;   walk started at the top folder to read. Returns once the map is sent.
+; The drive's map at the head of a defrag stream (DFR-0002 § 4.12):
+; REPORT_PROGRESS and MAP_RUNS as a report sends them (§ 4.6), then
+; MAP_DONE. A file or folder it cannot read sends nothing, so its blocks
+; are in no run. The top folder failing to read ends the run with
+; DRIVE_ERROR. Clobbers rax, rbx, rcx, rdx, rsi, rdi, r8 to r11.
+send_map:
+    sub rsp, 8
+    call send_progress              ; names 0, first after HELLO
+    mov edi, r14d
+    mov esi, r15d
+    call extents_space
+.next:
+    mov rax, [walk_names]
+    cmp rax, [progress_due]
+    jb .walk
+    call send_progress
+.walk:
+    call walk_next
+    cmp eax, WALK_FILE
+    je .file
+    cmp eax, WALK_SKIPPED
+    je .next
+    cmp eax, WALK_END
+    je .end
+    mov edi, RESULT_DRIVE_ERROR     ; WALK_ERROR: the top folder failed
+    mov esi, edx
+    call rec_finish
+.file:
+    mov ebx, edx                    ; ebx = the file
+    mov edi, ebx
+    mov esi, r15d
+    xor edx, edx                    ; count only
+    call extents_count
+    cmp rax, -MAX_ERRNO
+    jae .close
+    ; Its runs, now its pieces say which kind they are.
+    mov edx, MAP_WHOLE_FILE
+    mov ecx, MAP_FRAGMENTED_FILE
+    cmp rax, 2
+    cmovae edx, ecx
+    mov edi, ebx
+    mov esi, r15d
+    call extents_count
+.close:
+    mov edi, ebx
+    call sys_close                  ; read-only; a failed close loses nothing
+    jmp .next
+.end:
+    call rec_map_flush
+    call send_progress              ; every name, for the last time
+    mov edi, REC_MAP_DONE
+    mov esi, map_done_size
+    call rec_start
+    call rec_send
+    add rsp, 8
+    ret
 
 ; send_progress() -> rax = 0. Sends REPORT_PROGRESS with the walk's
 ; counts, and makes the next due PROGRESS_EVERY names on. Clobbers as

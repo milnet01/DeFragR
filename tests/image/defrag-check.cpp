@@ -1,16 +1,19 @@
 // The host half of the image_defrag test (test-defrag.sh). Decodes the
 // engine's output with the window's decoder and compares it with what
 // filefrag saw in the test machine before and after: INV-20's records,
-// INV-23's skips, and INV-22's probe record on a CPU without SSE4.2
-// (docs/specs/DFR-0002-engine-protocol.md).
+// INV-23's skips, INV-25's map, and INV-22's probe record on a CPU
+// without SSE4.2 (docs/specs/DFR-0002-engine-protocol.md).
 //
 // Usage:
-//   defrag-check defrag STREAM FOLDER REF_BEFORE REF_AFTER EXT_BEFORE EXT_AFTER [SKIPPED]...
-//     STREAM      the engine's output for `defrag MOUNT FOLDER`
+//   defrag-check defrag STREAM FOLDER REF_BEFORE REF_AFTER EXT_BEFORE EXT_AFTER MAP [SKIPPED]...
+//     STREAM      the engine's output for `defrag MOUNT FOLDER`, or for
+//                 `defrag MOUNT FOLDER map`
 //     FOLDER      that folder; "" for the whole drive
 //     REF_*       describe_files lines, EXTENTS SHA256 PATH, before and after
 //     EXT_*       lines LOGICAL PHYSICAL LENGTH PATH, in blocks, one per
 //                 extent filefrag -v lists, before and after
+//     MAP         the engine's output for `report MOUNT` just before a
+//                 defrag asked for the map; "-" for one not asked
 //     SKIPPED     each path the run must skip, and no other
 //   defrag-check probe STREAM MOUNT
 //     STREAM      the engine's output for `probe` on a CPU without SSE4.2
@@ -106,6 +109,65 @@ QList<quint64> blocksOf(const QList<MapRun> &runs)
     return out;
 }
 
+// The blocks each kind of MAP_RUNS names in the stream, up to its
+// MAP_DONE if it has one. Sets, since a run is cut wherever a record
+// fills.
+QMap<quint32, QSet<quint64>> mapBlocks(const QList<Record> &records)
+{
+    QMap<quint32, QSet<quint64>> blocks;
+    for (const Record &record : records) {
+        if (std::holds_alternative<MapDone>(record))
+            break;
+        if (const auto *runs = std::get_if<MapRuns>(&record))
+            for (const quint64 block : blocksOf(runs->runs))
+                blocks[runs->kind].insert(block);
+    }
+    return blocks;
+}
+
+// INV-25: a defrag asked for the map sends, before anything else, what a
+// report's map says; one not asked sends none of it.
+void checkMap(const Decoded &run, const char *reportPath, const QString &in)
+{
+    qsizetype done = -1, lastOfMap = -1, firstOfFiles = -1;
+    int dones = 0;
+    for (qsizetype i = 0; i < run.records.size(); ++i) {
+        const Record &record = run.records[i];
+        if (std::holds_alternative<MapDone>(record)) {
+            done = i;
+            ++dones;
+        } else if (std::holds_alternative<MapRuns>(record)
+                   || std::holds_alternative<ReportProgress>(record)) {
+            lastOfMap = i;
+        } else if (firstOfFiles < 0
+                   && (std::holds_alternative<BlocksMoved>(record)
+                       || std::holds_alternative<FileDefragged>(record)
+                       || std::holds_alternative<FileSkipped>(record))) {
+            firstOfFiles = i;
+        }
+    }
+    if (std::strcmp(reportPath, "-") == 0) {
+        check(dones == 0 && lastOfMap < 0, "no map is sent unasked" + in);
+        return;
+    }
+    check(dones == 1, "MAP_DONE comes once" + in);
+    check(lastOfMap >= 0 && lastOfMap < done, "the map comes before MAP_DONE" + in);
+    check(firstOfFiles < 0 || firstOfFiles > done, "the files come after MAP_DONE" + in);
+    const auto *first = run.records.size() > 1 ? std::get_if<ReportProgress>(&run.records[1])
+                                               : nullptr;
+    check(first && first->names == 0, "REPORT_PROGRESS with no names comes after HELLO" + in);
+
+    const Decoded report = decode(readFile(reportPath));
+    check(!report.error, "the report taken before decodes" + in);
+    const auto wanted = mapBlocks(report.records);
+    const auto sent = mapBlocks(run.records);
+    check(!wanted.value(MapFragmentedFile).isEmpty() && !wanted.value(MapFree).isEmpty(),
+          "the report's map has fragmented files and free space" + in);
+    for (const quint32 kind : {MapFree, MapFilesystem, MapWholeFile, MapFragmentedFile})
+        check(sent.value(kind) == wanted.value(kind),
+              QStringLiteral("the map's blocks of kind %1 are the report's").arg(kind) + in);
+}
+
 int checkDefrag(char **argv, int argc)
 {
     const Decoded run = decode(readFile(argv[0]));
@@ -116,7 +178,7 @@ int checkDefrag(char **argv, int argc)
     const auto blocksBefore = blocksByPath(readFile(argv[4]));
     const auto blocksAfter = blocksByPath(readFile(argv[5]));
     QSet<QByteArray> mustSkip;
-    for (int i = 6; i < argc; ++i)
+    for (int i = 7; i < argc; ++i)
         mustSkip.insert(argv[i]);
     const QString in = QStringLiteral(" (defrag of \"%1\")").arg(QString::fromLatin1(folder));
 
@@ -128,6 +190,7 @@ int checkDefrag(char **argv, int argc)
     const auto *finished = run.records.isEmpty() ? nullptr
                                                  : std::get_if<Finished>(&run.records.last());
     check(finished && finished->result == ResultOk, "FINISHED is OK" + in);
+    checkMap(run, argv[6], in);
 
     // Each file's BLOCKS_MOVED come straight before its own record.
     QList<MapRun> from, to;
@@ -201,7 +264,7 @@ int checkProbe(char **argv)
 
 int main(int argc, char **argv)
 {
-    if (argc >= 8 && std::strcmp(argv[1], "defrag") == 0)
+    if (argc >= 9 && std::strcmp(argv[1], "defrag") == 0)
         return checkDefrag(argv + 2, argc - 2);
     if (argc == 4 && std::strcmp(argv[1], "probe") == 0)
         return checkProbe(argv + 2);

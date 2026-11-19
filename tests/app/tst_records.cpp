@@ -146,6 +146,12 @@ QByteArray mapRuns(quint32 kind, const QList<MapRun> &runs,
     }
     return record(TypeMapRuns, p);
 }
+QByteArray mapDone()
+{
+    QByteArray p;
+    put64(p, 0);
+    return record(TypeMapDone, p);
+}
 QByteArray runState(quint32 state)
 {
     QByteArray p;
@@ -513,6 +519,39 @@ private slots:
         // OK needs the block size its runs are counted in.
         QCOMPARE(errorOf(hello(CommandDefrag, 0) + body + finished()), kMalformed);
         QCOMPARE(errorOf(hello(CommandDefrag, 0) + finished(ResultRefused)), kNoError);
+    }
+
+    // INV-24: a defrag asked for the map sends it first, closed by
+    // MAP_DONE. Each stream below differs from the valid one by a single
+    // record out of place, so only the order rule can reject it.
+    void defragStreamWithMap()
+    {
+        // ::mapRuns is the record's builder; mapRuns() here is a test.
+        const QByteArray map = progress(0, 9) + ::mapRuns(MapFree, {{0, 8}})
+                               + ::mapRuns(MapFragmentedFile, {{8, 2}}) + progress(9, 9);
+        const QByteArray moves = blocksMoved({{8, 2}}, {{0, 2}}) + defragged("a/b");
+        const QByteArray d = hello(CommandDefrag);
+        const Outcome run = decode(d + map + mapDone() + moves + finished());
+        QCOMPARE(run.error, kNoError);
+        QCOMPARE(run.records.size(), 9);
+        QCOMPARE(std::get<MapRuns>(run.records[2]), (MapRuns{MapFree, {{0, 8}}}));
+        QCOMPARE(std::get<MapDone>(run.records[5]), MapDone{});
+        // A map with nothing to defrag after it, and no map at all.
+        QCOMPARE(errorOf(d + map + mapDone() + finished()), kNoError);
+        QCOMPARE(errorOf(d + mapDone() + moves + finished()), kNoError);
+        // A run that fails part-way through its map.
+        QCOMPARE(errorOf(d + map + finished(ResultDriveError)), kNoError);
+
+        // Map records after MAP_DONE, or after a file's record.
+        QCOMPARE(errorOf(d + map + mapDone() + ::mapRuns(MapFree, {{0, 8}}) + finished()),
+                 kMalformed);
+        QCOMPARE(errorOf(d + map + mapDone() + progress(9, 9) + finished()), kMalformed);
+        QCOMPARE(errorOf(d + map + mapDone() + mapDone() + finished()), kMalformed);
+        QCOMPARE(errorOf(d + moves + ::mapRuns(MapFree, {{0, 8}}) + finished()), kMalformed);
+        QCOMPARE(errorOf(d + moves + mapDone() + finished()), kMalformed);
+        // MAP_DONE with no fixed part, and in a report.
+        QCOMPARE(errorOf(d + record(TypeMapDone, {}) + finished()), kMalformed);
+        QCOMPARE(errorOf(reportStream(mapDone(), 0, 0)), kMalformed);
     }
 
     void enumerations()

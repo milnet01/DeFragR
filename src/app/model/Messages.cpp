@@ -204,9 +204,7 @@ Message confirmDefrag(const QByteArray &mountPoint, const QByteArray &folder)
     return {Tr::tr("Defrag the folder %1 and every folder inside it?").arg(path(whole)),
             Tr::tr("DeFragR joins up each file there that lies in pieces, and checks that "
                    "every file still reads the same. You can keep using the PC. This "
-                   "version cannot pause or cancel a defrag once it has started, and it "
-                   "may ask for your password twice: once to read the drive's map, once "
-                   "to defrag.")};
+                   "version cannot pause or cancel a defrag once it has started.")};
 }
 
 Message folderNotOnDrive(const QByteArray &mountPoint)

@@ -28,10 +28,11 @@ parts names, does not exist.
 
 Three facts shape the work:
 
-1. A defrag stream holds no map
-   (`docs/specs/DFR-0002-engine-protocol.md` § 4.12). The map comes
-   from a report (§ 4.6), which is a second engine run with its own
-   password prompt.
+1. A defrag stream held no map when this was written
+   (`docs/specs/DFR-0002-engine-protocol.md` § 4.12, protocol 1.4), so
+   the map came from a report, a second engine run with its own
+   password prompt. DFR-0096 changed that before release: asked with
+   `map`, the engine sends the map at the head of the defrag stream.
 2. A drive has far more blocks than the map has cells, so one move
    often changes no cell's pattern. The motion must still show it.
 3. The engine can report moves faster than anyone can watch them.
@@ -47,16 +48,15 @@ Three facts shape the work:
   cell's symbol changes as well as its colour, nothing flashes more
   than three times a second, and the desktop's animations setting
   turns the motion off.
-- **The map comes from a report first** (ROADMAP DFR-0018, from
-  DFR-0017).
+- **The map comes first, in the same engine run** (owner, 2026-11-19:
+  one password prompt, before 0.3.0; DFR-0096).
 
 The rest are Claude's calls, 2026-11-19, not yet confirmed by the
 owner:
 
 - **A map the window already holds for the drive is used again**: one
   from a report viewed in this window, or from its last defrag of that
-  drive. Otherwise the run reads a new one first, which asks for the
-  password a second time.
+  drive. Otherwise the run asks the engine for one.
 - **The folder is picked in the desktop's folder dialog.** The window
   lists the drive's folders to do so; it still opens no file there.
 - **A run cannot be paused or cancelled** until DFR-0024; the question
@@ -117,9 +117,10 @@ signals:
 };
 ```
 
-- `start` runs `report <mount>` first unless it holds a map of that
-  mount, then `defrag <mount> <folder>`. A report that fails ends the
-  run as `Failed`; `defrag` is not started.
+- `start` runs `defrag <mount> <folder>` when it holds a map of that
+  mount, and `defrag <mount> <folder> map` when it does not. The map
+  is taken when `MAP_DONE` arrives. A run that ends before then ends as
+  `Failed`, with no map.
 - Each `BLOCKS_MOVED` goes to `DriveMap::move`, then out as
   `blocksMoved`. `FILE_DEFRAGGED` ends the turn in one piece when
   `extents_after` is 1; `FILE_SKIPPED` ends it not in one piece.
@@ -222,14 +223,14 @@ the journey can be judged by eye.
   *Breaks when:* the shortfall is subtracted from a tally that lacks
   it (the unsigned tally wraps and the cell shows the from kind).
 
-- **INV-3** — `RunState::start` runs `report` then `defrag` when it
-  holds no map of the drive, and `defrag` alone when it does. A failed
-  report starts no `defrag`. `defrag`'s arguments are the mount point
-  and the folder, each as `EngineProcess::pathArgument` writes it.
+- **INV-3** — `RunState::start` makes one engine run: `defrag` with
+  `map` when it holds no map of the drive, and without when it does.
+  `defrag`'s arguments are the mount point and the folder, each as
+  `EngineProcess::pathArgument` writes it.
   *Test:* `tests/app/tst_runstate.cpp`, against a fake that logs its
   command lines.
-  *Breaks when:* a held map is ignored, or `defrag` follows a refused
-  password.
+  *Breaks when:* a held map is ignored, or the map is asked for in a
+  run of its own.
 
 - **INV-4** — `folderOnDrive` gives the folder relative to the mount
   point, "" for the mount point, and nothing for a folder outside it,
@@ -240,8 +241,8 @@ the journey can be judged by eye.
 
 - **INV-5** — When a run ends `Finished`, `RunState`'s counts equal the
   stream's records, and its map equals the report's map with every
-  `BLOCKS_MOVED` and turn end applied. A run that ends otherwise holds
-  no map afterwards.
+  `BLOCKS_MOVED` and turn end applied. A run that ends otherwise, or
+  before `MAP_DONE`, holds no map afterwards.
   *Test:* `tests/app/tst_runstate.cpp`.
   *Breaks when:* a file with `moved_blocks` 0 is counted as joined up,
   or a broken stream's map is kept.
@@ -308,8 +309,8 @@ the journey can be judged by eye.
 
 | What goes wrong | What the window does |
 |---|---|
-| The password is refused, for either run | `Failed`, with `messages::forRun`'s words; no map is shown for a refused report |
-| The report fails or its stream breaks | `Failed`; `defrag` is not started |
+| The password is refused | `Failed`, with `messages::forRun`'s words; no map is shown |
+| The run ends before `MAP_DONE` | `Failed`; no part of the map is shown |
 | `defrag` ends with a result other than `OK` | `Failed` with that result's words; the counts and the map so far stay shown |
 | The defrag stream breaks | `Failed`; the map is dropped and the map view emptied |
 | The held map is stale | Moves still apply (INV-2); the picture can differ from the drive until the next report. **Nothing** detects it |
@@ -331,9 +332,8 @@ Each is seen to fail before the code it locks is written, per
 
 ## 8. Alternatives considered (and rejected)
 
-- **The engine sends the map in the defrag stream.** One password
-  prompt. Rejected for now: it re-opens DFR-0017's protocol 1.4, and
-  the engine would walk the whole drive before each folder.
+- **A report first, then the defrag, as two engine runs.** Built
+  first, and replaced by DFR-0096: it asked for the password twice.
 - **Always read a new map.** Never stale. Rejected: DFR-0060 measured
   a cold report on `/mnt/Games` at 19 min 56 s.
 - **Play every move as its own journey.** Rejected: the engine can
@@ -348,7 +348,6 @@ Each is seen to fail before the code it locks is written, per
 - The status bar, progress bar and percentage — tracked by DFR-0021.
 - Pause and cancel — tracked by DFR-0023 and DFR-0024.
 - Translating the new sentences — tracked by DFR-0067.
-- One password prompt for both runs — tracked by DFR-0096.
 
 ## 10. What checks this
 

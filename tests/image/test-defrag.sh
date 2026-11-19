@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The image_defrag test. In one test machine, check-defrag.sh defrags a
 # fragmented image; defrag-check then compares the engine's records with
-# filefrag's view before and after. In a second, whose CPU has no SSE4.2,
+# filefrag's view before and after, and the map the first defrag sent
+# with the report taken just before it. In a second, whose CPU has no SSE4.2,
 # check-old-cpu.sh checks defrag is refused there and report is not.
 # Usage: test-defrag.sh WORKDIR ENGINE DEFRAG_CHECK
 set -Eeuo pipefail
@@ -29,14 +30,15 @@ for n in 0 1 2; do
     section "$log" "REF$n" >"$work/ref.$n"
     section "$log" "EXT$n" >"$work/ext.$n"
 done
+section "$log" REPORT0 | base64 -d >"$work/report.0"
 section "$log" DEFRAG1 | base64 -d >"$work/defrag.1"
 section "$log" DEFRAG2 | base64 -d >"$work/defrag.2"
 
 failed=0
 "$checker" defrag "$work/defrag.1" deep "$work/ref.0" "$work/ref.1" \
-    "$work/ext.0" "$work/ext.1" deep/frozen deep/swap || failed=1
+    "$work/ext.0" "$work/ext.1" "$work/report.0" deep/frozen deep/swap || failed=1
 "$checker" defrag "$work/defrag.2" "" "$work/ref.1" "$work/ref.2" \
-    "$work/ext.1" "$work/ext.2" deep/frozen deep/swap || failed=1
+    "$work/ext.1" "$work/ext.2" - deep/frozen deep/swap || failed=1
 
 # The old CPU's machine runs no mkfs: the host makes the filesystem.
 PATH=$PATH:/usr/sbin:/sbin mkfs.ext4 -q -F -b 4096 "$work/old.img"

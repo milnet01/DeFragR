@@ -126,8 +126,9 @@ private slots:
             QCOMPARE(*got, folder);
     }
 
-    // INV-3 and INV-5: with no map, a report then the defrag; the counts
-    // are the stream's, and the map is the report's with the moves made.
+    // INV-3 and INV-5: with no map, one run that sends the map and then
+    // defrags; the counts are the stream's, and the map is the one sent,
+    // with the moves made.
     void readsTheMapThenDefrags()
     {
         Run run(launcher("pkexec-pass"));
@@ -145,8 +146,8 @@ private slots:
 
         QCOMPARE(stages, (QList{Run::Stage::ReadingMap, Run::Stage::Defragging,
                                 Run::Stage::Done}));
-        QCOMPARE(commandLines(), (QStringList{QStringLiteral("report /mnt/<img src=x>"),
-                                              QStringLiteral("defrag /mnt/<img src=x> games")}));
+        QCOMPARE(commandLines(),
+                 QStringList{QStringLiteral("defrag /mnt/<img src=x> games map")});
         QCOMPARE(beforeTheMoves, fakeCells(false));
         QCOMPARE(moves, 1);
         QCOMPARE(run.counts(), (Run::Counts{1, 1, 1, 40}));
@@ -182,8 +183,9 @@ private slots:
         QCOMPARE(other.map().cells(1000).mid(400, 40), QList<CellState>(40, CellState::Whole));
     }
 
-    // INV-3: when the report is refused, no defrag is started.
-    void aRefusedReportStartsNoDefrag()
+    // INV-3: refused admin rights, the run fails with no map and nothing
+    // started.
+    void aRefusedRunHoldsNoMap()
     {
         Run run(launcher("pkexec-refuse"));
         QVERIFY(runToEnd(run, "games"));
@@ -232,9 +234,30 @@ private slots:
         qunsetenv("DEFRAGR_TEST_DEFRAG");
         QFile::remove(m_log);
         QVERIFY(runToEnd(run, "games"));
-        QCOMPARE(commandLines().size(), 2);
+        QCOMPARE(commandLines(),
+                 QStringList{QStringLiteral("defrag /mnt/<img src=x> games map")});
         QCOMPARE(run.stage(), Run::Stage::Done);
         QCOMPARE(run.counts(), (Run::Counts{1, 1, 1, 40}));
+    }
+
+    // INV-5: a run that ends before its map is whole shows no part of
+    // it, and says why it ended.
+    void aRunThatEndsInItsMapHoldsNone()
+    {
+        qputenv("DEFRAGR_TEST_DEFRAG", "no-map");
+        Run run(launcher("pkexec-pass"));
+        quint64 names = 0;
+        connect(&run, &Run::mapProgressed, this, [&](quint64 read, quint64) { names = read; });
+        QVERIFY(runToEnd(run, "games"));
+        QCOMPARE(names, quint64(300));
+        QCOMPARE(run.stage(), Run::Stage::Failed);
+        RunOutcome error;
+        error.end = RunEnd::Finished;
+        error.finished = {ResultDriveError, 5};
+        QCOMPARE(run.problem(), messages::forRun(error));
+        QVERIFY(!run.hasMapOf(kMount));
+        QVERIFY(run.map().isEmpty());
+        QCOMPARE(run.counts(), Run::Counts{});
     }
 };
 

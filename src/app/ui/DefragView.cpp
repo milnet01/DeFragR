@@ -132,8 +132,7 @@ void DefragView::showStage()
     case Stage::ReadingMap:
         m_status->setText(tr("First DeFragR reads where everything on the drive lies, to draw "
                              "its map. On a big drive this can take a few minutes. Nothing on "
-                             "the drive is changed yet. Then it asks for your password once "
-                             "more, to defrag."));
+                             "the drive is changed yet. The defrag follows by itself."));
         break;
     case Stage::Defragging:
         m_status->setText(tr("Joining up the files in this folder. Each move shows on the "

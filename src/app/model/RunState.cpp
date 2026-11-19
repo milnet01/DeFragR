@@ -3,7 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLocale>
-#include <QTimer>
+#include <QStringList>
 
 #include <utility>
 
@@ -83,43 +83,41 @@ void RunState::start(const QByteArray &mountPoint, const QByteArray &folder)
     m_latestPath.clear();
     m_skipped.clear();
     m_problem = {};
+    QStringList arguments{EngineProcess::pathArgument(mountPoint),
+                          EngineProcess::pathArgument(folder)};
     if (hasMapOf(mountPoint)) {
-        startDefrag();
-        return;
+        setStage(Stage::Defragging);
+    } else {
+        // The engine sends the drive's map first, in the same run, so
+        // admin rights are asked for once (§ 4.12).
+        m_map.clear();
+        m_mapMount.clear();
+        m_incomingMap.clear();
+        arguments += QStringLiteral("map");
+        setStage(Stage::ReadingMap);
     }
-    m_map.clear();
-    m_mapMount.clear();
-    m_incomingMap.clear();
-    setStage(Stage::ReadingMap);
-    m_engine.start(CommandReport, {EngineProcess::pathArgument(mountPoint)});
-}
-
-void RunState::startDefrag()
-{
-    setStage(Stage::Defragging);
-    m_engine.start(CommandDefrag, {EngineProcess::pathArgument(m_mountPoint),
-                                   EngineProcess::pathArgument(m_folder)});
+    m_engine.start(CommandDefrag, arguments);
 }
 
 void RunState::collect(const QList<Record> &records)
 {
-    if (m_stage == Stage::ReadingMap) {
-        std::optional<ReportProgress> progress;
-        for (const Record &record : records) {
-            if (const auto *runs = std::get_if<MapRuns>(&record))
-                m_incomingMap.add(*runs);
-            else if (const auto *latest = std::get_if<ReportProgress>(&record))
-                progress = *latest;
-        }
-        if (progress)
-            emit mapProgressed(progress->names, progress->estimate);
-        return;
-    }
-    if (m_stage != Stage::Defragging)
-        return;
-
+    std::optional<ReportProgress> progress;
     bool any = false;
     for (const Record &record : records) {
+        if (m_stage == Stage::ReadingMap) {
+            if (const auto *runs = std::get_if<MapRuns>(&record)) {
+                m_incomingMap.add(*runs);
+            } else if (const auto *latest = std::get_if<ReportProgress>(&record)) {
+                progress = *latest;
+            } else if (std::holds_alternative<MapDone>(record)) {
+                m_map = std::exchange(m_incomingMap, {});
+                m_mapMount = m_map.isEmpty() ? QByteArray() : m_mountPoint;
+                setStage(Stage::Defragging);
+            }
+            continue;
+        }
+        if (m_stage != Stage::Defragging)
+            return;
         if (const auto *move = std::get_if<BlocksMoved>(&record)) {
             m_map.move(*move);
             for (const MapRun &run : move->to)
@@ -142,24 +140,26 @@ void RunState::collect(const QList<Record> &records)
             any = true;
         }
     }
+    if (progress)
+        emit mapProgressed(progress->names, progress->estimate);
     if (any)
         emit changed();
 }
 
 void RunState::engineEnded(const RunOutcome &outcome)
 {
-    const Message problem = messages::forRun(outcome);
+    Message problem = messages::forRun(outcome);
     if (m_stage == Stage::ReadingMap) {
-        if (!problem.what.isEmpty()) {
-            // A broken report's map is never shown: a message, never a guess.
-            m_incomingMap.clear();
-            fail(problem);
-            return;
+        // The run ended before its map was whole, and a part of a map is
+        // never shown: a message, never a guess. A run that says OK with
+        // no map broke the protocol.
+        m_incomingMap.clear();
+        if (problem.what.isEmpty()) {
+            RunOutcome broken = outcome;
+            broken.end = RunEnd::Broken;
+            problem = messages::forRun(broken);
         }
-        m_map = std::exchange(m_incomingMap, {});
-        m_mapMount = m_map.isEmpty() ? QByteArray() : m_mountPoint;
-        // Queued: the engine link is still inside its own ended().
-        QTimer::singleShot(0, this, &RunState::startDefrag);
+        fail(problem);
         return;
     }
     if (m_stage != Stage::Defragging)
