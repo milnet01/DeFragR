@@ -36,6 +36,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A defrag says roughly how long it has left, beside how long it has
   run: "Running for 2 min 5 s. About 10 min left." It starts once ten
   seconds of moving files give it a pace to go by (DFR-0030).
+- The window opens at the size and in the place it was closed at. On
+  KDE Plasma under Wayland it asks the desktop to put it back; on other
+  Wayland desktops it keeps its size only (DFR-0109).
 - The map tells a file in a few large pieces from a badly fragmented
   one. A file in two or more pieces that average 16 MiB or more shows
   solid with one diagonal cut, in the whole files' colour; stripes are

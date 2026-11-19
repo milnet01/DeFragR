@@ -2187,10 +2187,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Run.
 
-- 📋 [DFR-0109] **The window remembers its size and position between runs.**
+- ✅ [DFR-0109] **The window remembers its size and position between runs.**
   The owner asked for this on 2026-11-19. Position under KDE Wayland:
   read ~/.claude/docs/kde-wayland-window-placement.md before building.
   Owner, 2026-11-19: size and position, both in 0.3.0.
+  Done 2026-11-19: `ui/Placement`, made in `main()`. Size and position
+  are kept in `~/.config/DeFragR/DeFragR.conf`. Under Wayland KWin is
+  asked through one-shot scripts over Qt D-Bus. Seen in a private KWin
+  6.8.3 by the agent that built it: moved to 137,91, saved 137,91,
+  restored 137,91; a saved 5000,4000 came back at 700,480 on a 1600 by
+  1000 screen. Not seen on the owner's real desktop, nor on X11 with a
+  window manager.
   **Layman:** DeFragR opens at the size and place it was last closed at.
   Kind: ux.
   Source: user-request-2026-11-19.
