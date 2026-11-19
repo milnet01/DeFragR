@@ -2194,6 +2194,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 - 📋 [DFR-0030] **Time remaining.**
   `model/RunState` estimates time left from blocks moved per second,
   shown beside the progress bar.
+  Owner, 2026-11-19: asked for an estimated time remaining "option"
+  along with the folder defrag's progress bar. Since DFR-0099 the bar
+  fills by blocks (`DEFRAG_PROGRESS`), so a folder defrag's estimate
+  needs no engine change and does not wait for DFR-0021. Not yet
+  decided by the owner: which release, and whether it always shows or
+  is a setting. Claude's recommendation: 0.3.0, always shown beside the
+  bar once enough has moved to estimate from.
   **Layman:** Shows roughly how long the defrag has left.
   Kind: feature.
   Source: design-2026-11-15.
