@@ -826,7 +826,8 @@ isolates.
   would otherwise allow defrag verdict 1 and reason `OLD_CPU`; `defrag`
   on it finishes `REFUSED`, and `report` finishes `OK`.
   *Test:* `tests/image/check-old-cpu.sh`, the `image_defrag` test, in a
-  test machine started with QEMU's `qemu64` CPU, which has no SSE4.2.
+  test machine whose CPU has SSE4.2 taken away
+  (`run.sh --cpu-without sse4.2`).
   *Breaks when:* the engine runs `crc32` anyway and dies, or refuses
   `report` too.
 

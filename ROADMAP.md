@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=111 -->
+<!-- ants-roadmap-id-high-water: DFR=115 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1900,6 +1900,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   (screenshot of 2026-11-19, 16:17): 9,223 of 2,576,745 files
   fragmented (0.4%). Most of what the earlier build painted striped
   now shows as large pieces; a few short striped runs remain.
+  Owner's answers, 2026-11-19. Fixed room: an area may swap what it
+  shows, and never changes size; where the progress bar or other lines
+  go away at the end, that room shows the skipped files and whatever
+  else is missing (DFR-0113 for the defrag page, DFR-0114 for the
+  report page). "Joined up" is reworded as one line (DFR-0115). The
+  owner tests a bigger folder again once more meaningful changes are
+  built: a test stops all other work on the machine, because nothing
+  else may touch the drives during a defrag.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -2065,6 +2073,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Not decided: whether the window's wording alone changes, or the
   engine reports this stage. A defrag that asks for the map starts the
   same way.
+  Owner, 2026-11-19: the window says what it is doing until counting
+  starts; no engine change. Release 0.3.0.
   **Layman:** On a big drive the report sits at "Checked 0" for a couple of minutes before anything moves; it should say what it is doing.
   Kind: ux.
   Source: user-request-2026-11-19.
@@ -2091,8 +2101,71 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   decided: where the file lives, what goes in it, how big it may grow,
   and whether a released build writes it. A log names the owner's files
   and folders, so it stays on the machine.
+  Owner, 2026-11-19: the log is to help Claude analyse issues. It is
+  written until 1.0.0 is released, and only by the owner's and Claude's
+  own builds, not by what users download from GitHub. Claude's reading,
+  not the owner's words: a build-time switch, off unless asked for, on
+  in build/dev; release packages leave it off. File under
+  ~/.local/state/defragr/, kept to a fixed size.
   **Layman:** The window keeps a log of what it and the engine did, so a problem can be looked into afterwards.
   Kind: feature.
+  Source: user-request-2026-11-19.
+
+- 📋 [DFR-0112] **CI fails on main: the old-CPU test machine and the translations check.**
+  Run 44544896387 on 4bc1e1c, the first CI run to hold image_defrag's
+  old-CPU machine. The runner installs Ubuntu's amd64v3 packages, so
+  its busybox-static uses AVX; on `--cpu qemu64` init dies with an
+  invalid opcode (vmovdqa). translations_current: the runner's lupdate
+  (Qt 6.10.2) does not attach the `//:` comment inside the conditional
+  in DefragView.cpp to the string after it; this PC's (Qt 6.12.0) does.
+  **Layman:** GitHub's automatic checks failed on the last push, though the same checks pass on this PC; make them pass in both places.
+  Kind: fix.
+  Source: ci-run-44544896387-2026-11-19.
+
+- 📋 [DFR-0113] **The defrag page's map keeps its size when a run ends.**
+  The owner's rule of 2026-11-19, and DFR-0097's note of their answer:
+  an area may swap what it shows and never changes size.
+  **Layman:** When a defrag ends the skipped-files list no longer shrinks the map; it shows in the space the progress lines leave.
+  Kind: ux.
+  Source: user-request-2026-11-19.
+
+- 📋 [DFR-0114] **The report page keeps its progress lines' room when a report ends.**
+  Same rule as the defrag page's item, filed with it.
+  **Layman:** When a report ends nothing on the page shifts; the space the progress lines used shows something else or stays.
+  Kind: ux.
+  Source: user-request-2026-11-19.
+
+- 📋 [DFR-0115] **"Joined up" is reworded for files that end in fewer pieces, not one.**
+  DFR-0097's notes hold the measurement: 2,259 counted as joined up,
+  108 files still in two or more pieces afterwards. Owner, 2026-11-19:
+  reword the one line.
+  **Layman:** The end-of-run count says files were moved into fewer pieces, which is true of every file it counts.
+  Kind: ux.
+  Source: user-request-2026-11-19.
+
+- 📋 [DFR-0030] **Time remaining.**
+  `model/RunState` estimates time left from blocks moved per second,
+  shown beside the progress bar.
+  Owner, 2026-11-19: asked for an estimated time remaining "option"
+  along with the folder defrag's progress bar. Since DFR-0099 the bar
+  fills by blocks (`DEFRAG_PROGRESS`), so a folder defrag's estimate
+  needs no engine change and does not wait for DFR-0021. Not yet
+  decided by the owner: which release, and whether it always shows or
+  is a setting. Claude's recommendation: 0.3.0, always shown beside the
+  bar once enough has moved to estimate from.
+  Owner, 2026-11-19: release 0.3.0, always shown, no setting.
+  **Layman:** Shows roughly how long the defrag has left.
+  Kind: feature.
+  Source: design-2026-11-15.
+  Lanes: Run.
+  Blocked-by: DFR-0021.
+
+- 📋 [DFR-0109] **The window remembers its size and position between runs.**
+  The owner asked for this on 2026-11-19. Position under KDE Wayland:
+  read ~/.claude/docs/kde-wayland-window-placement.md before building.
+  Owner, 2026-11-19: size and position, both in 0.3.0.
+  **Layman:** DeFragR opens at the size and place it was last closed at.
+  Kind: ux.
   Source: user-request-2026-11-19.
 
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress
@@ -2171,13 +2244,6 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: feature.
   Source: user-request-2026-11-19.
   Lanes: Run, Screens.
-
-- 📋 [DFR-0109] **The window remembers its size and position between runs.**
-  The owner asked for this on 2026-11-19. Position under KDE Wayland:
-  read ~/.claude/docs/kde-wayland-window-placement.md before building.
-  **Layman:** DeFragR opens at the size and place it was last closed at.
-  Kind: ux.
-  Source: user-request-2026-11-19.
 
 ## 0.5.0 — Pause, cancel and background mode
 
@@ -2269,22 +2335,6 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Settings, Settings view, Languages.
 
 ## 0.8.0 — Time remaining and drive health
-
-- 📋 [DFR-0030] **Time remaining.**
-  `model/RunState` estimates time left from blocks moved per second,
-  shown beside the progress bar.
-  Owner, 2026-11-19: asked for an estimated time remaining "option"
-  along with the folder defrag's progress bar. Since DFR-0099 the bar
-  fills by blocks (`DEFRAG_PROGRESS`), so a folder defrag's estimate
-  needs no engine change and does not wait for DFR-0021. Not yet
-  decided by the owner: which release, and whether it always shows or
-  is a setting. Claude's recommendation: 0.3.0, always shown beside the
-  bar once enough has moved to estimate from.
-  **Layman:** Shows roughly how long the defrag has left.
-  Kind: feature.
-  Source: design-2026-11-15.
-  Lanes: Run.
-  Blocked-by: DFR-0021.
 
 - 📋 [DFR-0031] **Drive health from UDisks2.**
   `health/DriveHealth` reads SMART status over D-Bus; the drive list

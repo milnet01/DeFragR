@@ -1,6 +1,6 @@
 # shellcheck shell=sh
 # Run by the image_defrag test in a test machine whose CPU has no SSE4.2
-# (run.sh --cpu qemu64), with a spinning test disk called "img" that holds
+# (run.sh --cpu-without sse4.2), with a spinning test disk called "img" that holds
 # an ext4 filesystem made on the host, and the engine at
 # /test/defragr-engine. INV-22: defrag is refused and report still works.
 # Prints probe's output between marker lines for test-defrag.sh to check

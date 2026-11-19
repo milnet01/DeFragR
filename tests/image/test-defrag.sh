@@ -42,7 +42,7 @@ failed=0
 
 # The old CPU's machine runs no mkfs: the host makes the filesystem.
 PATH=$PATH:/usr/sbin:/sbin mkfs.ext4 -q -F -b 4096 "$work/old.img"
-"$here/../vm/run.sh" --work "$work/old-machine" --cpu qemu64 \
+"$here/../vm/run.sh" --work "$work/old-machine" --cpu-without sse4.2 \
     --copy "$engine" --disk "img=$work/old.img" \
     "$here/check-old-cpu.sh" || rc=$?
 (( rc == 0 )) || exit "$rc"

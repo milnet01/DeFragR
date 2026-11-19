@@ -3,15 +3,18 @@
 # with that script's exit code. ADR-0003 says why image tests run here.
 #
 # Usage:
-#   run.sh --work DIR [--disk NAME=IMAGE[,ssd]]... [--copy FILE]... [--cpu MODEL] SCRIPT
+#   run.sh --work DIR [--disk NAME=IMAGE[,ssd]]... [--copy FILE]... [--cpu-without FLAG] SCRIPT
 #
 #   --work DIR    where the machine's boot files and console log go
 #   --disk        attach the image file IMAGE as a test disk called NAME.
 #                 It spins (rotational 1) unless ",ssd" is given. In the
 #                 machine, guard.sh's test_disk NAME finds it.
 #   --copy FILE   put FILE in the machine's /test, beside the script
-#   --cpu MODEL   give the machine QEMU's CPU MODEL, such as qemu64, which
-#                 has no SSE4.2; else the host's own CPU, or QEMU's "max"
+#   --cpu-without FLAG
+#                 take the QEMU CPU flag FLAG, such as sse4.2, away from
+#                 the machine's CPU, which is the host's own, or QEMU's
+#                 "max". Not an older CPU model: the host's busybox may
+#                 need the rest, as Ubuntu's amd64v3 build needs AVX.
 #   SCRIPT        run as /test/run by the machine's shell, in /test
 #
 # The machine is the host's own kernel and a small initial filesystem:
@@ -38,14 +41,14 @@ cannot_boot() {
     exit 77
 }
 
-work="" script="" cpu=""
+work="" script="" without=""
 disks=() copies=()
 while (( $# )); do
     case $1 in
         --work) work=${2:?--work needs a directory}; shift 2 ;;
         --disk) disks+=("${2:?--disk needs NAME=IMAGE}"); shift 2 ;;
         --copy) copies+=("${2:?--copy needs a file}"); shift 2 ;;
-        --cpu) cpu=${2:?--cpu needs a model}; shift 2 ;;
+        --cpu-without) without=,-${2:?--cpu-without needs a flag}; shift 2 ;;
         -*) die "unknown option $1" ;;
         *) [[ -z $script ]] || die "one script only"; script=$1; shift ;;
     esac
@@ -180,9 +183,9 @@ done <<<"$load_order"
     >"$work/initramfs.cpio"
 
 # ── Boot ────────────────────────────────────────────────────────────────────
-accel=(-accel tcg -cpu "${cpu:-max}")
+accel=(-accel tcg -cpu "max$without")
 if [[ -r /dev/kvm && -w /dev/kvm ]]; then
-    accel=(-accel kvm -cpu "${cpu:-host}")
+    accel=(-accel kvm -cpu "host$without")
 fi
 printf 'test machine: kernel %s, %s, %d disk(s)\n' "$kver" "${accel[1]}" "$index" >&2
 

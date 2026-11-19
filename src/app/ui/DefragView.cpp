@@ -267,12 +267,16 @@ void DefragView::showEnd()
         m_skipped.appendRow({path, why});
     }
     const quint64 total = m_run.counts().skipped;
-    m_skippedHeading->setText(
-        total > quint64(skipped.size())
-            //: %1 is how many files are listed, of more that were skipped.
-            ? tr("Files DeFragR skipped, and why. Only the first %1 are listed:")
-                  .arg(QLocale().toString(skipped.size()))
-            : tr("Files DeFragR skipped, and why:"));
+    if (total > quint64(skipped.size())) {
+        // The comment sits before a whole statement: inside a conditional,
+        // Qt 6.10's lupdate drops it and Qt 6.12's keeps it.
+        //: %1 is how many files are listed, of more that were skipped.
+        m_skippedHeading->setText(
+            tr("Files DeFragR skipped, and why. Only the first %1 are listed:")
+                .arg(QLocale().toString(skipped.size())));
+    } else {
+        m_skippedHeading->setText(tr("Files DeFragR skipped, and why:"));
+    }
     showCounts();
     showStage();
 }
