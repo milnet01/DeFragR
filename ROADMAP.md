@@ -1870,6 +1870,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   against several, with size beside pieces for the several. The window
   shows the run's own counts of joined, left and skipped; ask the owner
   for them. No before-state was captured.
+  2026-11-19, while that run was still going (read-only FIEMAP of every
+  file, pieces counted as `filefrag` counts): 266,063 files, 1,174 in
+  two or more pieces holding 103 of 235 GiB. By average piece: 31 files
+  under 1 MiB, 808 files and 14 GiB at 1 to 16 MiB, 243 files and 32
+  GiB at 16 to 64 MiB, 92 files and 57 GiB at 64 MiB or more. The
+  largest single piece was 1,856 MiB. Most striped space is files in
+  large pieces: DFR-0106 paints those apart.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -1931,12 +1938,36 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-test-2026-11-19.
   Lanes: Build.
 
+- 📋 [DFR-0105] **Show where a file's blocks are coming from.**
+  Owner, 2026-11-19: the outline shows where data lands; asked how to
+  show where it comes from. Claude's call, left to it by the owner that
+  day: a second outline, dashed, round the cell last emptied. Filed
+  before 0.3.0 as the day's other map asks were; the owner may move it.
+  **Layman:** A dashed ring on the block being emptied, beside the solid ring on the block being filled.
+  Kind: ux.
+  Source: user-test-2026-11-19.
+  Lanes: Map.
+
+- 📋 [DFR-0106] **The map shows how fragmented a file is.**
+  Owner, 2026-11-19: asked for shading or some other way to show how
+  defragmented a block is, and left the design to Claude. Claude's
+  call that day, from DFR-0097's numbers: a third pattern, a solid
+  cell with one diagonal cut, for a file in two or more pieces whose
+  average piece is 16 MiB or more. Stripes stay for smaller pieces. The
+  engine grades each file's blocks in the map it sends, a protocol
+  amendment; the window grades what a defrag lands. 16 MiB is a
+  judgement, not measured on any drive.
+  **Layman:** Three looks instead of two: solid for whole files, solid with one cut for files in a few big pieces, stripes for badly fragmented ones.
+  Kind: feature.
+  Source: user-test-2026-11-19.
+  Lanes: Move, Map.
+
 - 📋 [DFR-0019] **Release 0.3.0.**
   **Layman:** Publishes the first version that can defrag, one folder at a time.
   Kind: release.
   Source: design-2026-11-15.
   Lanes: Build.
-  Blocked-by: DFR-0015, DFR-0016, DFR-0017, DFR-0018, DFR-0097, DFR-0098, DFR-0099, DFR-0100, DFR-0102.
+  Blocked-by: DFR-0015, DFR-0016, DFR-0017, DFR-0018, DFR-0097, DFR-0098, DFR-0099, DFR-0100, DFR-0102, DFR-0105, DFR-0106.
 
 - 📋 [DFR-0072] **Find which kernel call takes a big report's system time.**
   DFR-0060's cold report on /mnt/Games took 19 min 56 s, 821 s of it
