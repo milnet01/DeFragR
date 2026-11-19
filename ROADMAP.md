@@ -1878,6 +1878,16 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   GiB at 16 to 64 MiB, 92 files and 57 GiB at 64 MiB or more. The
   largest single piece was 1,856 MiB. Most striped space is files in
   large pieces: DFR-0106 paints those apart.
+  2026-11-19, after the run ended (the same read-only FIEMAP count):
+  266,063 files, 108 in two or more pieces holding 59 of 235 GiB. By
+  average piece: none under 1 MiB, 4 files and 0.5 GiB at 1 to 16 MiB,
+  27 files and 8 GiB at 16 to 64 MiB, 77 files and 50 GiB at 64 MiB or
+  more. Since the mid-run count 1,104 files are in fewer pieces, 1,066
+  of them in one, and none is in more. Under DFR-0106's rule 104 of the
+  108 show as large pieces and 4 as fragmented. Every file left in
+  pieces is over 1 MiB, and 105 of them are over 128 MiB. Not measured:
+  what limited those, and the state before the run. Still wanted: the
+  window's three counts from the owner.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
