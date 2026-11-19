@@ -1864,6 +1864,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   was built, once with "deep/big: moved, into fewer pieces": the same
   donor-no-better case DFR-0096's note records. The checker fails what
   § 4.12 allows. Fix it with this item.
+  How to measure, once engine process 983383 has ended (the owner's
+  run of 2026-11-19 on /mnt/Emulators, folder Sony_PlayStation_3, 234
+  GB): `filefrag` every file there, and tally files in one piece
+  against several, with size beside pieces for the several. The window
+  shows the run's own counts of joined, left and skipped; ask the owner
+  for them. No before-state was captured.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -1913,16 +1919,6 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: user-test-2026-11-19.
   Lanes: Screens.
 
-- 📋 [DFR-0101] **Click a map block to see which files are there.**
-  Owner request 2026-11-19, chosen for before 0.3.0. The map holds
-  runs by kind and no names, so the engine must answer whose blocks a
-  range holds. How is undesigned: `spec-format.md` § 1 decides whether
-  it needs a spec.
-  **Layman:** Click a block on the map and DeFragR lists the files that live in it.
-  Kind: feature.
-  Source: user-test-2026-11-19.
-  Lanes: Extents, Map, Screens.
-
 - ✅ [DFR-0102] **The dev build gives its engine the label pkexec needs.**
   2026-11-19: a rebuilt `build/dev/bin/defragr-engine` on /mnt/Games
   came out labelled samba_share_t, and pkexec printed "Error executing
@@ -1940,7 +1936,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: release.
   Source: design-2026-11-15.
   Lanes: Build.
-  Blocked-by: DFR-0015, DFR-0016, DFR-0017, DFR-0018, DFR-0097, DFR-0098, DFR-0099, DFR-0100, DFR-0101, DFR-0102.
+  Blocked-by: DFR-0015, DFR-0016, DFR-0017, DFR-0018, DFR-0097, DFR-0098, DFR-0099, DFR-0100, DFR-0102.
 
 - 📋 [DFR-0072] **Find which kernel call takes a big report's system time.**
   DFR-0060's cold report on /mnt/Games took 19 min 56 s, 821 s of it
@@ -2025,6 +2021,22 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Screens, Run.
   Blocked-by: DFR-0018, DFR-0020.
+
+- 📋 [DFR-0101] **Click a map block to see which files are there.**
+  Owner request 2026-11-19, chosen for before 0.3.0. The map holds
+  runs by kind and no names, so the engine must answer whose blocks a
+  range holds. How is undesigned: `spec-format.md` § 1 decides whether
+  it needs a spec.
+  Owner's choices, 2026-11-19: moved to 0.4.0, so it does not hold
+  0.3.0. Remember while reading: as a report or a defrag's map walk
+  reads the drive, the engine says where each file lies, and the
+  window keeps the biggest few files of each block with a count of
+  the rest. Measure the slower read and the window's memory on
+  /mnt/Emulators before the owner accepts it. Needs a spec first.
+  **Layman:** Click a block on the map and DeFragR lists the files that live in it.
+  Kind: feature.
+  Source: user-test-2026-11-19.
+  Lanes: Extents, Map, Screens.
 
 - 📋 [DFR-0022] **Release 0.4.0.**
   **Layman:** Publishes the version that defrags a whole drive with progress shown.
