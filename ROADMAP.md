@@ -1888,6 +1888,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   pieces is over 1 MiB, and 105 of them are over 128 MiB. Not measured:
   what limited those, and the state before the run. Still wanted: the
   window's three counts from the owner.
+  The window's counts for the same run, from the owner's screenshot
+  of 2026-11-19 (build v0.2.1-11-g100374e): 2,259 files joined up; 35
+  left as they were, for want of free space that would hold them in
+  fewer pieces; no skipped line shown. The measurement after the run
+  found 108 files still in two or more pieces, so "joined up" counted
+  files that ended in fewer pieces without ending whole. The map in
+  that screenshot covers the whole drive, and still shows wide striped
+  bands; which folders those blocks belong to was not measured.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
