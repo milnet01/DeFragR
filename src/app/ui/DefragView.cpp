@@ -11,6 +11,7 @@
 #include <QLocale>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QStackedWidget>
 #include <QTableView>
 #include <QVBoxLayout>
 
@@ -90,17 +91,36 @@ DefragView::DefragView(const Theme &theme, QWidget *parent) : QWidget(parent)
     m_skippedHeading = new QLabel;
     m_skipped.setHorizontalHeaderLabels({tr("File"), tr("Why it was skipped")});
     m_skippedTable = readOnlyTable(&m_skipped);
+    // The list takes the room it is given and asks for none, so it
+    // cannot make that room taller. It scrolls.
+    m_skippedTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
+
+    // DFR-0113: one room, as tall as a run's progress. While a run goes
+    // it shows the progress, and afterwards the skipped files.
+    m_whileRunning = new QWidget;
+    auto *progress = new QVBoxLayout(m_whileRunning);
+    progress->setContentsMargins(0, 0, 0, 0);
+    progress->addWidget(m_checked);
+    progress->addWidget(m_progress);
+    progress->addWidget(m_latest);
+    progress->addWidget(m_elapsed);
+    m_afterwards = new QWidget;
+    auto *skippedFiles = new QVBoxLayout(m_afterwards);
+    skippedFiles->setContentsMargins(0, 0, 0, 0);
+    skippedFiles->addWidget(m_skippedHeading);
+    skippedFiles->addWidget(m_skippedTable, 1);
+    m_room = new QStackedWidget;
+    m_room->addWidget(m_whileRunning);
+    m_room->addWidget(m_afterwards);
+    m_room->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(top);
     layout->addWidget(m_status);
-    layout->addWidget(m_checked);
-    layout->addWidget(m_progress);
     layout->addWidget(m_counts);
-    layout->addWidget(m_latest);
-    layout->addWidget(m_elapsed);
+    layout->addWidget(m_room);
     layout->addWidget(m_mapKey);
-    layout->addWidget(m_map, 2);
+    layout->addWidget(m_map, 1);
     // DFR-0110: each thing above the map has its own room, shown or not,
     // so the map stays where it is through a run and after it.
     keepLines(m_status, kStatusLines);
@@ -114,8 +134,6 @@ DefragView::DefragView(const Theme &theme, QWidget *parent) : QWidget(parent)
                             static_cast<QWidget *>(m_elapsed), m_mapKey,
                             static_cast<QWidget *>(m_map)})
         keepPlace(widget);
-    layout->addWidget(m_skippedHeading);
-    layout->addWidget(m_skippedTable, 1);
 
     connect(m_back, &QPushButton::clicked, this, &DefragView::backRequested);
     connect(&m_run, &model::RunState::stageChanged, this, &DefragView::showStage);
@@ -193,6 +211,7 @@ void DefragView::showStage()
     }
     }
 
+    m_room->setCurrentWidget(running ? m_whileRunning : m_afterwards);
     m_checked->setVisible(running);
     m_progress->setVisible(running);
     const bool begun = stage == Stage::Defragging || stage == Stage::Done

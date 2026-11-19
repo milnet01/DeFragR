@@ -223,11 +223,12 @@ void setMotion(bool on);
 - `ui/DefragView` shows a bar while a run goes: back and forth while
   the engine counts the folder's work, then `percentDone`, with
   `workLine` above it. Both follow the view's one-second tick.
-- In `ui/DefragView` the status, the work line, the bar, the counts,
-  the latest file, the time, the key and the map each keep their room,
-  shown or not, so none moves the map (ROADMAP DFR-0110). The status
-  has room for three lines. The skipped files still take their room
-  from the map at the end.
+- In `ui/DefragView` the status, the counts, the key and the map each
+  keep their room, shown or not, so none moves the map (ROADMAP
+  DFR-0110). The status has room for three lines. The work line, the
+  bar, the latest file and the time share one room of fixed height;
+  at the end that room shows the skipped files instead, as a list
+  that scrolls, so the map keeps its size (ROADMAP DFR-0113).
 - `ui/ReportView` tells `MainWindow` when a report has loaded, and
   `MainWindow` hands its map to the defrag page. A loaded report of a
   drive that can be defragged shows "Defrag a folder", which does as

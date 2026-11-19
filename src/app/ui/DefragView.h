@@ -15,6 +15,7 @@
 class QLabel;
 class QProgressBar;
 class QPushButton;
+class QStackedWidget;
 class QTableView;
 
 namespace defragr::ui {
@@ -61,6 +62,10 @@ private:
     QTimer m_tick;
     QWidget *m_mapKey = nullptr;
     DriveMapView *m_map = nullptr;
+    // One room: a run's progress, and afterwards its skipped files.
+    QStackedWidget *m_room = nullptr;
+    QWidget *m_whileRunning = nullptr;
+    QWidget *m_afterwards = nullptr;
     QLabel *m_skippedHeading = nullptr;
     QStandardItemModel m_skipped;
     QTableView *m_skippedTable = nullptr;

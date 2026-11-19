@@ -307,6 +307,7 @@ private slots:
                  "the move did not reach the map");
         QVERIFY(!defragView()->findChild<QTableView *>()->isVisibleTo(m_window.get()));
         const int mapTop = map->mapTo(defragView(), QPoint(0, 0)).y();
+        const int mapHeight = map->height();
 
         // The end: the counts, the latest file, and the skipped file.
         QVERIFY(hold.release());
@@ -335,6 +336,11 @@ private slots:
         QVERIFY(map->isVisibleTo(m_window.get()));
         // DFR-0110: more lines of counts, and the bar gone, move nothing.
         QTRY_COMPARE_WITH_TIMEOUT(map->mapTo(defragView(), QPoint(0, 0)).y(), mapTop, kWaitMs);
+        // DFR-0113: the skipped files show in the room the bar left,
+        // above the map, and the map is as tall as it was.
+        QCOMPARE(map->height(), mapHeight);
+        QVERIFY(skipped->height() > 0);
+        QVERIFY(skipped->mapTo(defragView(), QPoint(0, 0)).y() + skipped->height() <= mapTop);
         QTRY_VERIFY_WITH_TIMEOUT(!map->isMoving(), kWaitMs);
         QVERIFY(map->cells().contains(model::CellState::Whole));
         QVERIFY(!map->cells().contains(model::CellState::Fragmented));
