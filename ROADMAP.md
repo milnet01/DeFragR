@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=104 -->
+<!-- ants-roadmap-id-high-water: DFR=106 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1863,7 +1863,8 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   2026-11-19: `image_defrag` failed 2 runs of about 15 while DFR-0099
   was built, once with "deep/big: moved, into fewer pieces": the same
   donor-no-better case DFR-0096's note records. The checker fails what
-  § 4.12 allows. Fix it with this item.
+  § 4.12 allows. Fixed 2026-11-19: the checker takes a file left as it
+  was.
   How to measure, once engine process 983383 has ended (the owner's
   run of 2026-11-19 on /mnt/Emulators, folder Sony_PlayStation_3, 234
   GB): `filefrag` every file there, and tally files in one piece
