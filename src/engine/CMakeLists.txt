@@ -38,6 +38,12 @@ target_compile_options(defragr-engine PRIVATE -w+all -w-reloc-rel-dword -w+error
 set_target_properties(defragr-engine PROPERTIES LINKER_LANGUAGE ASM_NASM)
 # Beside the window, which looks for its engine there.
 set_target_properties(defragr-engine PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+# Under SELinux, pkexec runs only a program labelled as one, and a build
+# tree on a data drive is not (ROADMAP DFR-0102). Elsewhere chcon is
+# missing or refuses, and the build goes on.
+add_custom_command(TARGET defragr-engine POST_BUILD
+    COMMAND sh -c "chcon -t bin_t \"$1\" 2>/dev/null || true" sh $<TARGET_FILE:defragr-engine>
+    VERBATIM)
 install(TARGETS defragr-engine RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # No <LINK_FLAGS>: they carry the build's LDFLAGS, which distributions set
 # in compiler-driver form (-Wl,-z,relro) that ld itself rejects. The
