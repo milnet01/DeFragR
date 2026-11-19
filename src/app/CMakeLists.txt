@@ -49,6 +49,13 @@ add_library(defragr-map-view STATIC ui/DriveMapView.cpp)
 target_compile_options(defragr-map-view PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr-map-view PUBLIC defragr-model defragr-theme Qt6::Widgets)
 
+# Placement: the window's size and position kept between runs, apart
+# from the window so its test needs neither the window nor a compositor.
+add_library(defragr-placement STATIC ui/Placement.cpp)
+target_include_directories(defragr-placement PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(defragr-placement PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(defragr-placement PUBLIC Qt6::Widgets PRIVATE Qt6::DBus)
+
 # Refreshes translations/ from the source, through the script the
 # translations_current test runs. Qt's own lupdate targets are not used:
 # under Qt 6.12 they scanned every target, and filed some words under a
@@ -88,7 +95,8 @@ option(DEFRAGR_LOG "The window writes a log to ~/.local/state/defragr (developer
 if(DEFRAGR_LOG)
     target_compile_definitions(defragr PRIVATE DEFRAGR_LOG)
 endif()
-target_link_libraries(defragr PRIVATE defragr-window defragr-languages Qt6::Widgets Qt6::DBus)
+target_link_libraries(defragr PRIVATE defragr-window defragr-languages defragr-placement
+    Qt6::Widgets Qt6::DBus)
 # Beside the engine, where EngineProcess looks for it when
 # DEFRAGR_ENGINE is unset; src/engine/CMakeLists.txt does the same.
 set_target_properties(defragr PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)

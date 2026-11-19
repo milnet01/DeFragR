@@ -1,6 +1,7 @@
 # Window tests: Qt Test, no root, no display. Gui is for QTextDocument,
-# which reads markup as a tooltip does, and needs no display.
-find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Gui Test LinguistTools)
+# which reads markup as a tooltip does, and needs no display. D-Bus is for
+# linking the placement library, whose test never calls it.
+find_package(Qt6 ${DEFRAGR_QT_MIN} REQUIRED COMPONENTS Gui DBus Test LinguistTools)
 qt_standard_project_setup()
 
 # The decoder alone: INV-1 to INV-9 (docs/specs/DFR-0002-engine-protocol.md).
@@ -113,6 +114,13 @@ add_test(NAME tst_mainwindow COMMAND tst_mainwindow)
 set_tests_properties(tst_mainwindow PROPERTIES ENVIRONMENT
     "QT_QPA_PLATFORM=offscreen;DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
 
+# The window's size and position kept between runs, offscreen: DFR-0109.
+add_executable(tst_placement tst_placement.cpp)
+target_compile_options(tst_placement PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_placement PRIVATE defragr-placement Qt6::Test)
+add_test(NAME tst_placement COMMAND tst_placement)
+set_tests_properties(tst_placement PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # Every theme's contrast, map patterns and text floor: DFR-0013.
 add_executable(tst_theme tst_theme.cpp)
 target_compile_options(tst_theme PRIVATE -Wall -Wextra -Wpedantic)
@@ -141,5 +149,6 @@ set_tests_properties(translations_current PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_drivemap tst_messages tst_report tst_runstate tst_replay tst_languages tst_theme tst_drivemapview tst_mainwindow PROPERTIES
+    tst_drivelist tst_drivemap tst_messages tst_report tst_runstate tst_replay tst_languages tst_theme tst_drivemapview tst_mainwindow
+    tst_placement PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

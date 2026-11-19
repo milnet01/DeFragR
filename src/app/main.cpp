@@ -1,8 +1,9 @@
 // Start-up: the application, its language, its theme, its icon, and the
-// main window.
+// main window where the user left it.
 #include "engine/RunLog.h"
 #include "ui/Languages.h"
 #include "ui/MainWindow.h"
+#include "ui/Placement.h"
 #include "ui/Theme.h"
 
 #include <QApplication>
@@ -32,6 +33,9 @@ int main(int argc, char *argv[])
             << "window starts:" << window.windowTitle() << "| Qt" << qVersion() << "on"
             << QApplication::platformName() << "|" << QSysInfo::prettyProductName();
 #endif
+    // Here, not in the window, so the window's tests never read or write
+    // the user's settings.
+    new defragr::ui::Placement(window);
     window.show();
 
     return QApplication::exec();
