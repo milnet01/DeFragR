@@ -1908,6 +1908,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   owner tests a bigger folder again once more meaningful changes are
   built: a test stops all other work on the machine, because nothing
   else may touch the drives during a defrag.
+  Owner's answers, 2026-11-19, second round. The report page's empty
+  band at the end stays empty. The skipped list above the map stays as
+  built until the owner has seen it in the bigger-folder test. The
+  bigger-folder test comes later: the owner is busy. Still to be seen
+  by the owner in that test: window position on the real desktop, the
+  time-left line, the "reading free space" line, and the marker, dashed
+  outline and progress bar. No log exists yet at
+  ~/.local/state/defragr/defragr.log.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -2033,6 +2041,21 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   (4) main.asm:208 — the walk is one thread and kernel-CPU bound. Several
   walkers feeding one writer is large work, weighed against S8; consider
   it only after perf record -g -a shows no lock bound.
+  Read 2026-11-19, code only, nothing measured. Candidate (3)'s cost
+  is paid per file as well as per folder: `walk_next`'s `.look` opens
+  every regular file path-only with openat2, calls statx on it, opens
+  it again through /proc/self/fd in `reopen`, and closes the path-only
+  descriptor. `report_run`'s `.file` then calls `extents_count` twice
+  and closes the file. That is seven kernel calls a measured file
+  beside the folder's getdents64, so the strace count should show
+  openat2, statx, openat, close and ioctl each near a whole multiple
+  of the file count. The /proc/self/fd open is a path lookup through
+  procfs for each file: time it apart from the first openat2.
+  Candidates (1), (2) and the 4 KiB `DENTS_SIZE` are as the review
+  says. The host has strace and perf; kernel.perf_event_paranoid is 2,
+  so perf trace needs root as strace -f on the engine does. The
+  measuring run reads the whole of /mnt/Games cold for about twenty
+  minutes and wants the cache dropped first: ask the owner for a time.
   **Layman:** A report on the big games drive spends most of its 20 minutes with the computer thinking, not the disk reading; find out which step.
   Kind: investigate.
   Source: dfr-0060-measurement-2026-11-18.
