@@ -2129,15 +2129,22 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: fix.
   Source: ci-run-44544896387-2026-11-19.
 
-- 📋 [DFR-0113] **The defrag page's map keeps its size when a run ends.**
+- ✅ [DFR-0113] **The defrag page's map keeps its size when a run ends.**
   The owner's rule of 2026-11-19, and DFR-0097's note of their answer:
   an area may swap what it shows and never changes size.
+  Done 2026-11-19 in dc1da5e. The work line, bar, latest file and time
+  share one room above the map; at the end it lists the skipped files.
+  At an 800 by 450 window the list shows its heading and one file at a
+  time, and scrolls. Not yet seen by the owner.
   **Layman:** When a defrag ends the skipped-files list no longer shrinks the map; it shows in the space the progress lines leave.
   Kind: ux.
   Source: user-request-2026-11-19.
 
-- 📋 [DFR-0114] **The report page keeps its progress lines' room when a report ends.**
+- ✅ [DFR-0114] **The report page keeps its progress lines' room when a report ends.**
   Same rule as the defrag page's item, filed with it.
+  Done 2026-11-19. The figures take the progress's room at the end; the
+  map and the list hold their places from the start. The room under the
+  figures is empty at the end. Not yet seen by the owner.
   **Layman:** When a report ends nothing on the page shifts; the space the progress lines used shows something else or stays.
   Kind: ux.
   Source: user-request-2026-11-19.
