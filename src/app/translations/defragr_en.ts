@@ -57,4 +57,31 @@
         </translation>
     </message>
 </context>
+<context>
+    <name>defragr::model::RunState</name>
+    <message numerus="yes">
+        <source>%1 file(s) joined up.</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation>
+            <numerusform>%1 file joined up.</numerusform>
+            <numerusform>%1 files joined up.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 file(s) left as they were: the drive has no free space that would hold them in fewer pieces.</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation>
+            <numerusform>%1 file left as it was: the drive has no free space that would hold it in fewer pieces.</numerusform>
+            <numerusform>%1 files left as they were: the drive has no free space that would hold them in fewer pieces.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 file(s) skipped.</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation>
+            <numerusform>%1 file skipped.</numerusform>
+            <numerusform>%1 files skipped.</numerusform>
+        </translation>
+    </message>
+</context>
 </TS>

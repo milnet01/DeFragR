@@ -10,8 +10,9 @@ Version 0.2.1. [CHANGELOG.md](CHANGELOG.md) says what shipped;
 
 Early development. The window lists your drives and says which it
 could defrag, and why not for the rest. It can report how fragmented a
-drive is, list its worst files and show the drive as a map. Defragging
-is not built yet.
+drive is, list its worst files and show the drive as a map. It can
+defrag one folder of a spinning ext4 drive, showing each move on the
+map. A run cannot be paused or cancelled yet.
 [ROADMAP.md](ROADMAP.md) holds the plan.
 
 ## Languages

@@ -177,6 +177,17 @@ QColor Theme::glowWash(CellState state) const
     return isDark(m_map.background) ? QColor(Qt::white) : cellColour(state);
 }
 
+QColor Theme::moteColour() const
+{
+    const QColor whole = cellColour(CellState::Whole);
+    return isDark(m_map.background) ? whole.lighter(150) : whole;
+}
+
+QColor Theme::markerColour() const
+{
+    return isDark(m_map.background) ? QColor(Qt::white) : QColor(Qt::black);
+}
+
 int Theme::cellGap() const { return std::max(1, m_cellSide / 10); }
 
 void Theme::paintCell(QPainter &painter, const QRect &cell, CellState state) const

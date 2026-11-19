@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=95 -->
+<!-- ants-roadmap-id-high-water: DFR=96 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1805,7 +1805,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Lanes: Move, Entry.
   Blocked-by: DFR-0008, DFR-0016.
 
-- 📋 [DFR-0018] **Window defrag of one folder, with the map animating.**
+- ✅ [DFR-0018] **Window defrag of one folder, with the map animating.**
   Pick a folder, confirm, run; `model/RunState` applies change
   records and the map shows blocks turning from fragmented to whole
   (S4). Overlaps DFR-0021 in `model/RunState`.
@@ -1827,6 +1827,22 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   from a report first; each `BLOCKS_MOVED` pairs its from and to blocks
   in order, and the from runs are free once the file's turn ends (spec
   § 4.12). The words for `FILE_SKIPPED` stages 6 to 11 are this item's.
+  Done 2026-11-19, to `docs/specs/DFR-0018-window-folder-defrag.md`.
+  "Defrag now" asks for a folder and a yes, then `ui/DefragView` shows
+  the run. `model/RunState` reads the map with a report unless it holds
+  one, so a drive not yet looked at asks for the password twice
+  (DFR-0096). Qt 6.12 reads the desktop's animations setting
+  (`motionPreference`); before it, the style's animation length of 0
+  does. Moves gather into launches at most 150 ms apart; each frame
+  repaints only the rows that changed and the small blocks' places, and
+  `onlyWhatMovesIsRepainted` reads the screen's own pixels. The marker
+  rests where blocks last landed, since no record names a file before
+  its moves. Claude's calls, not yet confirmed by the owner: the map is
+  used again, the folder dialog lists the drive's folders
+  (`docs/design.md`), and the look of the small blocks and the marker.
+  Left: `DriveMapView::changeCells` has no caller but tests; a real
+  drive has not been defragged from the window (DFR-0034); the new
+  sentences are untranslated (DFR-0067).
   **Layman:** Choose a folder and watch its blocks join up on the map as it is defragged.
   Kind: feature.
   Source: design-2026-11-15.
@@ -1905,6 +1921,21 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0019, DFR-0020, DFR-0021.
+
+- 📋 [DFR-0096] **One password prompt for a defrag that reads its map first.**
+  A defrag stream holds no map (DFR-0002 § 4.12), so `model/RunState`
+  runs `report`, then `defrag`: two pkexec runs, two prompts, unless the
+  window already holds that drive's map
+  (`docs/specs/DFR-0018-window-folder-defrag.md` § 3, § 8). Two ways,
+  the owner's choice: a polkit policy that keeps the password for a few
+  minutes, which a long report outlasts (DFR-0060 measured 19 min 56 s
+  cold on /mnt/Games); or the engine sends `MAP_RUNS` at the start of a
+  defrag stream, a protocol amendment, with the whole-drive walk before
+  every defrag. Neither is tried.
+  **Layman:** Defragging a drive DeFragR has not looked at yet asks for the password twice; make it once.
+  Kind: ux.
+  Source: dfr-0018-build-2026-11-19.
+  Lanes: Run, Entry, Packaging.
 
 ## 0.5.0 — Pause, cancel and background mode
 

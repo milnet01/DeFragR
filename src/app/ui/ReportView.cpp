@@ -98,6 +98,7 @@ void ReportView::showReport()
     m_filesHeading->setText(model::filesHeading(m_report.unlisted()));
     m_map->showMap(&m_report.map());
     setRunning(false);
+    emit loaded(m_report.mountPoint(), m_report.map());
 }
 
 void ReportView::showFailure(const model::Message &message)

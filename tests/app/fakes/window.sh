@@ -3,13 +3,20 @@
 # two drives whose names look like markup, and its report on the first
 # finds one fragmented file whose name looks like markup, then pauses
 # before the end until the test lets it finish (hold.sh), so the test can
-# look at the window mid-run. Any other command line gets no stream.
+# look at the window mid-run. The report maps the drive's 1000 blocks. Its
+# defrag of any folder on the first drive moves one file's 40 blocks,
+# pauses in the same way, then joins that file up, leaves a second as it
+# was and skips a third. Any other command line gets no stream.
 #   /mnt/<img src=x>            ext4, report and defrag
 #   /mnt/other  on <b>zfs</b>   not ext4, report only
+# DEFRAGR_TEST_LOG, when set, names a file that gains each command line.
+# DEFRAGR_TEST_DEFRAG changes how the defrag ends: "mismatch" stops it at
+# a file that reads back differently; "broken" breaks its stream.
 # Records: docs/specs/DFR-0002-engine-protocol.md § 4.
+[ -z "${DEFRAGR_TEST_LOG:-}" ] || printf '%s\n' "$*" >>"$DEFRAGR_TEST_LOG"
 case "$1" in
 probe) ;;
-report) [ "$2" = '/mnt/<img src=x>' ] || exit 3 ;;
+report | defrag) [ "$2" = '/mnt/<img src=x>' ] || exit 3 ;;
 *) exit 3 ;;
 esac
 # shellcheck source=SCRIPTDIR/hold.sh
@@ -55,7 +62,59 @@ fragmented() {
     le "$1" 4; zeros 4; le "$2" 8; string_part 16 "$3"
 }
 
-if [ "$1" = probe ]; then
+# MAP_RUNS of kind $1: then each run's start and length.
+map_runs() {
+    kind=$1
+    shift
+    header 36 $((8 + 8 * $#))
+    le "$kind" 4; le $(($# / 2)) 4
+    for number in "$@"; do le "$number" 8; done
+}
+
+# BLOCKS_MOVED: $1 from runs, then every run's start and length, the
+# from runs first.
+blocks_moved() {
+    from=$1
+    shift
+    header 65 $((8 + 8 * $#))
+    le "$from" 4; le $(($# / 2 - from)) 4
+    for number in "$@"; do le "$number" 8; done
+}
+
+# FILE_DEFRAGGED: extents before $1, after $2, moved_blocks $3, path $4.
+defragged() {
+    header 64 $((16 + $(string_size "$4")))
+    le "$1" 4; le "$2" 4; le "$3" 8; string_part 16 "$4"
+}
+
+# FILE_SKIPPED: errno $1, stage $2, path $3.
+skipped() {
+    header 33 $((8 + $(string_size "$3")))
+    le "$1" 4; le "$2" 2; zeros 2; string_part 8 "$3"
+}
+
+if [ "$1" = defrag ]; then
+    # HELLO: version 1.4, defrag, block size 4096.
+    header 1 16; le 1 2; le 4 2; le 3 4; le 4096 4; zeros 4
+    blocks_moved 2 100 20 300 20 400 40
+    if [ "${DEFRAGR_TEST_DEFRAG:-}" = broken ]; then
+        # A second HELLO breaks the stream's order.
+        header 1 16; le 1 2; le 4 2; le 3 4; le 4096 4; zeros 4
+        exit 0
+    fi
+    hold_sent
+    hold_wait
+    defragged 2 1 40 'games/<img src=x>.bin'
+    if [ "${DEFRAGR_TEST_DEFRAG:-}" = mismatch ]; then
+        blocks_moved 1 320 10 500 10
+        skipped 0 11 'games/bad.bin'
+        # FINISHED: CHECKSUM_MISMATCH.
+        header 2 8; le 11 4; zeros 4
+        exit 11
+    fi
+    defragged 3 3 0 'games/full.bin'
+    skipped 0 10 'games/<b>busy</b>.bin'
+elif [ "$1" = probe ]; then
     # HELLO: version 1.1, probe, block size 0.
     header 1 16; le 1 2; le 1 2; le 1 4; zeros 8
     drive '/mnt/<img src=x>' /dev/sdz1 ext4 2 0
@@ -68,6 +127,12 @@ else
     fragmented 3 10 '<img src=x>.bin'
     # REPORT_PROGRESS: names 150 of an estimated 300.
     header 35 16; le 150 8; le 300 8
+    # The map: a whole file, a file in two pieces, the filesystem's own
+    # blocks, and free space.
+    map_runs 3 0 100
+    map_runs 4 100 20 300 20
+    map_runs 2 120 80
+    map_runs 1 200 100 320 680
     hold_sent
     hold_wait
     # REPORT_SUMMARY: files 200, fragmented 1, extents 3, file_blocks 5000,

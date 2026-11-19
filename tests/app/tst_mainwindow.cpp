@@ -2,10 +2,14 @@
 // buttons pressed. A fake engine (fakes/window.sh) lists drives and
 // reports files whose names look like markup, and a stand-in pkexec
 // (fakes/pkexec-pass, fakes/pkexec-refuse) answers for admin rights, so
-// the test needs no root, no display and no real pkexec. DFR-0063.
+// the test needs no root, no display and no real pkexec. DFR-0063; the
+// defrag of a folder is docs/specs/DFR-0018-window-folder-defrag.md
+// INV-11 and INV-12.
 #include "FakeHold.h"
 #include "model/Messages.h"
 #include "ui/Languages.h"
+#include "ui/DefragView.h"
+#include "ui/DriveMapView.h"
 #include "ui/MainWindow.h"
 #include "ui/ReportView.h"
 #include "ui/Theme.h"
@@ -19,6 +23,7 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTableView>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTextDocument>
 #include <QTimer>
@@ -33,6 +38,7 @@ constexpr int kWaitMs = 15000;
 const QString kMarkupDrive = QStringLiteral("<img src=x>");
 const QString kMarkupFile = QStringLiteral("<img src=x>.bin");
 const QString kMarkupFs = QStringLiteral("<b>zfs</b>");
+const QString kMarkupSkipped = QStringLiteral("<b>busy</b>.bin");
 
 QPushButton *button(QWidget *window, const QString &text)
 {
@@ -83,6 +89,8 @@ class TestMainWindow : public QObject {
 
     QDir m_fakes;
     QByteArray m_path;
+    QTemporaryDir m_scratch;
+    QString m_log;
     // English's wording, whatever this machine's language.
     std::unique_ptr<ui::Languages> m_english;
     std::unique_ptr<ui::Theme> m_theme;
@@ -99,6 +107,37 @@ class TestMainWindow : public QObject {
     QTableView *driveTable() const { return m_window->findChild<QStackedWidget *>()->widget(0)->findChild<QTableView *>(); }
     QStackedWidget *pages() const { return m_window->findChild<QStackedWidget *>(); }
     ui::ReportView *reportView() const { return m_window->findChild<ui::ReportView *>(); }
+    ui::DefragView *defragView() const { return m_window->findChild<ui::DefragView *>(); }
+
+    // The command lines the fake engine has been started with.
+    QStringList commandLines() const
+    {
+        QFile log(m_log);
+        if (!log.open(QIODevice::ReadOnly))
+            return {};
+        return QString::fromUtf8(log.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    }
+
+    // Presses "Defrag now" with the folder dialog answering `folder`.
+    // The box that follows, if one does, has its words noted in `shown`
+    // and its button labelled `press` pressed.
+    void defragNow(const QString &folder, const QString &press, QString *shown)
+    {
+        m_window->setFolderPicker([folder](QWidget *, const QString &) { return folder; });
+        QTimer::singleShot(200, this, [=] {
+            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            if (!box)
+                return;
+            *shown = box->text();
+            for (QAbstractButton *candidate : box->buttons())
+                if (candidate->text().remove(QLatin1Char('&')) == press) {
+                    candidate->click();
+                    return;
+                }
+            box->reject();
+        });
+        button(m_window.get(), QStringLiteral("Defrag now"))->click();
+    }
 
     // A window that has listed its drives from `engine`.
     void openWindow(const char *engine)
@@ -145,7 +184,12 @@ private slots:
         QVERIFY2(!fakes.isEmpty(), "DEFRAGR_FAKES names the folder of fake engines");
         m_fakes = QDir(QFile::decodeName(fakes));
         m_path = qgetenv("PATH");
+        QVERIFY(m_scratch.isValid());
+        m_log = m_scratch.filePath(QStringLiteral("log"));
+        qputenv("DEFRAGR_TEST_LOG", QFile::encodeName(m_log));
     }
+
+    void init() { QFile::remove(m_log); }
 
     void cleanup()
     {
@@ -183,21 +227,123 @@ private slots:
         QVERIFY2(showsAsWritten(note, kMarkupFs), qPrintable(note->text()));
     }
 
-    // "Defrag now" is not built yet; it says so in a box.
-    void defragNowSaysItComesLater()
+    // DFR-0018 INV-11: "Defrag now" starts no engine until a folder on
+    // the drive is picked and the question about it is answered yes.
+    void defragNeedsAFolderAndAYes()
     {
+        useLauncher("pkexec-pass");
+        openWindow("window.sh");
+        selectRow(0);
+        const QStringList listed = commandLines();
+        QCOMPARE(listed, QStringList{QStringLiteral("probe")});
+
+        // The folder dialog is cancelled: no box, no run.
+        QString shown;
+        defragNow({}, QStringLiteral("Defrag this folder"), &shown);
+        QTest::qWait(300);
+        QCOMPARE(shown, QString());
+        QCOMPARE(pages()->currentIndex(), 0);
+
+        // A folder on another drive, one whose name only starts the same.
+        defragNow(QStringLiteral("/mnt/<img src=x>2/games"), QStringLiteral("OK"), &shown);
+        QCOMPARE(shown, model::messages::folderNotOnDrive("/mnt/<img src=x>").what);
+        QCOMPARE(pages()->currentIndex(), 0);
+
+        // A folder on the drive, and the question answered no.
+        shown.clear();
+        defragNow(QStringLiteral("/mnt/<img src=x>/games"), QStringLiteral("Cancel"), &shown);
+        QCOMPARE(shown, model::messages::confirmDefrag("/mnt/<img src=x>", "games").what);
+        QCOMPARE(pages()->currentIndex(), 0);
+        QTest::qWait(300);
+        QCOMPARE(commandLines(), listed);
+        QVERIFY(!defragView()->isRunning());
+    }
+
+    // S4, S7 and DFR-0018 INV-12: answered yes, the defrag page shows the
+    // run, the drive's map, and at the end what happened to each file,
+    // with every name as written. The report viewed first gave the map,
+    // so only the defrag is run.
+    void defragRunsAndShowsItsResult()
+    {
+        useLauncher("pkexec-pass");
+        openWindow("window.sh");
+        reportOnFirstDrive();
+        button(reportView(), QStringLiteral("Back to drives"))->click();
+        QFile::remove(m_log);
+
+        FakeHold hold;
+        QVERIFY(hold.isValid());
+        QString shown;
+        defragNow(QStringLiteral("/mnt/<img src=x>/games"), QStringLiteral("Defrag this folder"),
+                  &shown);
+        QCOMPARE(pages()->currentWidget(), defragView());
+        auto *back = button(defragView(), QStringLiteral("Back to drives"));
+        auto *map = defragView()->findChild<ui::DriveMapView *>();
+
+        // Mid-run: the engine has moved one file's blocks, and waits.
+        QVERIFY2(QTest::qWaitFor([&] { return hold.sent(); }, kWaitMs), "the defrag did not start");
+        QVERIFY(!back->isEnabled());
+        QVERIFY(showsAsWritten(label(defragView(), QStringLiteral("Defragging")), kMarkupDrive));
+        QVERIFY(label(defragView(), QStringLiteral("Joining up the files")));
+        QVERIFY(map->isVisibleTo(m_window.get()));
+        QVERIFY2(QTest::qWaitFor([&] { return map->markerCell() >= 0; }, kWaitMs),
+                 "the move did not reach the map");
+        QVERIFY(!defragView()->findChild<QTableView *>()->isVisibleTo(m_window.get()));
+
+        // The end: the counts, the latest file, and the skipped file.
+        QVERIFY(hold.release());
+        QVERIFY2(QTest::qWaitFor([&] { return back->isEnabled(); }, kWaitMs),
+                 "the defrag did not end");
+        QCOMPARE(commandLines(), QStringList{QStringLiteral("defrag /mnt/<img src=x> games")});
+        QVERIFY(label(defragView(), QStringLiteral("Done.")));
+        auto *counts = label(defragView(), QStringLiteral("1 file joined up."));
+        QVERIFY(counts);
+        QVERIFY(counts->text().contains(QStringLiteral("1 file left as it was")));
+        QVERIFY(counts->text().contains(QStringLiteral("1 file skipped.")));
+        auto *latest = label(defragView(), QStringLiteral("Latest:"));
+        QVERIFY(showsAsWritten(latest, kMarkupSkipped) || latest->text().contains(QChar(0x2026)));
+        QVERIFY(tipShowsAsWritten(latest, kMarkupSkipped));
+        auto *skipped = defragView()->findChild<QTableView *>();
+        QVERIFY(skipped->isVisibleTo(m_window.get()));
+        QCOMPARE(skipped->model()->rowCount(), 1);
+        QVERIFY(skipped->model()->index(0, 0).data().toString().contains(kMarkupSkipped));
+        engine::FileSkipped busy;
+        busy.stage = engine::StageChanged;
+        QCOMPARE(skipped->model()->index(0, 1).data().toString(),
+                 model::messages::whySkipped(busy));
+        // The map is the report's with the move made: its cells still
+        // show a whole file where the blocks landed.
+        QVERIFY(map->isVisibleTo(m_window.get()));
+        QTRY_VERIFY_WITH_TIMEOUT(!map->isMoving(), kWaitMs);
+        QVERIFY(map->cells().contains(model::CellState::Whole));
+        QVERIFY(!map->cells().contains(model::CellState::Fragmented));
+
+        back->click();
+        QCOMPARE(pages()->currentIndex(), 0);
+    }
+
+    // S9: when the defrag is refused admin rights, the page says so and
+    // shows no map: with no report viewed, the map's own run was refused.
+    void refusedDefragIsExplained()
+    {
+        useLauncher("pkexec-refuse");
         openWindow("window.sh");
         selectRow(0);
         QString shown;
-        QTimer::singleShot(200, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                shown = box->text();
-                box->accept();
-            }
-        });
-        button(m_window.get(), QStringLiteral("Defrag now"))->click();
-        QCOMPARE(shown, model::messages::defragComesLater());
-        QCOMPARE(pages()->currentIndex(), 0);
+        defragNow(QStringLiteral("/mnt/<img src=x>"), QStringLiteral("Defrag this folder"), &shown);
+        QCOMPARE(shown, model::messages::confirmDefrag("/mnt/<img src=x>", "").what);
+        QCOMPARE(pages()->currentWidget(), defragView());
+        auto *back = button(defragView(), QStringLiteral("Back to drives"));
+        QVERIFY2(QTest::qWaitFor([&] { return back->isEnabled(); }, kWaitMs),
+                 "the refused run did not end");
+        engine::RunOutcome refused;
+        refused.end = engine::RunEnd::AdminRefused;
+        refused.enginePath = QFile::decodeName(qgetenv("DEFRAGR_ENGINE"));
+        const model::Message expected = model::messages::forRun(refused);
+        auto *said = label(defragView(), expected.what);
+        QVERIFY2(said, "the refusal is not on the defrag page");
+        QCOMPARE(said->text(), expected.what + QLatin1Char('\n') + expected.action);
+        QVERIFY(!defragView()->findChild<ui::DriveMapView *>()->isVisibleTo(m_window.get()));
     }
 
     // S3: View report opens the report, which shows progress while it

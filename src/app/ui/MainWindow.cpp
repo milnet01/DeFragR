@@ -1,10 +1,14 @@
 #include "ui/MainWindow.h"
 
 #include "BuildId.h"
+#include "model/RunState.h"
+#include "ui/DefragView.h"
 #include "ui/ReadOnlyTable.h"
 #include "ui/ReportView.h"
 #include "ui/Theme.h"
 
+#include <QFile>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QLabel>
@@ -13,6 +17,8 @@
 #include <QStackedWidget>
 #include <QTableView>
 #include <QVBoxLayout>
+
+#include <optional>
 
 namespace defragr::ui {
 
@@ -55,6 +61,11 @@ MainWindow::MainWindow(const Theme &theme, QWidget *parent) : QMainWindow(parent
     m_pages = new QStackedWidget;
     m_pages->addWidget(m_drivePage);
     m_pages->addWidget(m_reportView);
+    m_defragView = new DefragView(theme);
+    m_pages->addWidget(m_defragView);
+    m_pickFolder = [](QWidget *parent, const QString &start) {
+        return QFileDialog::getExistingDirectory(parent, tr("Pick the folder to defrag"), start);
+    };
     setCentralWidget(m_pages);
     resize(Theme::kWindowStartSize);
 
@@ -74,12 +85,11 @@ MainWindow::MainWindow(const Theme &theme, QWidget *parent) : QMainWindow(parent
     connect(m_reportView, &ReportView::backRequested, this,
             [this] { m_pages->setCurrentWidget(m_drivePage); });
 
-    // Defragging is not built yet; it comes with 0.3.0. The button still
-    // follows the verdict.
-    connect(m_defrag, &QPushButton::clicked, this, [this] {
-        QMessageBox::information(this, tr("Defrag now"),
-                                 model::messages::defragComesLater());
-    });
+    // A report's map saves a defrag of that drive from reading one.
+    connect(m_reportView, &ReportView::loaded, m_defragView, &DefragView::setMap);
+    connect(m_defrag, &QPushButton::clicked, this, &MainWindow::defragAFolder);
+    connect(m_defragView, &DefragView::backRequested, this,
+            [this] { m_pages->setCurrentWidget(m_drivePage); });
 
     listDrives();
 }
@@ -118,6 +128,43 @@ void MainWindow::updateActions()
     m_defrag->setEnabled(m_drives.canDefrag(row));
     const QString why = model::messages::whyNoDefrag(m_drives.drive(row));
     m_note->setText(why.isEmpty() ? model::messages::defragAllowed() : why);
+}
+
+void MainWindow::defragAFolder()
+{
+    const int row = selectedRow();
+    if (row < 0 || !m_drives.canDefrag(row) || m_defragView->isRunning())
+        return;
+    const QByteArray mountPoint = m_drives.drive(row).mountPoint;
+    const QString chosen = m_pickFolder(this, QFile::decodeName(mountPoint));
+    if (chosen.isEmpty())
+        return;
+    const std::optional<QByteArray> folder = model::folderOnDrive(mountPoint, chosen);
+
+    // A name is anybody's to choose, so each box shows the sentence that
+    // holds one as plain text.
+    QMessageBox box(this);
+    box.setWindowTitle(tr("Defrag now"));
+    box.setTextFormat(Qt::PlainText);
+    if (!folder) {
+        const model::Message elsewhere = model::messages::folderNotOnDrive(mountPoint);
+        box.setIcon(QMessageBox::Information);
+        box.setText(elsewhere.what);
+        box.setInformativeText(elsewhere.action);
+        box.exec();
+        return;
+    }
+    const model::Message question = model::messages::confirmDefrag(mountPoint, *folder);
+    box.setIcon(QMessageBox::Question);
+    box.setText(question.what);
+    box.setInformativeText(question.action);
+    QPushButton *go = box.addButton(tr("Defrag this folder"), QMessageBox::AcceptRole);
+    box.setDefaultButton(box.addButton(QMessageBox::Cancel));
+    box.exec();
+    if (box.clickedButton() != go)
+        return;
+    m_defragView->start(mountPoint, *folder);
+    m_pages->setCurrentWidget(m_defragView);
 }
 
 void MainWindow::showFailure(const model::Message &message)

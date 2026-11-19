@@ -52,7 +52,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Messages | Every engine error code and refusal reason, in plain words with what to do; how a path is shown | `model/Messages.{h,cpp}` |
 | Health | Drive health from UDisks2 over D-Bus | `health/DriveHealth.{h,cpp}` |
 | Theme | Colours, symbols and sizes for the map and text | `ui/Theme.{h,cpp}` |
-| Screens | Main window, start choice, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/ReadOnlyTable.h`, `ui/TrayIcon.{h,cpp}` |
+| Screens | Main window, start choice, the defrag page, menu, status bar, progress bar, tray icon | `ui/MainWindow.{h,cpp}`, `ui/DefragView.{h,cpp}`, `ui/ReadOnlyTable.h`, `ui/TrayIcon.{h,cpp}` |
 | Map view | Painting and animating the map | `ui/DriveMapView.{h,cpp}` |
 | Report view | Showing a report | `ui/ReportView.{h,cpp}` |
 | Settings view | The options dialog | `ui/SettingsDialog.{h,cpp}` |
@@ -67,7 +67,7 @@ shape. `src/engine/records.inc` and `src/app/engine/Records.h` follow it.
 | Packaging | Polkit policy, desktop entry, icon, release bundle | `packaging/` |
 | Window tests | Qt Test unit tests of the model parts, run without root | `tests/app/` |
 | Recorded runs | Saved engine output, replayed by a fake engine | `tests/fixtures/`, `tests/fake-engine/` |
-| Map demo | A recorded map with scripted changes, to judge the map's motion by eye | `tests/map-demo/` |
+| Map demo | A recorded map with a made-up defrag playing on it, to judge the map's motion by eye | `tests/map-demo/` |
 | Image tests | Building throwaway ext4 images and running the real engine on them | `tests/image/` |
 | Test machine | Booting the throwaway virtual machine the image tests run in | `tests/vm/` |
 
@@ -85,7 +85,9 @@ source under `/dev`, without opening it, to learn its device.
 includes the other's files.
 
 **Only the engine touches a drive.** The window never opens a file on
-the target drive, never calls an ioctl on it, and never moves data.
+the target drive, never calls an ioctl on it, and never moves data. One
+exception: the folder dialog lists the drive's folders, so a folder to
+defrag can be picked.
 
 **Only the engine decides whether a drive or a file may be defragged**
 ([ADR-0002](decisions/ADR-0002-engine-decides-eligibility.md)). The

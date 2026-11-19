@@ -190,6 +190,71 @@ private slots:
         // which goes to the later kind.
         QCOMPARE(map.cells(4), QList<CellState>(4, CellState::Fragmented));
     }
+
+    // DFR-0018 INV-1: a move frees the blocks it left and fills the ones
+    // it reached; a file that ends in several pieces shows as fragmented
+    // where it landed, and an earlier file that ended whole stays whole.
+    // One block per cell, so each cell is one tally.
+    void movesChangeCells()
+    {
+        using enum CellState;
+        DriveMap map;
+        map.add(runs(MapFragmentedFile, {{0, 2}, {4, 2}}));
+        map.add(runs(MapFree, {{2, 2}, {6, 6}}));
+        QCOMPARE(map.blocksPerCell(12), quint64(1));
+
+        // The first file: blocks 0-1 go to 6-7, and it ends in one piece.
+        map.move({{{0, 2}}, {{6, 2}}});
+        QCOMPARE(map.cells(12), (QList<CellState>{Free, Free, Free, Free, Fragmented, Fragmented,
+                                                  Whole, Whole, Free, Free, Free, Free}));
+        map.endTurn(true);
+
+        // The second: blocks 4-5 go to 8-9, and it ends in two pieces.
+        map.move({{{4, 2}}, {{8, 2}}});
+        QCOMPARE(map.cells(12).mid(8, 2), (QList<CellState>{Whole, Whole}));
+        map.endTurn(false);
+        QCOMPARE(map.cells(12), (QList<CellState>{Free, Free, Free, Free, Free, Free, Whole,
+                                                  Whole, Fragmented, Fragmented, Free, Free}));
+        // A turn's end with nothing landed changes nothing.
+        map.endTurn(false);
+        QCOMPARE(map.cells(12).mid(6, 4), (QList<CellState>{Whole, Whole, Fragmented, Fragmented}));
+    }
+
+    // DFR-0018 INV-2: the map can be older than the drive. A move from
+    // blocks it holds as a whole file's, to blocks it holds as the
+    // filesystem's, in no run, and past its end, still shows the blocks
+    // freed and filled, and wraps no tally below zero.
+    void moveOnAStaleMap()
+    {
+        using enum CellState;
+        DriveMap map;
+        map.add(runs(MapWholeFile, {{0, 2}}));
+        map.add(runs(MapFilesystem, {{2, 2}}));
+        map.add(runs(MapFree, {{6, 2}}));  // blocks 4-5 are in no run
+        map.move({{{0, 2}}, {{2, 1}, {4, 1}}});
+        QCOMPARE(map.cells(8), (QList<CellState>{Free, Free, Whole, Filesystem, Whole,
+                                                 Filesystem, Free, Free}));
+        map.move({{{6, 2}}, {{8, 2}}});
+        QCOMPARE(map.blocks(), quint64(10));
+        QCOMPARE(map.cells(10).mid(6), (QList<CellState>{Free, Free, Whole, Whole}));
+        map.endTurn(false);
+        QCOMPARE(map.cells(10), (QList<CellState>{Free, Free, Fragmented, Filesystem, Fragmented,
+                                                  Filesystem, Free, Free, Fragmented, Fragmented}));
+    }
+
+    // A turn's landed blocks follow the bins when the map outgrows them.
+    void landedBlocksSurviveWiderBins()
+    {
+        DriveMap map;
+        const quint64 size = quint64(DriveMap::kBinsMax);
+        map.add(runs(MapFree, {{0, size}}));
+        map.move({{}, {{0, size / 2}}});
+        // Past the end: the bins double in width.
+        map.move({{}, {{size, size}}});
+        map.endTurn(false);
+        QCOMPARE(map.cells(4), (QList<CellState>{CellState::Fragmented, CellState::Free,
+                                                 CellState::Fragmented, CellState::Fragmented}));
+    }
 };
 
 QTEST_GUILESS_MAIN(TestDriveMap)

@@ -79,6 +79,21 @@ enum Reason : quint16 {
     ReasonOldCpu = 5,
 };
 
+// FILE_SKIPPED.stage (§ 4.6; 6 to 11 in a defrag, § 4.12).
+enum SkipStage : quint16 {
+    StageOpen = 1,
+    StageStat = 2,
+    StageExtents = 3,
+    StageReadFolder = 4,
+    StagePathTooLong = 5,
+    StageRefused = 6,
+    StageRead = 7,
+    StageDonor = 8,
+    StageMove = 9,
+    StageChanged = 10,
+    StageChecksumDiffers = 11,
+};
+
 // MAP_RUNS.kind (§ 4.6).
 enum MapKind : quint32 {
     MapFree = 1,

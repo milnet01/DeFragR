@@ -1,13 +1,17 @@
 // DriveMapView: the map painted with the theme's patterns (S4, S10). A
 // cell never jumps: it fades from old to new while it glows past its
 // edges, then settles; a new map fills in first block to last, and the
-// frame timer stops once nothing moves. The view
-// reads a clock this test sets, so every frame is a chosen moment.
+// frame timer stops once nothing moves. During a defrag each move plays
+// as a journey (docs/specs/DFR-0018-window-folder-defrag.md INV-6 to
+// INV-10). The view reads a clock this test sets, so every frame is a
+// chosen moment.
 #include "ui/DriveMapView.h"
 #include "ui/Theme.h"
 
 #include <QImage>
+#include <QPaintEvent>
 #include <QPainter>
+#include <QScreen>
 #include <QTest>
 
 using namespace defragr::engine;
@@ -65,6 +69,24 @@ bool samePixels(const QImage &shot, QPoint at, const QImage &expected)
     return true;
 }
 
+// The area of each paint a widget is asked for.
+class PaintWatcher : public QObject {
+public:
+    QList<qint64> areas;
+
+protected:
+    bool eventFilter(QObject *, QEvent *event) override
+    {
+        if (event->type() == QEvent::Paint) {
+            qint64 area = 0;
+            for (const QRect &rect : static_cast<QPaintEvent *>(event)->region())
+                area += qint64(rect.width()) * rect.height();
+            areas.append(area);
+        }
+        return false;
+    }
+};
+
 }  // namespace
 
 class TestDriveMapView : public QObject {
@@ -86,6 +108,7 @@ class TestDriveMapView : public QObject {
     {
         auto view = std::make_unique<DriveMapView>(m_theme);
         view->setClock([this] { return m_now; });
+        view->setMotion(true);  // whatever this desktop's setting
         view->resize(kColumns * pitch() - m_theme.cellGap(), kRows * pitch() - m_theme.cellGap());
         view->show();
         return view;
@@ -282,6 +305,227 @@ private slots:
         still->showMap(&m_map);
         m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
         QCOMPARE(shot, still->grab().toImage());
+    }
+
+    // A view of `map` at one block a cell, its sweep over.
+    std::unique_ptr<DriveMapView> settledViewOf(const DriveMap &map, int rows = kRows)
+    {
+        auto view = makeView();
+        view->resize(view->width(), rows * pitch() - m_theme.cellGap());
+        view->showMap(&map);
+        m_now += DriveMapView::kSweepMs + DriveMapView::kArriveMs;
+        return view;
+    }
+
+    // Lets time pass on the view's clock until nothing moves, a launch
+    // gap at a time.
+    void runUntilStill(DriveMapView &view)
+    {
+        for (int step = 0; step < 100 && view.isMoving(); ++step) {
+            m_now += DriveMapView::kLaunchGapMs;
+            QTest::qWait(20);  // the frame timer's own time
+        }
+        QVERIFY(!view.isMoving());
+    }
+
+    // DFR-0018 INV-6: however the moves arrive, the cells end as the map.
+    // Blocks land where an earlier move's are still on their way, a file
+    // ends in pieces, and blocks that have not landed yet move again, so
+    // a cell due to change must be left as it is after all.
+    void movesEndAsTheMap()
+    {
+        DriveMap map = rowsMap();
+        const auto view = settledViewOf(map);
+        const auto move = [&](const BlocksMoved &blocks) {
+            map.move(blocks);
+            view->showMove(blocks);
+        };
+        move({{{10, 2}}, {{30, 2}}});
+        m_now += 50;
+        move({{{12, 3}}, {{32, 3}}});
+        m_now += 20;
+        map.endTurn(false);
+        view->followMap();
+        m_now += 30;
+        // Before the first blocks have landed, they move on.
+        move({{{30, 2}}, {{36, 2}}});
+        map.endTurn(true);
+        view->followMap();
+        QVERIFY(view->isMoving());
+        QVERIFY(view->cells() != map.cells(view->capacity()));
+        runUntilStill(*view);
+        QCOMPARE(view->cells(), map.cells(view->capacity()));
+        QCOMPARE(view->cells()[30], CellState::Free);
+        QCOMPARE(view->cells()[33], CellState::Fragmented);
+        QCOMPARE(view->cells()[36], CellState::Whole);
+        QCOMPARE(view->motesInFlight(), 0);
+    }
+
+    // DFR-0018 INV-7: a move waits for the next launch, flies, and lands,
+    // all within the launch gap, the flight and the landing spread. The
+    // second move here must wait for its launch; it is not held up behind
+    // the first move's flight.
+    void movesShowWithinASecond()
+    {
+        DriveMap map = rowsMap();
+        const auto view = settledViewOf(map);
+        const BlocksMoved first{{{10, 1}}, {{30, 1}}};
+        map.move(first);
+        view->showMove(first);  // launches at once: nothing went before
+        QVERIFY(view->motesInFlight() >= 3);
+        QCOMPARE(view->cells()[30], CellState::Free);  // not landed yet
+
+        m_now += 10;
+        const qint64 shown = m_now;
+        const BlocksMoved second{{{12, 2}}, {{33, 2}}};
+        map.move(second);
+        view->showMove(second);
+        const qint64 bound = shown + DriveMapView::kLaunchGapMs + DriveMapView::kFlightMs
+                             + DriveMapView::kLandSpreadMs;
+        // Its launch comes once the gap has passed.
+        m_now = shown + DriveMapView::kLaunchGapMs;
+        view->followMap();
+        QCOMPARE(view->cells()[33], CellState::Free);
+        m_now = bound;
+        const QList<CellState> cells = view->cells();
+        QCOMPARE(cells[12], CellState::Free);
+        QCOMPARE(cells[13], CellState::Free);
+        QCOMPARE(cells[33], CellState::Whole);
+        QCOMPARE(cells[34], CellState::Whole);
+        QCOMPARE(cells[30], CellState::Whole);
+        QCOMPARE(view->markerCell(), 34);
+    }
+
+    // DFR-0018 INV-8, S10: blocks moved onto one cell and off it again
+    // every 100 ms start at most three changes there in a second. With
+    // motion off nothing but the view's own rule delays a change, so the
+    // rule is all that is tested. With motion on, the same moves never
+    // land: each launch finds the cell due back where it is, and nothing
+    // glows.
+    void movesFlashNoMoreThanThreeASecond()
+    {
+        for (const bool motion : {false, true}) {
+            DriveMap map = rowsMap();
+            const auto view = settledViewOf(map);
+            view->setMotion(motion);
+            CellState shown = view->cells()[30];
+            int starts = 0;
+            for (int step = 0; step < 100; ++step) {  // every 10 ms for a second
+                if (step % 10 == 0) {
+                    const bool onto = step % 20 == 0;
+                    const BlocksMoved blocks = onto ? BlocksMoved{{{10, 1}}, {{30, 1}}}
+                                                    : BlocksMoved{{{30, 1}}, {{10, 1}}};
+                    map.move(blocks);
+                    view->showMove(blocks);
+                }
+                view->followMap();  // a launch, when one is due
+                if (view->cells()[30] != shown) {
+                    shown = view->cells()[30];
+                    ++starts;
+                }
+                m_now += 10;
+            }
+            if (motion)
+                QCOMPARE(starts, 0);
+            else
+                QVERIFY2(starts >= 2 && starts <= 3, qPrintable(QString::number(starts)));
+            m_now += 2000;
+            view->followMap();
+            m_now += 2000;
+            QCOMPARE(view->cells(), map.cells(view->capacity()));
+        }
+    }
+
+    // DFR-0018 INV-9: frames repaint only what moved, and leave nothing
+    // stale. The screen's own pixels are read, since grab() paints the
+    // whole view afresh and would hide a row a frame forgot.
+    void onlyWhatMovesIsRepainted()
+    {
+        const int rows = 12;
+        DriveMap map;
+        map.add({MapFragmentedFile, {{10, 10}}});
+        map.add({MapFree, {{20, 100}}});
+        map.add({MapWholeFile, {{0, 10}}});
+        const auto view = settledViewOf(map, rows);
+        QVERIFY(QTest::qWaitForWindowExposed(view.get()));
+        QTest::qWait(50);
+        QCOMPARE(view->capacity(), kColumns * rows);
+
+        const auto screen = [&] { return view->screen()->grabWindow(view->winId()).toImage(); };
+        // How many of the cells from `first` to `last` are not their
+        // settled pattern on screen.
+        const auto unsettled = [&](const QImage &shot, int first, int last) {
+            const QList<CellState> cells = map.cells(view->capacity());
+            int count = 0;
+            for (int i = first; i <= last; ++i)
+                count += !samePixels(shot, cellAt(i), cellImage(m_theme, cells[i]));
+            return count;
+        };
+
+        PaintWatcher paints;
+        view->installEventFilter(&paints);
+        // From the second row to the ninth: the small blocks cross rows
+        // where no cell changes.
+        const BlocksMoved blocks{{{12, 3}}, {{84, 3}}};
+        map.move(blocks);
+        view->showMove(blocks);
+        QVERIFY(view->isMoving());
+        // Long steps, so a cell or a small block is well short of done at
+        // one frame and done by the next: the frame that must clear it.
+        m_now += DriveMapView::kFlightMs / 2;
+        QTest::qWait(50);
+        QVERIFY(view->motesInFlight() > 0);
+        QVERIFY2(unsettled(screen(), 3 * kColumns, 7 * kColumns - 1) > 0,
+                 "no small block shows between the rows that change");
+        for (int step = 0; step < 40 && view->isMoving(); ++step) {
+            m_now += 300;
+            QTest::qWait(50);
+        }
+        QVERIFY(!view->isMoving());
+        QTest::qWait(50);
+
+        // Three rows changed or glowed at each end, and the small blocks
+        // crossed between. No frame came near the whole view.
+        const qint64 whole = qint64(view->width()) * view->height();
+        QVERIFY(paints.areas.size() >= 4);
+        for (const qint64 area : paints.areas)
+            QVERIFY2(area <= whole * 2 / 3, qPrintable(QString::number(area)));
+
+        QCOMPARE(view->cells(), map.cells(view->capacity()));
+        QCOMPARE(view->markerCell(), 86);
+        const QImage shot = screen();
+        // The marker's outline lies over the edges of the cells round
+        // it: 75 to 77, 85, 87, and 95 to 97.
+        QCOMPARE(unsettled(shot, 0, 74), 0);
+        QCOMPARE(unsettled(shot, 78, 84), 0);
+        QCOMPARE(unsettled(shot, 86, 86), 0);
+        QCOMPARE(unsettled(shot, 88, 94), 0);
+        QCOMPARE(unsettled(shot, 98, kColumns * rows - 1), 0);
+    }
+
+    // DFR-0018 INV-10: with the desktop's animations off, a move shows at
+    // once as settled patterns, nothing flies, and a new map does not
+    // sweep in.
+    void motionOffChangesAtOnce()
+    {
+        DriveMap map = rowsMap();
+        const auto view = makeView();
+        view->setMotion(false);
+        view->showMap(&map);
+        QVERIFY(!view->isMoving());
+        QVERIFY(samePixels(view->grab().toImage(), cellAt(39), cellImage(m_theme, CellState::Free)));
+
+        const BlocksMoved blocks{{{10, 2}}, {{38, 2}}};
+        map.move(blocks);
+        view->showMove(blocks);
+        QCOMPARE(view->motesInFlight(), 0);
+        QCOMPARE(view->cells(), map.cells(view->capacity()));
+        const QImage shot = view->grab().toImage();
+        for (const int cell : {10, 11})
+            QVERIFY(samePixels(shot, cellAt(cell), cellImage(m_theme, CellState::Free)));
+        // Cell 38 is whole too, under the edge of the marker's outline.
+        QVERIFY(samePixels(shot, cellAt(39), cellImage(m_theme, CellState::Whole)));
+        QCOMPARE(view->markerCell(), 39);
     }
 
     // No map: no cells, and no frame timer waking to sweep them in.

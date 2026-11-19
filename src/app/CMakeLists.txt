@@ -16,7 +16,8 @@ add_library(defragr-model STATIC
     model/DriveList.cpp
     model/DriveMap.cpp
     model/Messages.cpp
-    model/Report.cpp)
+    model/Report.cpp
+    model/RunState.cpp)
 target_compile_options(defragr-model PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(defragr-model PUBLIC defragr-engine-link)
 
@@ -59,6 +60,7 @@ add_custom_target(update-translations
 # The window itself: apart from main() so its test can press its buttons
 # offscreen.
 add_library(defragr-window STATIC
+    ui/DefragView.cpp
     ui/MainWindow.cpp
     ui/ReportView.cpp)
 

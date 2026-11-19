@@ -4,6 +4,7 @@
 #include <array>
 #include <limits>
 #include <optional>
+#include <utility>
 
 using namespace defragr::engine;
 
@@ -39,6 +40,7 @@ std::optional<CellState> stateOf(quint32 kind)
 
 void DriveMap::clear()
 {
+    m_landed.clear();
     m_bins.clear();
     m_binBlocks = 1;
     m_end = 0;
@@ -58,6 +60,10 @@ void DriveMap::fit()
         }
         m_bins.resize((m_bins.size() + 1) / 2);
         m_binBlocks *= 2;
+        QHash<qsizetype, quint64> landed;
+        for (auto it = m_landed.cbegin(); it != m_landed.cend(); ++it)
+            landed[it.key() / 2] += it.value();
+        m_landed = std::move(landed);
     }
     m_bins.resize(qsizetype(needed()), Tally{});
 }
@@ -88,12 +94,91 @@ void DriveMap::add(const MapRuns &runs)
     }
 }
 
+quint64 DriveMap::binWidth(qsizetype bin) const
+{
+    const quint64 start = quint64(bin) * m_binBlocks;
+    return bin + 1 == m_bins.size() ? m_end - start : m_binBlocks;
+}
+
+void DriveMap::recount(const MapRun &run, CellState was, CellState now, bool landed)
+{
+    const quint64 end = endOf(run);
+    if (end <= run.start)
+        return;
+    if (end > m_end) {
+        m_end = end;
+        fit();
+    }
+    for (quint64 at = run.start; at < end;) {
+        const qsizetype bin = qsizetype(at / m_binBlocks);
+        const quint64 binEnd = bin + 1 == m_bins.size()
+                                   ? end
+                                   : std::min(end, quint64(bin + 1) * m_binBlocks);
+        const quint64 blocks = binEnd - at;
+        at = binEnd;
+
+        Tally &tally = m_bins[bin];
+        quint64 named = 0;
+        for (const quint64 n : tally)
+            named += n;
+        const quint64 width = binWidth(bin);
+        const quint64 taken = std::min(blocks, tally[size_t(was)]);
+        tally[size_t(was)] -= taken;
+        tally[size_t(now)] += blocks;
+        // The rest were not `was` here: blocks in no run first, which
+        // need no change, then whichever other kind has most.
+        quint64 lacking = blocks - taken;
+        lacking -= std::min(lacking, width > named ? width - named : 0);
+        while (lacking > 0) {
+            quint64 *most = nullptr;
+            for (size_t kind = 0; kind < tally.size(); ++kind)
+                if (kind != size_t(now) && tally[kind] > 0 && (!most || tally[kind] > *most))
+                    most = &tally[kind];
+            if (!most)
+                break;
+            const quint64 cut = std::min(lacking, *most);
+            *most -= cut;
+            lacking -= cut;
+        }
+        if (landed)
+            m_landed[bin] += blocks;
+    }
+}
+
+void DriveMap::move(const BlocksMoved &move)
+{
+    for (const MapRun &run : move.from)
+        recount(run, CellState::Fragmented, CellState::Free, false);
+    for (const MapRun &run : move.to)
+        recount(run, CellState::Free, CellState::Whole, true);
+}
+
+void DriveMap::endTurn(bool inOnePiece)
+{
+    if (!inOnePiece) {
+        for (auto it = m_landed.cbegin(); it != m_landed.cend(); ++it) {
+            Tally &tally = m_bins[it.key()];
+            const quint64 blocks = std::min(it.value(), tally[size_t(CellState::Whole)]);
+            tally[size_t(CellState::Whole)] -= blocks;
+            tally[size_t(CellState::Fragmented)] += blocks;
+        }
+    }
+    m_landed.clear();
+}
+
+quint64 DriveMap::blocksPerCell(int count) const
+{
+    if (count <= 0 || m_end == 0)
+        return 0;
+    return m_end / quint64(count) + (m_end % quint64(count) != 0);
+}
+
 QList<CellState> DriveMap::cells(int count) const
 {
     const quint64 total = m_end;
     if (count <= 0 || total == 0)
         return {};
-    const quint64 perCell = total / quint64(count) + (total % quint64(count) != 0);
+    const quint64 perCell = blocksPerCell(count);
     const qsizetype cellCount = qsizetype((total - 1) / perCell + 1);
 
     // Blocks of each kind in each cell. Doubles, since a bin across two

@@ -151,8 +151,94 @@
         <translation>DeFragR non ha trovato dischi da elencare.</translation>
     </message>
     <message>
-        <source>Defragging comes in a later version of DeFragR. The engine has checked this drive and will allow it.</source>
-        <translation>La deframmentazione arriverà in una versione futura di DeFragR. Il motore ha controllato questo disco e la permetterà.</translation>
+        <source>Defrag the folder %1 and every folder inside it?</source>
+        <extracomment>%1 is a folder&apos;s path, such as /mnt/Games/Old.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR joins up each file there that lies in pieces, and checks that every file still reads the same. You can keep using the PC. This version cannot pause or cancel a defrag once it has started, and it may ask for your password twice: once to read the drive&apos;s map, once to defrag.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That folder is not on the drive at %1.</source>
+        <extracomment>%1 is the drive&apos;s folder, such as /mnt/Games.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pick that drive&apos;s own folder, or a folder inside it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR could not open it (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR could not read its details (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR could not read where its pieces lie (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR could not read this folder (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Its name, with the folders it is in, is too long for DeFragR.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It is locked against changes, so it was left alone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It is on another drive, mounted inside this one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It is not an ordinary file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The engine would not move it (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR could not read it to check it (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The drive has too little free space to hold it in fewer pieces.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DeFragR could not set space aside for it (%1).</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Its move stopped part-way (%1). The file still reads as it did.</source>
+        <extracomment>%1 is the system&apos;s own words for the error, such as &quot;Permission denied&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Something wrote to it while DeFragR was working on it, so it was left alone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It read back differently after its move.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It was skipped for a reason this version of DeFragR does not know.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Refresh drives</source>
@@ -345,6 +431,92 @@
     </message>
 </context>
 <context>
+    <name>defragr::model::RunState</name>
+    <message numerus="yes">
+        <source>%1 file(s) joined up.</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 file(s) left as they were: the drive has no free space that would hold them in fewer pieces.</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 file(s) skipped.</source>
+        <extracomment>%1 is a count of files, more than zero.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No file in pieces found yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>defragr::ui::DefragView</name>
+    <message>
+        <source>Back to drives</source>
+        <translation type="unfinished">Torna ai dischi</translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="unfinished">File</translation>
+    </message>
+    <message>
+        <source>Why it was skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Defragging %1</source>
+        <extracomment>%1 is the folder&apos;s path, such as /mnt/Games/Old.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting to read the drive.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First DeFragR reads where everything on the drive lies, to draw its map. On a big drive this can take a few minutes. Nothing on the drive is changed yet. Then it asks for your password once more, to defrag.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Joining up the files in this folder. Each move shows on the map: blocks leave a file&apos;s old places and land together in its new one. You can keep using the PC.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done. The map shows the drive as it is now.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Running for %1</source>
+        <extracomment>%1 is a time, such as &quot;2 min 5 s&quot;.</extracomment>
+        <translation type="unfinished">In esecuzione da %1</translation>
+    </message>
+    <message>
+        <source>Latest: %1</source>
+        <extracomment>%1 is the path of the file DeFragR finished with most recently.</extracomment>
+        <translation type="unfinished">Ultimo: %1</translation>
+    </message>
+    <message>
+        <source>Files DeFragR skipped, and why. Only the first %1 are listed:</source>
+        <extracomment>%1 is how many files are listed, of more that were skipped.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Files DeFragR skipped, and why:</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>defragr::ui::DriveMapView</name>
     <message>
         <source>Drive map</source>
@@ -387,12 +559,20 @@
         <translation>Deframmenta ora</translation>
     </message>
     <message>
+        <source>Pick the folder to defrag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Listing drives…</source>
         <translation>Ricerca dei dischi…</translation>
     </message>
     <message>
         <source>Pick a drive to see what DeFragR can do with it.</source>
         <translation>Scegli un disco per vedere cosa può farci DeFragR.</translation>
+    </message>
+    <message>
+        <source>Defrag this folder</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

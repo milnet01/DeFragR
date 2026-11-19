@@ -30,6 +30,8 @@ public:
 
 signals:
     void backRequested();
+    // A report has loaded: the drive it is of, and that drive's map.
+    void loaded(const QByteArray &mountPoint, const defragr::model::DriveMap &map);
 
 private:
     void showReport();

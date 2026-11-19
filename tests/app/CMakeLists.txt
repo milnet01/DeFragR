@@ -66,6 +66,14 @@ add_test(NAME tst_report COMMAND tst_report)
 set_tests_properties(tst_report PROPERTIES
     ENVIRONMENT "DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
 
+# One defrag of a folder, from a fake engine: DFR-0018.
+add_executable(tst_runstate tst_runstate.cpp)
+target_compile_options(tst_runstate PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(tst_runstate PRIVATE defragr-model Qt6::Test)
+add_test(NAME tst_runstate COMMAND tst_runstate)
+set_tests_properties(tst_runstate PROPERTIES
+    ENVIRONMENT "DEFRAGR_FAKES=${CMAKE_CURRENT_SOURCE_DIR}/fakes")
+
 # A recorded run, played back by the fake engine: DFR-0012.
 add_executable(tst_replay tst_replay.cpp)
 target_compile_options(tst_replay PRIVATE -Wall -Wextra -Wpedantic)
@@ -127,5 +135,5 @@ set_tests_properties(translations_current PROPERTIES
 # pre-push worktree, so ccache missed on every test every push. A Qt too
 # old to know the property keeps the paths, and only ccache is slower.
 set_target_properties(tst_records tst_records_conformance tst_probe tst_engineprocess
-    tst_drivelist tst_drivemap tst_messages tst_report tst_replay tst_languages tst_theme tst_drivemapview tst_mainwindow PROPERTIES
+    tst_drivelist tst_drivemap tst_messages tst_report tst_runstate tst_replay tst_languages tst_theme tst_drivemapview tst_mainwindow PROPERTIES
     QT_SKIP_DEFAULT_TESTCASE_DIRS TRUE)

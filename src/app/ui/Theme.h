@@ -12,6 +12,7 @@
 #include <QPalette>
 #include <QSize>
 
+#include <algorithm>
 #include <array>
 
 class QPainter;
@@ -74,6 +75,13 @@ public:
     // map, they are the state's colour.
     QGradientStops glowHalo(CellState state) const;
     QColor glowWash(CellState state) const;
+    // During a defrag: the small blocks that fly from a file's old place
+    // to its new one, and the outline round the cell last filled. The
+    // outline is a shape, so it reads without colour.
+    QColor moteColour() const;
+    int moteSide() const { return std::max(4, m_cellSide / 2); }
+    QColor markerColour() const;
+    int markerWidth() const { return std::max(2, m_cellSide / 5); }
 
     // The map's colours. Public so the table of themes in Theme.cpp can
     // name them.

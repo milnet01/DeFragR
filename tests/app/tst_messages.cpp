@@ -7,6 +7,8 @@
 #include <QSet>
 #include <QTest>
 
+#include <cerrno>
+
 #include <cstring>
 
 using namespace defragr::engine;
@@ -213,6 +215,49 @@ private slots:
         const Message result = messages::forRun(finishedWith(99));
         QVERIFY(!result.what.isEmpty());
         QVERIFY2(!hasDigit(result.what + result.action), qPrintable(result.what));
+    }
+
+    // DFR-0018 INV-13: every stage a file can be skipped at has words
+    // of its own, none shows a bare code, and a stage this window does
+    // not know still gets a sentence.
+    void skippedStagesHaveWords()
+    {
+        const QString unknown = messages::whySkipped({0, 99, "a"});
+        QVERIFY(!unknown.isEmpty());
+        QVERIFY2(!hasDigit(unknown), qPrintable(unknown));
+        QStringList seen{unknown};
+        for (quint16 stage = StageOpen; stage <= StageChecksumDiffers; ++stage) {
+            // 9999 is an errno the system has no words for.
+            for (const qint32 errnum : {0, EPERM, EXDEV, EINVAL, ENOSPC, EIO, 9999}) {
+                const QString why = messages::whySkipped({errnum, stage, "a"});
+                QVERIFY2(!why.isEmpty(), qPrintable(QString::number(stage)));
+                QVERIFY2(!hasDigit(why), qPrintable(why));
+                QVERIFY2(why != unknown, qPrintable(QString::number(stage)));
+            }
+            const QString why = messages::whySkipped({EIO, stage, "a"});
+            QVERIFY2(!seen.contains(why), qPrintable(why));
+            seen.append(why);
+        }
+        // A refusal and a full drive say which, not the system's words.
+        QVERIFY(messages::whySkipped({EPERM, StageRefused, "a"})
+                != messages::whySkipped({EXDEV, StageRefused, "a"}));
+        QVERIFY(messages::whySkipped({ENOSPC, StageDonor, "a"})
+                != messages::whySkipped({EIO, StageDonor, "a"}));
+    }
+
+    // The question before a defrag names the whole folder, and the note
+    // for a folder elsewhere names the drive, each as a path is shown.
+    void defragQuestionNamesTheFolder()
+    {
+        QVERIFY(messages::confirmDefrag("/mnt/Games", "Old/ROMs")
+                    .what.contains(messages::path(QByteArray("/mnt/Games/Old/ROMs"))));
+        QVERIFY(messages::confirmDefrag("/", "home").what.contains(
+            messages::path(QByteArray("/home"))));
+        QVERIFY(messages::confirmDefrag("/mnt/Games", "").what.contains(
+            messages::path(QByteArray("/mnt/Games"))));
+        QVERIFY(!messages::confirmDefrag("/mnt/Games", "").action.isEmpty());
+        QVERIFY(messages::folderNotOnDrive("/mnt/Games").what.contains(
+            messages::path(QByteArray("/mnt/Games"))));
     }
 
     void columnWords()

@@ -3,7 +3,9 @@
 #include <QCoreApplication>
 #include <QFile>
 
+#include <cerrno>
 #include <cstring>
+#include <limits>
 
 namespace defragr::model::messages {
 
@@ -116,6 +118,12 @@ QString path(const QByteArray &path)
     return messages::path(QFile::decodeName(path));
 }
 
+int pluralOf(quint64 count)
+{
+    return count <= quint64(std::numeric_limits<int>::max()) ? int(count)
+                                                             : int(count % 1000000 + 1000000);
+}
+
 QString fsType(const QByteArray &fsType)
 {
     return path(fsType);
@@ -184,10 +192,79 @@ QString noDrives()
     return Tr::tr("DeFragR found no drives to list.");
 }
 
-QString defragComesLater()
+Message confirmDefrag(const QByteArray &mountPoint, const QByteArray &folder)
 {
-    return Tr::tr("Defragging comes in a later version of DeFragR. The engine has "
-                  "checked this drive and will allow it.");
+    QByteArray whole = mountPoint;
+    if (!folder.isEmpty()) {
+        if (!whole.endsWith('/'))
+            whole += '/';
+        whole += folder;
+    }
+    //: %1 is a folder's path, such as /mnt/Games/Old.
+    return {Tr::tr("Defrag the folder %1 and every folder inside it?").arg(path(whole)),
+            Tr::tr("DeFragR joins up each file there that lies in pieces, and checks that "
+                   "every file still reads the same. You can keep using the PC. This "
+                   "version cannot pause or cancel a defrag once it has started, and it "
+                   "may ask for your password twice: once to read the drive's map, once "
+                   "to defrag.")};
+}
+
+Message folderNotOnDrive(const QByteArray &mountPoint)
+{
+    //: %1 is the drive's folder, such as /mnt/Games.
+    return {Tr::tr("That folder is not on the drive at %1.").arg(path(mountPoint)),
+            Tr::tr("Pick that drive's own folder, or a folder inside it.")};
+}
+
+QString whySkipped(const FileSkipped &skipped)
+{
+    // The system's own words for the error, such as "Permission denied".
+    const QString error = errorText(skipped.errnum);
+    switch (skipped.stage) {
+    case StageOpen:
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("DeFragR could not open it (%1).").arg(error);
+    case StageStat:
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("DeFragR could not read its details (%1).").arg(error);
+    case StageExtents:
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("DeFragR could not read where its pieces lie (%1).").arg(error);
+    case StageReadFolder:
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("DeFragR could not read this folder (%1).").arg(error);
+    case StagePathTooLong:
+        return Tr::tr("Its name, with the folders it is in, is too long for DeFragR.");
+    case StageRefused:
+        switch (skipped.errnum) {
+        case EPERM:
+            return Tr::tr("It is locked against changes, so it was left alone.");
+        case EXDEV:
+            return Tr::tr("It is on another drive, mounted inside this one.");
+        case EINVAL:
+            return Tr::tr("It is not an ordinary file.");
+        }
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("The engine would not move it (%1).").arg(error);
+    case StageRead:
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("DeFragR could not read it to check it (%1).").arg(error);
+    case StageDonor:
+        if (skipped.errnum == ENOSPC)
+            return Tr::tr("The drive has too little free space to hold it in fewer pieces.");
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("DeFragR could not set space aside for it (%1).").arg(error);
+    case StageMove:
+        //: %1 is the system's own words for the error, such as "Permission denied".
+        return Tr::tr("Its move stopped part-way (%1). The file still reads as it did.")
+            .arg(error);
+    case StageChanged:
+        return Tr::tr("Something wrote to it while DeFragR was working on it, so it was "
+                      "left alone.");
+    case StageChecksumDiffers:
+        return Tr::tr("It read back differently after its move.");
+    }
+    return Tr::tr("It was skipped for a reason this version of DeFragR does not know.");
 }
 
 QString refreshButton()

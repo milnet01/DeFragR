@@ -15,8 +15,14 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 ### Added
 - The engine can defrag a folder and every folder below it on an ext4
   drive. It checks each file reads the same after its move, and stops at
-  once if one does not. The window's button for it comes next
-  (DFR-0017).
+  once if one does not (DFR-0017).
+- "Defrag now" works. Pick a folder on the drive, answer the question,
+  and DeFragR joins up that folder's files. The map shows each move:
+  blocks light up where they were, fly across, and land together. A
+  marker shows where it is working. At the end it says how many files
+  were joined up, left or skipped, and why each was skipped. With the
+  desktop's animations turned off, the map changes without motion
+  (DFR-0018).
 
 ### Changed
 - On a processor without SSE4.2, such as Intel's before 2008, early

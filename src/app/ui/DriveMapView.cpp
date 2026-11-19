@@ -2,14 +2,25 @@
 
 #include "ui/Theme.h"
 
+#include <QEvent>
+#include <QGuiApplication>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineF>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QSet>
+#include <QStyle>
+#include <QStyleHints>
 #include <QtMath>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 12, 0)
+#include <QAccessibilityHints>
+#endif
 
 #include <algorithm>
+#include <limits>
 #include <type_traits>
 
 using defragr::model::CellState;
@@ -20,6 +31,23 @@ namespace {
 
 // How many cells a glowing cell's glow reaches past each of its edges.
 constexpr int kGlowReach = 1;
+
+// The most cells one launch's small blocks choose between, at each end.
+// Moves past it still change their cells; they only send no small block.
+constexpr qsizetype kWaitingCellsMax = 256;
+
+// Whether the desktop allows motion. Qt 6.12 reads the desktop's setting
+// itself. Before it, the style says how long its own animations last,
+// and Breeze gives 0 when KDE's animations are off.
+bool desktopAllowsMotion(const QWidget *widget)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 12, 0)
+    if (QGuiApplication::styleHints()->accessibility()->motionPreference()
+        == Qt::MotionPreference::ReducedMotion)
+        return false;
+#endif
+    return widget->style()->styleHint(QStyle::SH_Widget_Animation_Duration, nullptr, widget) != 0;
+}
 
 // Device pixels for `side` at `ratio`, rounded up so the cell fits.
 QSize devicePixels(int side, qreal ratio)
@@ -73,13 +101,19 @@ DriveMapView::DriveMapView(const Theme &theme, QWidget *parent)
     m_frame.setTimerType(Qt::PreciseTimer);
     connect(&m_frame, &QTimer::timeout, this, &DriveMapView::frame);
     setAccessibleName(tr("Drive map"));
+    m_motion = desktopAllowsMotion(this);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 12, 0)
+    connect(QGuiApplication::styleHints()->accessibility(),
+            &QAccessibilityHints::motionPreferenceChanged, this,
+            [this] { setMotion(desktopAllowsMotion(this)); });
+#endif
 }
 
 void DriveMapView::showMap(const model::DriveMap *map)
 {
     m_map = map;
     m_sweepStart = m_now();
-    fitMapToCells(true);
+    fitMapToCells(m_motion);
 }
 
 int DriveMapView::capacity() const
@@ -106,9 +140,12 @@ namespace {
 constexpr qreal kFadePart = 0.35;
 constexpr qreal kGlowPeak = 0.2;
 
-// How far a change from `start` lasting `length` has got at `now`.
+// How far a change from `start` lasting `length` has got at `now`. One
+// of no length is done the moment it starts.
 qreal progress(qint64 start, int length, qint64 now)
 {
+    if (length <= 0)
+        return now >= start ? 1 : 0;
     return std::clamp(qreal(now - start) / length, 0.0, 1.0);
 }
 
@@ -124,6 +161,25 @@ qreal outQuad(qreal x) { return x * (2 - x); }
 
 // How much of the new state shows, eased: 0 none, 1 all of it.
 qreal fadeIn(qreal t) { return outCubic(std::min(1.0, t / kFadePart)); }
+
+// The same for a cell a move left: it glows in its old pattern first,
+// and has faded by kChangeGapMs, when its next change may begin.
+constexpr qreal kLeaveFadeFrom = 0.15;
+constexpr qreal kLeaveFadePart = 0.22;
+static_assert((kLeaveFadeFrom + kLeaveFadePart) * DriveMapView::kChangeMs
+              <= DriveMapView::kChangeGapMs);
+qreal leaveFadeIn(qreal t)
+{
+    return outCubic(std::clamp((t - kLeaveFadeFrom) / kLeaveFadePart, 0.0, 1.0));
+}
+
+// Slow, fast, slow: a small block's place along its flight.
+qreal easeInOut(qreal x) { return x * x * (3 - 2 * x); }
+
+// How far behind each other a small block's trail lies, as a part of
+// its flight, and how many squares the trail has.
+constexpr qreal kTrailStep = 0.02;
+constexpr int kTrailSquares = 6;
 
 // How brightly the cell glows: 0 not at all, 1 at its peak.
 qreal glowAt(qreal t)
@@ -142,7 +198,186 @@ DriveMapView::Cell DriveMapView::Cell::at(qint64 now) const
 {
     if (!then || now < thenAt)
         return *this;
-    return {to, *then, thenAt, kChangeMs};
+    Cell next{to, *then, thenAt, thenLength};
+    next.leaving = thenLeaving;
+    return next;
+}
+
+QPointF DriveMapView::Mote::at(qint64 now, qreal back) const
+{
+    const qreal u = easeInOut(std::clamp(progress(start, kFlightMs, now) - back, 0.0, 1.0));
+    const qreal left = 1 - u;
+    return left * left * from + 2 * left * u * bend + u * u * to;
+}
+
+int DriveMapView::motesInFlight() const
+{
+    const qint64 now = m_now();
+    return int(std::ranges::count_if(
+        m_motes, [now](const Mote &mote) { return now < mote.start + kFlightMs; }));
+}
+
+void DriveMapView::setMotion(bool on)
+{
+    if (m_motion == on)
+        return;
+    m_motion = on;
+    if (!on) {
+        // Whatever was moving is where it was going.
+        m_motes.clear();
+        const qint64 now = m_now();
+        for (Cell &cell : m_cells) {
+            cell = cell.at(now);
+            cell.start = std::min(cell.start, now);
+            cell.length = 0;
+            cell.thenLength = 0;
+        }
+    }
+    update();
+}
+
+void DriveMapView::noteCells(QList<qsizetype> &cells, const QList<engine::MapRun> &runs) const
+{
+    const quint64 perCell = m_map->blocksPerCell(m_fittedFor);
+    if (perCell == 0)
+        return;
+    for (const engine::MapRun &run : runs) {
+        if (run.length == 0)
+            continue;
+        const quint64 first = run.start / perCell;
+        // The decoder takes any start and length, so the end saturates.
+        const quint64 lastBlock = run.length - 1 > std::numeric_limits<quint64>::max() - run.start
+                                      ? std::numeric_limits<quint64>::max()
+                                      : run.start + run.length - 1;
+        const quint64 last = lastBlock / perCell;
+        for (quint64 cell = first; cell <= last; ++cell) {
+            if (cells.size() >= kWaitingCellsMax || cell >= quint64(m_cells.size()))
+                return;
+            if (cells.isEmpty() || cells.last() != qsizetype(cell))
+                cells.append(qsizetype(cell));
+        }
+    }
+}
+
+void DriveMapView::showMove(const engine::BlocksMoved &move)
+{
+    if (!m_map)
+        return;
+    noteCells(m_fromCells, move.from);
+    noteCells(m_toCells, move.to);
+    followMap();
+}
+
+void DriveMapView::followMap()
+{
+    if (!m_map)
+        return;
+    const qint64 now = m_now();
+    if (!m_launchDue) {
+        m_launchDue = true;
+        m_launchAt = m_lastLaunch ? std::max(now, *m_lastLaunch + kLaunchGapMs) : now;
+    }
+    if (!m_motion || now >= m_launchAt)
+        launch(now);
+    else
+        moveUntil(m_launchAt, false);
+}
+
+qint64 DriveMapView::schedule(Cell &cell, CellState state, qint64 when, bool leaving) const
+{
+    cell.then = state;
+    cell.thenAt = std::max(when, cell.start + kChangeGapMs);
+    cell.thenLength = changeLength();
+    cell.thenLeaving = leaving && m_motion;
+    return cell.thenAt;
+}
+
+void DriveMapView::launch(qint64 now)
+{
+    m_launchDue = false;
+    m_lastLaunch = now;
+    const QList<CellState> target = m_map->cells(m_fittedFor);
+    if (target.size() != m_cells.size()) {
+        // The map grew past its end, so every cell holds other blocks now.
+        fitMapToCells(false);
+        return;
+    }
+
+    // Where each cell stands among the cells left and reached, so the
+    // changes ripple in the moves' own order.
+    QHash<qsizetype, qsizetype> leftAt;
+    QHash<qsizetype, qsizetype> reachedAt;
+    for (qsizetype i = 0; i < m_fromCells.size(); ++i)
+        leftAt.insert(m_fromCells[i], i);
+    for (qsizetype i = 0; i < m_toCells.size(); ++i)
+        reachedAt.insert(m_toCells[i], i);
+    const bool flying = m_motion && !m_fromCells.isEmpty() && !m_toCells.isEmpty();
+
+    qint64 stillAt = 0;
+    for (qsizetype i = 0; i < m_cells.size(); ++i) {
+        Cell cell = m_cells[i].at(now);
+        // Compared with what the cell is due to show, not what it shows:
+        // a change still waiting is part of the picture already.
+        if (target[i] == cell.then.value_or(cell.to))
+            continue;
+        if (target[i] == cell.to) {
+            // Back to what it shows: nothing waits, and nothing glows.
+            cell.then.reset();
+            m_cells[i] = cell;
+            continue;
+        }
+        qint64 when = now;
+        bool leaving = false;
+        if (!m_motion) {
+        } else if (const auto reached = reachedAt.constFind(i); reached != reachedAt.cend()) {
+            when = now + (flying ? kFlightMs : 0)
+                   + *reached * kLandSpreadMs / m_toCells.size();
+        } else if (const auto left = leftAt.constFind(i); left != leftAt.cend()) {
+            when = now + *left * kLandSpreadMs / m_fromCells.size();
+            leaving = true;
+        } else {
+            when = now + kFlightMs;
+        }
+        stillAt = std::max(stillAt, schedule(cell, target[i], when, leaving) + changeLength());
+        m_cells[i] = cell;
+    }
+
+    if (flying) {
+        const qsizetype count = std::clamp<qsizetype>(
+            std::max(m_fromCells.size(), m_toCells.size()), 3, kMotesMax);
+        for (qsizetype k = 0; k < count; ++k) {
+            const QPointF from =
+                QRectF(cellRect(m_fromCells[k * m_fromCells.size() / count])).center();
+            const QPointF to = QRectF(cellRect(m_toCells[k * m_toCells.size() / count])).center();
+            // Bowed to one side of the straight line, each a little
+            // differently, so the small blocks fan out and close again.
+            const QLineF line(from, to);
+            const QLineF across = line.normalVector();
+            const qreal bow = std::min(line.length() / 4, 4.0 * pitch()) * (0.6 + 0.2 * (k % 3));
+            const QPointF bend = line.center()
+                                 + QPointF(across.dx(), across.dy())
+                                       * (line.length() > 0 ? bow / line.length() : 0);
+            m_motes.append({from, bend, to, now + k * kLandSpreadMs / count});
+        }
+        stillAt = std::max(stillAt, now + kLandSpreadMs + kFlightMs);
+    }
+    if (!m_toCells.isEmpty()) {
+        update(markerRect());
+        m_marker = m_toCells.last();
+        update(markerRect());
+    }
+    m_fromCells.clear();
+    m_toCells.clear();
+    if (stillAt > 0)
+        moveUntil(stillAt, false);
+}
+
+QRect DriveMapView::markerRect() const
+{
+    if (m_marker < 0 || m_marker >= m_cells.size())
+        return {};
+    const int out = m_theme.cellGap() + m_theme.markerWidth();
+    return cellRect(m_marker).adjusted(-out, -out, out, out);
 }
 
 void DriveMapView::changeCells(const QList<CellState> &cells)
@@ -153,8 +388,8 @@ void DriveMapView::changeCells(const QList<CellState> &cells)
     qint64 stillAt = 0;
     for (qsizetype i = 0; i < cells.size(); ++i) {
         if (i >= m_cells.size()) {
-            next.append({std::nullopt, cells[i], now, kChangeMs});
-            stillAt = now + kChangeMs;
+            next.append({std::nullopt, cells[i], now, changeLength()});
+            stillAt = now + changeLength();
             continue;
         }
         Cell cell = m_cells[i].at(now);
@@ -166,14 +401,16 @@ void DriveMapView::changeCells(const QList<CellState> &cells)
             if (!cell.then)
                 cell.thenAt = cell.start + kChangeGapMs;
             cell.then = cells[i];
-            stillAt = std::max(stillAt, cell.thenAt + kChangeMs);
+            cell.thenLength = changeLength();
+            cell.thenLeaving = false;
+            stillAt = std::max(stillAt, cell.thenAt + changeLength());
         } else {
             // A change still going starts again from whichever of its
             // two states shows most.
             const std::optional<CellState> shown =
                 fadeIn(progress(cell.start, cell.length, now)) >= 0.5 ? cell.to : cell.from;
-            cell = {shown, cells[i], now, kChangeMs};
-            stillAt = now + kChangeMs;
+            cell = {shown, cells[i], now, changeLength()};
+            stillAt = now + changeLength();
         }
         next.append(cell);
     }
@@ -202,38 +439,78 @@ QSize DriveMapView::minimumSizeHint() const
 void DriveMapView::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    painter.fillRect(event->rect(), m_theme.mapBackground());
     const qint64 now = m_now();
     const int across = columns();
-    // A glowing cell reaches kGlowReach cells past its edges, so take as
-    // many rows more either side of what needs painting.
-    const qsizetype first = std::max(
-        qsizetype(0), qsizetype(event->rect().top() / pitch() - kGlowReach) * across);
-    const qsizetype end = std::min(
-        m_cells.size(), qsizetype(event->rect().bottom() / pitch() + 1 + kGlowReach) * across);
+    const qsizetype rowCount = (m_cells.size() + across - 1) / across;
+    // The rows to paint: each one the region touches, and, since a
+    // glowing cell reaches kGlowReach cells past its edges, as many rows
+    // more either side.
+    QList<bool> wanted(rowCount, false);
+    for (const QRect &rect : event->region()) {
+        painter.fillRect(rect, m_theme.mapBackground());
+        const qsizetype first = std::max(0, rect.top() / pitch() - kGlowReach);
+        const qsizetype last =
+            std::min<qsizetype>(rowCount - 1, rect.bottom() / pitch() + kGlowReach);
+        for (qsizetype row = first; row <= last; ++row)
+            wanted[row] = true;
+    }
     // First every cell at its own size, then the glowing ones over their
     // neighbours.
     QList<qsizetype> glowing;
-    for (qsizetype i = first; i < end; ++i) {
-        const Cell cell = m_cells[i].at(now);
-        const QRect rect = cellRect(i);
-        const qreal t = progress(cell.start, cell.length, now);
-        const qreal shown = fadeIn(t);
-        if (shown < 1 && cell.from)
-            painter.drawPixmap(rect.topLeft(), tile(*cell.from));
-        if (shown > 0) {
-            painter.setOpacity(shown);
-            painter.drawPixmap(rect.topLeft(), tile(cell.to));
-            painter.setOpacity(1);
+    for (qsizetype row = 0; row < rowCount; ++row) {
+        if (!wanted[row])
+            continue;
+        const qsizetype end = std::min(m_cells.size(), (row + 1) * across);
+        for (qsizetype i = row * across; i < end; ++i) {
+            const Cell cell = m_cells[i].at(now);
+            const QRect rect = cellRect(i);
+            const qreal t = progress(cell.start, cell.length, now);
+            const qreal shown = cell.leaving ? leaveFadeIn(t) : fadeIn(t);
+            if (shown < 1 && cell.from)
+                painter.drawPixmap(rect.topLeft(), tile(*cell.from));
+            if (shown > 0) {
+                painter.setOpacity(shown);
+                painter.drawPixmap(rect.topLeft(), tile(cell.to));
+                painter.setOpacity(1);
+            }
+            if (glowAt(t) > 0)
+                glowing.append(i);
         }
-        if (glowAt(t) > 0)
-            glowing.append(i);
     }
     const int reach = kGlowReach * m_theme.cellSide();
     for (const qsizetype i : glowing) {
         const Cell cell = m_cells[i].at(now);
         painter.setOpacity(glowAt(progress(cell.start, cell.length, now)));
-        painter.drawPixmap(cellRect(i).topLeft() - QPoint(reach, reach), glow(cell.to));
+        // A cell a move left lights up as what it was.
+        const CellState lit = cell.leaving && cell.from ? *cell.from : cell.to;
+        painter.drawPixmap(cellRect(i).topLeft() - QPoint(reach, reach), glow(lit));
+    }
+    painter.setOpacity(1);
+
+    if (const QRect marker = markerRect(); !marker.isNull()) {
+        const int width = m_theme.markerWidth();
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(QPen(m_theme.markerColour(), width));
+        painter.setBrush(Qt::NoBrush);
+        const QRectF line = QRectF(marker).adjusted(width / 2.0, width / 2.0, -width / 2.0,
+                                                    -width / 2.0);
+        painter.drawRoundedRect(line, width * 1.5, width * 1.5);
+        painter.setRenderHint(QPainter::Antialiasing, false);
+    }
+
+    // Each small block leads a trail of fainter, smaller ones.
+    const qreal side = m_theme.moteSide();
+    for (const Mote &mote : m_motes) {
+        const qreal t = progress(mote.start, kFlightMs, now);
+        if (now < mote.start || t >= 1)
+            continue;
+        for (int square = kTrailSquares - 1; square >= 0; --square) {
+            const qreal size = side * (1 - 0.1 * square);
+            painter.setOpacity(1 - qreal(square) / kTrailSquares);
+            const QPointF centre = mote.at(now, square * kTrailStep);
+            painter.fillRect(QRectF(centre.x() - size / 2, centre.y() - size / 2, size, size),
+                             m_theme.moteColour());
+        }
     }
     painter.setOpacity(1);
 }
@@ -245,8 +522,21 @@ void DriveMapView::resizeEvent(QResizeEvent *event)
         fitMapToCells(false);
 }
 
+void DriveMapView::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::StyleChange)
+        setMotion(desktopAllowsMotion(this));
+}
+
 void DriveMapView::fitMapToCells(bool sweep)
 {
+    // Cells are counted afresh, so what was aimed at the old ones goes.
+    m_motes.clear();
+    m_fromCells.clear();
+    m_toCells.clear();
+    m_launchDue = false;
+    m_marker = -1;
     m_cells.clear();
     m_fittedFor = capacity();
     const qint64 now = m_now();
@@ -269,19 +559,70 @@ void DriveMapView::fitMapToCells(bool sweep)
     update();
 }
 
-void DriveMapView::moveUntil(qint64 stillAt)
+void DriveMapView::moveUntil(qint64 stillAt, bool repaintAll)
 {
     m_stillAt = std::max(m_stillAt, stillAt);
-    if (m_now() < m_stillAt)
+    const qint64 now = m_now();
+    if (now < m_stillAt && !m_frame.isActive()) {
+        m_lastFrame = now;
         m_frame.start();
-    update();
+    }
+    if (repaintAll)
+        update();
+    else
+        update(movedBetween(now, now));
 }
 
 void DriveMapView::frame()
 {
-    update();
-    if (m_now() >= m_stillAt)
+    const qint64 now = m_now();
+    if (m_launchDue && now >= m_launchAt)
+        launch(now);
+    update(movedBetween(m_lastFrame, now));
+    // A small block that had landed by the last frame is painted over now.
+    m_motes.removeIf([this](const Mote &mote) { return mote.start + kFlightMs <= m_lastFrame; });
+    m_lastFrame = now;
+    if (now >= m_stillAt && !m_launchDue)
         m_frame.stop();
+}
+
+QRegion DriveMapView::movedBetween(qint64 since, qint64 now) const
+{
+    QRegion moved;
+    const int across = columns();
+    const qsizetype rowCount = (m_cells.size() + across - 1) / across;
+    // Whole rows: a cell whose change was under way at any time from
+    // `since` to `now`, with the rows its glow reaches.
+    qsizetype paintedTo = -1;
+    for (qsizetype row = 0; row < rowCount; ++row) {
+        const qsizetype end = std::min(m_cells.size(), (row + 1) * across);
+        bool changing = false;
+        for (qsizetype i = row * across; i < end && !changing; ++i) {
+            const Cell cell = m_cells[i].at(now);
+            changing = cell.start <= now && cell.start + cell.length >= since;
+        }
+        if (!changing)
+            continue;
+        const qsizetype first = std::max(paintedTo + 1, row - kGlowReach);
+        const qsizetype last = std::min(rowCount - 1, row + kGlowReach);
+        if (first <= last)
+            moved += QRect(0, int(first) * pitch(), width(), int(last - first + 1) * pitch());
+        paintedTo = std::max(paintedTo, last);
+    }
+    // Each small block's trail, where it was and where it is.
+    const qreal margin = m_theme.moteSide() / 2.0 + 1;
+    for (const Mote &mote : m_motes) {
+        if (now < mote.start || since >= mote.start + kFlightMs + 1)
+            continue;
+        QRectF around;
+        for (const qint64 when : {since, now})
+            for (int square = 0; square < kTrailSquares; ++square) {
+                const QPointF at = mote.at(when, square * kTrailStep);
+                around |= QRectF(at.x() - margin, at.y() - margin, 2 * margin, 2 * margin);
+            }
+        moved += around.toAlignedRect();
+    }
+    return moved;
 }
 
 int DriveMapView::pitch() const
