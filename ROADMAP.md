@@ -2111,13 +2111,16 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: feature.
   Source: user-request-2026-11-19.
 
-- 📋 [DFR-0112] **CI fails on main: the old-CPU test machine and the translations check.**
+- ✅ [DFR-0112] **CI fails on main: the old-CPU test machine and the translations check.**
   Run 44544896387 on 4bc1e1c, the first CI run to hold image_defrag's
   old-CPU machine. The runner installs Ubuntu's amd64v3 packages, so
   its busybox-static uses AVX; on `--cpu qemu64` init dies with an
   invalid opcode (vmovdqa). translations_current: the runner's lupdate
   (Qt 6.10.2) does not attach the `//:` comment inside the conditional
   in DefragView.cpp to the string after it; this PC's (Qt 6.12.0) does.
+  Fixed 2026-11-19 in 484fd9a: `run.sh --cpu-without sse4.2` in place of
+  `--cpu qemu64`, and the `//:` comment before a whole statement. CI run
+  44547059698 on that commit passed.
   **Layman:** GitHub's automatic checks failed on the last push, though the same checks pass on this PC; make them pass in both places.
   Kind: fix.
   Source: ci-run-44544896387-2026-11-19.
