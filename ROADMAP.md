@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=106 -->
+<!-- ants-roadmap-id-high-water: DFR=107 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -2179,6 +2179,14 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Source: design-2026-11-15.
   Lanes: Build.
   Blocked-by: DFR-0025, DFR-0026.
+
+- 📋 [DFR-0107] **The report has two tabs: the list of files and the drive map.**
+  The owner asked for this on 2026-11-19. Today ReportView stacks the
+  map above the table of fragmented files, and the two share the page's
+  height. Which release it goes in is the owner's to say.
+  **Layman:** The report page shows the file list and the drive map on separate tabs, so each gets the whole page.
+  Kind: ux.
+  Source: user-request-2026-11-19.
 
 ## 0.7.0 — Options
 
