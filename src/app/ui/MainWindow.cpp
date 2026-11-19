@@ -79,7 +79,7 @@ MainWindow::MainWindow(const Theme &theme, QWidget *parent) : QMainWindow(parent
         const int row = selectedRow();
         if (row < 0)
             return;
-        m_reportView->start(m_drives.drive(row).mountPoint);
+        m_reportView->start(m_drives.drive(row).mountPoint, m_drives.canDefrag(row));
         m_pages->setCurrentWidget(m_reportView);
     });
     connect(m_reportView, &ReportView::backRequested, this,
@@ -88,6 +88,8 @@ MainWindow::MainWindow(const Theme &theme, QWidget *parent) : QMainWindow(parent
     // A report's map saves a defrag of that drive from reading one.
     connect(m_reportView, &ReportView::loaded, m_defragView, &DefragView::setMap);
     connect(m_defrag, &QPushButton::clicked, this, &MainWindow::defragAFolder);
+    // The drive a report is of stays the one picked in the list.
+    connect(m_reportView, &ReportView::defragRequested, this, &MainWindow::defragAFolder);
     connect(m_defragView, &DefragView::backRequested, this,
             [this] { m_pages->setCurrentWidget(m_drivePage); });
 

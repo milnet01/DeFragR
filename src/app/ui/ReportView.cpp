@@ -23,7 +23,9 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     m_heading->setFont(theme.headingFont());
     m_back = new QPushButton(tr("Back to drives"));
     auto *top = new QHBoxLayout;
+    m_defrag = new QPushButton(tr("Defrag a folder"));
     top->addWidget(m_heading, 1);
+    top->addWidget(m_defrag);
     top->addWidget(m_back);
 
     m_figures = new QLabel;
@@ -67,14 +69,17 @@ ReportView::ReportView(const Theme &theme, QWidget *parent) : QWidget(parent)
     layout->addStretch();
 
     connect(m_back, &QPushButton::clicked, this, &ReportView::backRequested);
+    connect(m_defrag, &QPushButton::clicked, this, &ReportView::defragRequested);
     connect(&m_report, &model::Report::loaded, this, &ReportView::showReport);
     connect(&m_report, &model::Report::failed, this, &ReportView::showFailure);
     connect(&m_report, &model::Report::found, this, &ReportView::noteFound);
     connect(&m_report, &model::Report::progressed, this, &ReportView::showProgress);
 }
 
-void ReportView::start(const QByteArray &mountPoint)
+void ReportView::start(const QByteArray &mountPoint, bool canDefrag)
 {
+    m_canDefrag = canDefrag;
+    m_loaded = false;
     //: %1 is the drive's folder, such as /mnt/Games.
     m_heading->setText(tr("Report on %1").arg(model::messages::path(mountPoint)));
     m_figures->setText(tr("Checking every file on the drive. On a big drive this "
@@ -97,6 +102,7 @@ void ReportView::showReport()
     m_figures->setText(model::summaryLines(m_report.summary()).join(QLatin1Char('\n')));
     m_filesHeading->setText(model::filesHeading(m_report.unlisted()));
     m_map->showMap(&m_report.map());
+    m_loaded = true;
     setRunning(false);
     emit loaded(m_report.mountPoint(), m_report.map());
 }
@@ -158,6 +164,7 @@ void ReportView::setRunning(bool running)
     // No cancel yet (DFR-0024), so going back mid-run would leave a
     // report running that no screen shows.
     m_back->setEnabled(!running);
+    m_defrag->setVisible(!running && m_loaded && m_canDefrag);
     m_checked->setVisible(running);
     m_progress->setVisible(running);
     m_found->setVisible(running);

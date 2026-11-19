@@ -1,6 +1,6 @@
 #!/bin/sh
 # An engine for the window's own test (tst_mainwindow). Its probe lists
-# two drives whose names look like markup, and its report on the first
+# two drives whose names look like markup, and its report on either
 # finds one fragmented file whose name looks like markup, then pauses
 # before the end until the test lets it finish (hold.sh), so the test can
 # look at the window mid-run. The report maps the drive's 1000 blocks. Its
@@ -18,7 +18,8 @@
 [ -z "${DEFRAGR_TEST_LOG:-}" ] || printf '%s\n' "$*" >>"$DEFRAGR_TEST_LOG"
 case "$1" in
 probe) ;;
-report | defrag) [ "$2" = '/mnt/<img src=x>' ] || exit 3 ;;
+report) [ "$2" = '/mnt/<img src=x>' ] || [ "$2" = /mnt/other ] || exit 3 ;;
+defrag) [ "$2" = '/mnt/<img src=x>' ] || exit 3 ;;
 *) exit 3 ;;
 esac
 # shellcheck source=SCRIPTDIR/hold.sh

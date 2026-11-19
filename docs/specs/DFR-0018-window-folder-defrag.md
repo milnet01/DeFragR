@@ -193,7 +193,9 @@ void setMotion(bool on);
   doing, the map key and map, the counts, and at the end the skipped
   files with why. "Back to drives" is off while a run goes.
 - `ui/ReportView` tells `MainWindow` when a report has loaded, and
-  `MainWindow` hands its map to the defrag page.
+  `MainWindow` hands its map to the defrag page. A loaded report of a
+  drive that can be defragged shows "Defrag a folder", which does as
+  "Defrag now" does (ROADMAP DFR-0100).
 - `model/RunState.h` gains `countLines`, the counts as sentences, beside
   the counts as `model/Report.h` has `summaryLines`.
 - `model/Messages` gains the words for each `FILE_SKIPPED` stage

@@ -572,6 +572,10 @@
         <translation>返回磁碟清單</translation>
     </message>
     <message>
+        <source>Defrag a folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Report on %1</source>
         <extracomment>%1 is the drive&apos;s folder, such as /mnt/Games.</extracomment>
         <translation>%1 的報告</translation>

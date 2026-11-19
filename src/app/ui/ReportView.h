@@ -26,10 +26,13 @@ public:
     explicit ReportView(const Theme &theme, QWidget *parent = nullptr);
 
     // Starts a report on the drive mounted there and shows it once done.
-    void start(const QByteArray &mountPoint);
+    // A drive that can be defragged gets the offer once its report loads.
+    void start(const QByteArray &mountPoint, bool canDefrag);
 
 signals:
     void backRequested();
+    // "Defrag a folder": a defrag of the drive this report is of.
+    void defragRequested();
     // A report has loaded: the drive it is of, and that drive's map.
     void loaded(const QByteArray &mountPoint, const defragr::model::DriveMap &map);
 
@@ -65,6 +68,9 @@ private:
     QLabel *m_filesHeading = nullptr;
     QTableView *m_table = nullptr;
     QPushButton *m_back = nullptr;
+    QPushButton *m_defrag = nullptr;
+    bool m_canDefrag = false;
+    bool m_loaded = false;
 };
 
 }  // namespace defragr::ui

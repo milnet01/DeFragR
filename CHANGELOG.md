@@ -26,6 +26,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A defrag of a drive DeFragR has not looked at yet reads the drive's
   map and defrags in one go, so it asks for your password once
   (DFR-0096).
+- A report of a drive that can be defragged has a "Defrag a folder"
+  button, so there is no need to go back to the drive list first
+  (DFR-0100).
 
 ### Changed
 - On a processor without SSE4.2, such as Intel's before 2008, early

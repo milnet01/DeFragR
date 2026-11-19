@@ -123,6 +123,13 @@ class TestMainWindow : public QObject {
     // and its button labelled `press` pressed.
     void defragNow(const QString &folder, const QString &press, QString *shown)
     {
+        defragFrom(button(m_window.get(), QStringLiteral("Defrag now")), folder, press, shown);
+    }
+
+    // The same, from any button that asks for a folder to defrag.
+    void defragFrom(QPushButton *start, const QString &folder, const QString &press,
+                    QString *shown)
+    {
         m_window->setFolderPicker([folder](QWidget *, const QString &) { return folder; });
         QTimer::singleShot(200, this, [=] {
             auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
@@ -136,7 +143,7 @@ class TestMainWindow : public QObject {
                 }
             box->reject();
         });
-        button(m_window.get(), QStringLiteral("Defrag now"))->click();
+        start->click();
     }
 
     // A window that has listed its drives from `engine`.
@@ -390,6 +397,52 @@ private slots:
 
         button(reportView(), QStringLiteral("Back to drives"))->click();
         QCOMPARE(pages()->currentIndex(), 0);
+    }
+
+    // DFR-0100: a report of a drive that can be defragged offers the
+    // defrag itself, once it has loaded, and that defrag uses its map.
+    void reportOffersADefrag()
+    {
+        FakeHold hold;
+        QVERIFY(hold.isValid());
+        useLauncher("pkexec-pass");
+        openWindow("window.sh");
+        selectRow(0);
+        button(m_window.get(), QStringLiteral("View report"))->click();
+        auto *defrag = button(reportView(), QStringLiteral("Defrag a folder"));
+        QVERIFY(defrag);
+        QVERIFY2(QTest::qWaitFor([&] { return progress()->value() == 50; }, kWaitMs),
+                 "no progress arrived");
+        QVERIFY(!defrag->isVisibleTo(m_window.get()));
+        QVERIFY(hold.release());
+        QVERIFY2(QTest::qWaitFor([&] { return defrag->isVisibleTo(m_window.get()); }, kWaitMs),
+                 "the report did not offer a defrag");
+        QFile::remove(m_log);
+
+        QString shown;
+        defragFrom(defrag, QStringLiteral("/mnt/<img src=x>/games"),
+                   QStringLiteral("Defrag this folder"), &shown);
+        QCOMPARE(shown, model::messages::confirmDefrag("/mnt/<img src=x>", "games").what);
+        QCOMPARE(pages()->currentWidget(), defragView());
+        QVERIFY2(QTest::qWaitFor(
+                     [&] { return button(defragView(), QStringLiteral("Back to drives"))->isEnabled(); },
+                     kWaitMs),
+                 "the defrag did not end");
+        QCOMPARE(commandLines(), QStringList{QStringLiteral("defrag /mnt/<img src=x> games")});
+    }
+
+    // DFR-0100: a drive that is report only gets no such offer.
+    void reportOnlyDriveOffersNoDefrag()
+    {
+        useLauncher("pkexec-pass");
+        openWindow("window.sh");
+        selectRow(1);
+        button(m_window.get(), QStringLiteral("View report"))->click();
+        QVERIFY2(QTest::qWaitFor([&] { return button(reportView(), QStringLiteral("Back to drives"))->isEnabled(); },
+                                 kWaitMs),
+                 "the report did not end");
+        QVERIFY(reportView()->findChild<ui::DriveMapView *>()->isVisibleTo(m_window.get()));
+        QVERIFY(!button(reportView(), QStringLiteral("Defrag a folder"))->isVisibleTo(m_window.get()));
     }
 
     // S9: when pkexec says no, the report page says admin rights were

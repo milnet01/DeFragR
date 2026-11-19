@@ -592,6 +592,10 @@
         <translation>Wróć do dysków</translation>
     </message>
     <message>
+        <source>Defrag a folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Report on %1</source>
         <extracomment>%1 is the drive&apos;s folder, such as /mnt/Games.</extracomment>
         <translation>Raport dla %1</translation>
