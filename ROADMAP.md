@@ -2361,6 +2361,13 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
 - 📋 [DFR-0024] **Pause, cancel and background mode in the window.**
   Pause, resume and cancel buttons, usable only while a run is going
   (S8, S12); `ui/TrayIcon` keeps the run going with the window hidden.
+  Owner, 2026-11-20, during a whole-drive defrag estimated at over four
+  hours: the page has no stop, cancel or pause, so closing the window
+  is the only way out. Read that day: on a closed window the engine
+  exits at its next record write (`rec_send`, EPIPE), which can fall
+  between two moves of one file, so that file is left part-moved and is
+  not read back. Open, the owner's: whether a Stop button that ends at
+  the next whole file moves into 0.3.0.
   **Layman:** Adds pause and cancel buttons, and lets the defrag carry on from the system tray.
   Kind: feature.
   Source: design-2026-11-15.
