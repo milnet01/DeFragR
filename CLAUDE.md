@@ -4,8 +4,9 @@
 
 **State:** 4 — Between items. Discovery and design are agreed
 (`docs/discovery.md`, `docs/design.md`); the queue is in `ROADMAP.md`.
-**In flight:** DFR-0097, measured and waiting for the owner's answers
-in its roadmap notes; it holds DFR-0019, release 0.3.0.
+**In flight:** DFR-0097, waiting for the owner's choice among the
+placement options in its roadmap notes. It, DFR-0116 and DFR-0117
+hold DFR-0019, release 0.3.0.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.

@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=116 -->
+<!-- ants-roadmap-id-high-water: DFR=118 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1933,6 +1933,25 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   were left. Options to bring with numbers once the run ends: move only
   where the donor is whole or in large pieces; say what was checked;
   choose the gap in the engine instead of taking ext4's first offer.
+  2026-11-20, the run was ended at the owner's request, 291 of 9,070
+  files in: the window was closed just after one file's last move,
+  found by watching the engine's open files as root, and the engine
+  exited 9 s later. That file (a 1.8 GB zip) is in 2 pieces by
+  `filefrag` and passes `unzip -t`.
+  Web research the same day, from kernel source and e2fsprogs, not yet
+  tested here. ext4 gives a fallocate at most 32,767 blocks a piece and
+  places a large file's pieces by a shared stream goal and best fit,
+  not by the folder or the longest free run; no call lets a program
+  name the place. `EXT4_IOC_MOVE_EXT` takes a donor offset, so one
+  donor can serve several files. `FS_IOC_GETFSMAP` lists free runs on
+  a mounted drive. e4defrag moves a file only when it has more pieces
+  than size / flex group and the donor has fewer. Windows leaves
+  pieces of 64 MB or more alone; btrfs defaults to 32 MiB.
+  Options, cheapest first: call a file done when every piece is large;
+  ask for the donor in group-sized calls; one big donor whose longest
+  runs are handed out; fill unwanted gaps with placeholders so ext4
+  must use the chosen one. Each needs measuring on a scratch image
+  before a spec.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -2257,11 +2276,27 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Confirm by: a test that starts a pulse, launches a second move to
   another cell before `kPulseMs` has passed, and compares the widget
   painted by partial updates with one painted whole.
+  Owner, 2026-11-20, two more screenshots from the same run: corner
+  and bracket-shaped pieces of the pulse stand several cells from the
+  marker, at places the marker had just left, with their level strips
+  gone where rows were repainted. That fits the hypothesis above.
   **Layman:** The big square that closes in on the newest place sometimes leaves a stray line behind on the map.
   Kind: fix.
   Source: user-test-2026-11-20.
   Lanes: Map.
   Evidence: /home/ants/Pictures/ClaudePaste/paste_20261120_080349_502_bc6780c3.png
+
+- 📋 [DFR-0117] **A Stop button that ends a defrag after the file in hand.**
+  Owner, 2026-11-20: moved into 0.3.0 from DFR-0023 and DFR-0024,
+  which keep pause, priorities and background mode. The engine ends at
+  the next whole file, read back and checked, on `CANCEL` or a closed
+  standard input (DFR-0002 § 4.8 names both). Today a closed window
+  ends it at the next record write, which can fall between two moves
+  of one file (`rec_send`). Holds DFR-0019.
+  **Layman:** A Stop button on the defrag page: it finishes and checks the file being moved, then ends. Closing the window does the same.
+  Kind: feature.
+  Source: user-request-2026-11-20.
+  Lanes: Move, Window.
 
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress
 
@@ -2408,6 +2443,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   **Layman:** The report page shows the file list and the drive map on separate tabs, so each gets the whole page.
   Kind: ux.
   Source: user-request-2026-11-19.
+
+- 📋 [DFR-0118] **Tick files in the report's worst-files list and defrag just those.**
+  Owner, 2026-11-20. The report lists files worst first; each row
+  gets a check box, and a Defrag button runs on the ticked files. The
+  engine's defrag takes a folder today, so it needs a way to take
+  named files. Placed in 0.6.0 by Claude; the owner left the release
+  open.
+  **Layman:** After a report, tick the worst files in its list and press Defrag to join up only those.
+  Kind: feature.
+  Source: user-request-2026-11-20.
+  Lanes: Window, Move.
 
 ## 0.7.0 — Options
 
