@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: DFR=115 -->
+<!-- ants-roadmap-id-high-water: DFR=116 -->
 # DeFragR — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1916,6 +1916,23 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   time-left line, the "reading free space" line, and the marker, dashed
   outline and progress bar. No log exists yet at
   ~/.local/state/defragr/defragr.log.
+  Owner, 2026-11-20, the bigger-folder test (/mnt/Emulators, whole
+  drive, 9,070 files in pieces; build v0.2.1-37-g2fc6c6b-modified),
+  about half an hour in: 187 joined, 62 left. Two questions from the
+  owner. One: the window says the drive has no free space that would
+  hold the left files, while the map shows wide free bands. Read, not
+  measured: step 4 asks ext4 for a donor once (`move.asm`, `move_file`)
+  and takes what the allocator offers, so "no free space" claims more
+  than was checked. Two: why move a file and leave it in pieces; step 4
+  keeps a donor in fewer pieces, not only in one. Also seen: "Finished
+  with 249 of 9,070 files in pieces" reads as if the run had ended
+  (`workLine`). A row of single whole-file cells three cells apart lies
+  in a free band; three cells is about one flex group on this drive.
+  Not measured: whether they were there before the run. The log holds
+  no BLOCKS_MOVED or FILE_DEFRAGGED line, so it cannot say which files
+  were left. Options to bring with numbers once the run ends: move only
+  where the donor is whole or in large pieces; say what was checked;
+  choose the gap in the engine instead of taking ext4's first offer.
   **Layman:** Defragging seems to make new striped blocks on the map; find out how often a file ends whole and why not always.
   Kind: investigate.
   Source: user-test-2026-11-19.
@@ -2224,6 +2241,27 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   **Layman:** DeFragR opens at the size and place it was last closed at.
   Kind: ux.
   Source: user-request-2026-11-19.
+
+- 📋 [DFR-0116] **The marker's closing square sometimes leaves a piece of itself on the map.**
+  Owner, 2026-11-20, real run on /mnt/Emulators (build
+  v0.2.1-37-g2fc6c6b-modified): the pulse leaves a piece behind; it
+  mostly clears, not always. The screenshot shows a stray upright line
+  inside the marker.
+  Hypothesis, from reading, not proven: `DriveMapView::launch` moves
+  `m_marker` while a pulse is under way, repainting only the marker's
+  outline at its old and new cells. `pulseRect` is measured from the
+  marker, so the pulse jumps with it, and `movedBetween` then repaints
+  only round the new marker. The pulse last painted round the old
+  marker stays until a row repaint covers it; row repaints clear its
+  level strips first, which fits an upright piece being left.
+  Confirm by: a test that starts a pulse, launches a second move to
+  another cell before `kPulseMs` has passed, and compares the widget
+  painted by partial updates with one painted whole.
+  **Layman:** The big square that closes in on the newest place sometimes leaves a stray line behind on the map.
+  Kind: fix.
+  Source: user-test-2026-11-20.
+  Lanes: Map.
+  Evidence: /home/ants/Pictures/ClaudePaste/paste_20261120_080349_502_bc6780c3.png
 
 ## 0.4.0 — Whole-drive defrag, menu, status bar and progress
 
