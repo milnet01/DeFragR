@@ -2299,6 +2299,17 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   standard input (DFR-0002 § 4.8 names both). Today a closed window
   ends it at the next record write, which can fall between two moves
   of one file (`rec_send`). Holds DFR-0019.
+  2026-11-20: `docs/specs/DFR-0002-engine-protocol.md` amended: § 4.8,
+  § 4.12 *Stopping*, § 6, INV-11 and the new INV-29. Read while
+  amending: the engine reads no command today (`sys_read` is called
+  from `probe.asm` only), and `rec_send` exits at the failed write. To
+  build: the engine's read before each file's turn; `rec_send` not
+  exiting inside a turn; INV-29's three runs, red first; the window's
+  Stop button and its wording, which DFR-0018's spec does not yet
+  describe. `check-defrag.sh` runs the engine with whatever standard
+  input the test machine gives it: an input at its end would cancel
+  those runs once the engine reads it. Not checked: that `pkexec` hands
+  the window's pipe to the engine as its standard input.
   **Layman:** A Stop button on the defrag page: it finishes and checks the file being moved, then ends. Closing the window does the same.
   Kind: feature.
   Source: user-request-2026-11-20.

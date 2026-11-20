@@ -385,9 +385,12 @@ Commands go from the window to the engine's standard input, framed as
 
 A closed standard input is `CANCEL`. An unknown command type is skipped.
 A malformed command ends the run with `BAD_COMMAND`. A pause while paused,
-or a resume while running, sends nothing. In a report, the safe point is
-between files; in a defrag, between moves (§ 4.12). DFR-0023 builds the
-engine's half.
+or a resume while running, sends nothing. The safe point is between
+files: in a defrag, once a file's turn has ended and its records are
+sent (§ 4.12, *Stopping*). DFR-0117 builds `CANCEL` and the closed
+standard input for a defrag. DFR-0023 builds the rest of the engine's
+half; until then a defrag skips `PAUSE` and `RESUME`, and no other run
+reads a command.
 
 ### 4.9 `selftest-records`
 
@@ -520,6 +523,23 @@ writes their data in one journal transaction per page
 (`mext_move_extent`, the kernel's `fs/ext4/move_extent.c`, Linux 7.3),
 and frees a donor with no name when the drive is next mounted.
 Unverified by any test here.
+
+**Stopping.** A defrag stops between files, never inside a file's
+turn, so every file it began was read back and checked (DFR-0117).
+
+- Before each file's turn the engine reads the commands that have
+  arrived, without waiting for one. On `CANCEL`, or a standard input at
+  its end, it begins no further file and sends `FINISHED` with
+  `CANCELLED`.
+- A `CANCEL` that arrives during the map or the count takes effect
+  before the first file's turn.
+- A write that fails with `EPIPE` during a file's turn does not end the
+  turn. The engine sends nothing more, takes the file through step 6,
+  and exits with `CANCELLED`; or with `CHECKSUM_MISMATCH` where step
+  6's CRC32C differs.
+- A write that fails outside a file's turn ends the run at that write
+  (§ 6).
+- No record or command is added, so the version does not change.
 
 **`DEFRAG_PROGRESS`** — type `0x0042`, fixed part 32 bytes. How far the
 defrag has got, so a window can show a bar. Added in 1.6.
@@ -688,7 +708,8 @@ isolates.
   error and no trailing bytes, and exits with `FINISHED.result`. A run
   whose write fails is the exception (§ 6): it stops at that write,
   prints nothing, and exits with `CANCELLED` on `EPIPE` and `INTERNAL`
-  on any other error.
+  on any other error. A defrag's write that fails with `EPIPE` inside a
+  file's turn is INV-29's.
   *Test:* `tests/app/tst_records_conformance.cpp`, run without root —
   runs `defragr-engine` and `defragr-engine bogus` (each expects result
   1), `report` with no mount point (expects 1, so arguments come before
@@ -900,6 +921,31 @@ isolates.
   kind 5, or sends it for every file in pieces. The fixture does not
   tell an average from a largest piece, or from the file's size.
 
+- **INV-29** — A defrag begins no file's turn after `CANCEL` or the end
+  of its standard input, and finishes with `CANCELLED`. A file whose
+  turn had begun when a write failed with `EPIPE` is taken through
+  step 6, and the engine then exits with `CANCELLED`.
+  *Test:* the `image_defrag` test (`tests/image/check-defrag.sh`,
+  `tests/image/defrag-check.cpp`), in three runs DFR-0117 writes. They
+  are not yet written.
+  One run's standard input is at its end from the start. One is sent
+  `CANCEL` first, its input then held open. Each must send no
+  `BLOCKS_MOVED`, finish with `CANCELLED`, and leave every block of
+  every file where it was. The rule each isolates: the engine reads its
+  input before a file's turn; an engine that reads none moves the
+  files.
+  One run defrags a folder holding one file of many moves, its input
+  held open and its output closed once the first `BLOCKS_MOVED` is
+  read. It must exit with `CANCELLED`; the file must read the same and
+  none of its blocks may lie where it did. The rule it isolates: the
+  turn goes on after the failed write; an engine that exits there
+  leaves the later moves' blocks in place. The file must be long enough
+  that the engine is still moving it when the output closes, which the
+  test cannot see; a shorter file passes either engine.
+  *Breaks when:* the engine never reads its input, takes an input at
+  its end for no command, or exits at the failed write with the file
+  part moved.
+
 ## 6. Failure modes
 
 - **The engine crashes.** No `FINISHED` arrives; INV-6 makes it a broken
@@ -913,7 +959,9 @@ isolates.
   refused (DFR-0049).
 - **The window dies.** The engine's writes fail with `EPIPE`, because
   `sys.asm` ignores `SIGPIPE`; the engine exits at once with
-  `CANCELLED`. Its reads see end of input, which is `CANCEL` too.
+  `CANCELLED`. Its reads see end of input, which is `CANCEL` too. In a
+  defrag, a file whose turn has begun is finished and checked first
+  (§ 4.12, *Stopping*).
 - **A write is partial or interrupted.** The engine repeats `write`
   until the whole record is out, retrying on `EINTR`.
 - **A write fails with another error, or makes no progress.** No
@@ -954,8 +1002,8 @@ fail against an engine that accepts any folder under a mount point.
 | `tests/image/check-report.sh` | INV-12, INV-15 | Yes, inside the test machine |
 | `tests/app/tst_engineprocess.cpp` | INV-15, the window's half | No |
 | `tests/image/report-check.cpp` | INV-14, INV-17, INV-28 | Yes, its input comes from the test machine |
-| `tests/image/check-defrag.sh` | INV-21 as root, INV-23, INV-25's arguments and folder check | Yes, inside the test machine |
-| `tests/image/defrag-check.cpp` | INV-20, INV-22's probe record, INV-25's map, INV-27 | Yes, its input comes from the test machine |
+| `tests/image/check-defrag.sh` | INV-21 as root, INV-23, INV-25's arguments and folder check, INV-29's runs | Yes, inside the test machine |
+| `tests/image/defrag-check.cpp` | INV-20, INV-22's probe record, INV-25's map, INV-27, INV-29's streams | Yes, its input comes from the test machine |
 | `tests/image/check-old-cpu.sh` | INV-22 | Yes, inside a test machine with no SSE4.2 |
 
 DFR-0043 writes INV-13's and INV-14's tests and sees each fail first.
@@ -965,6 +1013,7 @@ INV-25's. DFR-0099 writes INV-26's and INV-27's. INV-27's was seen
 failing on 2026-11-19 against an engine that counted files in one piece
 too. INV-26's was not seen failing. DFR-0106 writes INV-28's, seen
 failing on 2026-11-19 against an engine that sent `large` as kind 4.
+DFR-0117 writes INV-29's.
 
 `tst_records.cpp` exercises the decoder only; it proves nothing about the
 engine. The conformance and image tests read real engine output.
@@ -1009,12 +1058,14 @@ engine. The conformance and image tests read real engine output.
 | INV-25 | `tests/image/defrag-check.cpp` and `tests/image/check-defrag.sh` (`image_defrag`); `tests/app/tst_records_conformance.cpp` |
 | INV-27 | `tests/image/defrag-check.cpp` (`image_defrag`); `tests/app/tst_records_conformance.cpp` for the bytes |
 | INV-28 | `tests/image/report-check.cpp` (`image_report`) |
+| INV-29 | `tests/image/check-defrag.sh` and `tests/image/defrag-check.cpp` (`image_defrag`), once DFR-0117 writes its runs |
 | § 4.12 `DEFRAG_PROGRESS` when the folder changes between the count and the move | **nothing**: it needs a change timed between the two walks |
 | § 4.12 with `map`, a drive or folder that changes during the map's walk | **nothing**: it needs a change timed between the two walks |
 | § 4.7 check order | INV-11 and INV-21 |
 | § 4.12 stages 7 to 11, `CHECKSUM_MISMATCH`, a donor in no fewer pieces | **nothing**: each needs a failing drive, a writer racing the move, or a full drive |
 | § 4.7 reason order | `tests/app/tst_probe.cpp::reasonFollowsTheRules`, on the drives of the machine it runs on |
-| § 4.8 commands | **nothing** until DFR-0023 |
+| § 4.8 `PAUSE` and `RESUME` | **nothing** until DFR-0023 |
+| § 4.8 `CANCEL` in a defrag | INV-29 |
 | § 6 failed write | INV-11's `failedWriteIsInternal` and `closedPipeIsCancelled` |
 | § 4.3 failed `SIGPIPE` setup | **nothing**: `rt_sigaction` fails only on a bad argument (`sigaction(2)`), and the engine's are fixed |
 
