@@ -2261,7 +2261,7 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   Kind: ux.
   Source: user-request-2026-11-19.
 
-- 📋 [DFR-0116] **The marker's closing square sometimes leaves a piece of itself on the map.**
+- ✅ [DFR-0116] **The marker's closing square sometimes leaves a piece of itself on the map.**
   Owner, 2026-11-20, real run on /mnt/Emulators (build
   v0.2.1-37-g2fc6c6b-modified): the pulse leaves a piece behind; it
   mostly clears, not always. The screenshot shows a stray upright line
@@ -2280,6 +2280,12 @@ Items are broken out of `docs/design.md`; each names the discovery signs it deli
   and bracket-shaped pieces of the pulse stand several cells from the
   marker, at places the marker had just left, with their level strips
   gone where rows were repainted. That fits the hypothesis above.
+  Fixed 2026-11-20. The hypothesis held: the test
+  `pulseLeavesNothingWhereTheMarkerWas` failed with pulse pieces in a
+  ring round the cell the marker had left, rows repainted since
+  excepted. `launch` now repaints where the pulse stood at the last
+  frame before it moves the marker. Not tested: the real desktop; the
+  owner sees it in the next real run.
   **Layman:** The big square that closes in on the newest place sometimes leaves a stray line behind on the map.
   Kind: fix.
   Source: user-test-2026-11-20.

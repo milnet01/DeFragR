@@ -578,6 +578,70 @@ private slots:
         QVERIFY(!view->isPulsing());
     }
 
+    // DFR-0018 INV-9, DFR-0116: a marker that moves while its pulse is
+    // still closing in takes the pulse with it, and the screen keeps
+    // nothing of the pulse where the marker was. The window's own pixels
+    // are compared with a fresh paint of the whole view.
+    void pulseLeavesNothingWhereTheMarkerWas()
+    {
+        const int rows = 20;
+        DriveMap map;
+        map.add({MapFragmentedFile, {{10, 10}}});
+        map.add({MapFree, {{20, 180}}});
+        map.add({MapWholeFile, {{0, 10}}});
+        const auto view = settledViewOf(map, rows);
+        QVERIFY(QTest::qWaitForWindowExposed(view.get()));
+        QTest::qWait(50);
+        QCOMPARE(view->capacity(), kColumns * rows);
+
+        // The marker goes to the ninth row, and its pulse begins.
+        const BlocksMoved first{{{12, 1}}, {{84, 1}}};
+        map.move(first);
+        view->showMove(first);
+        QCOMPARE(view->markerCell(), 84);
+        // A third of the way in, the pulse is two cells out from the
+        // marker, and a frame has put it on screen.
+        m_now += DriveMapView::kPulseMs / 3;
+        QTest::qWait(50);
+        QVERIFY(view->isPulsing());
+
+        // The marker goes on to the nineteenth row, far from the pulse.
+        const BlocksMoved second{{{13, 1}}, {{184, 1}}};
+        map.move(second);
+        view->showMove(second);
+        QCOMPARE(view->markerCell(), 184);
+        QVERIFY(view->isPulsing());
+
+        for (int step = 0; step < 40 && view->isMoving(); ++step) {
+            m_now += 300;
+            QTest::qWait(50);
+        }
+        QVERIFY(!view->isMoving());
+        QTest::qWait(50);
+        QVERIFY(!view->isPulsing());
+
+        const QImage shot = view->screen()->grabWindow(view->winId()).toImage();
+        const QImage fresh = view->grab().toImage();
+        QCOMPARE(shot.size(), fresh.size());
+        // The cells holding a pixel the screen shows and a fresh paint
+        // does not.
+        QList<int> stale;
+        for (int y = 0; y < shot.height(); ++y)
+            for (int x = 0; x < shot.width(); ++x) {
+                if (shot.pixelColor(x, y).rgb() == fresh.pixelColor(x, y).rgb())
+                    continue;
+                const int cell = y / pitch() * kColumns + x / pitch();
+                if (!stale.contains(cell))
+                    stale.append(cell);
+            }
+        QStringList names;
+        for (const int cell : stale)
+            names.append(QString::number(cell));
+        QVERIFY2(stale.isEmpty(),
+                 qPrintable(QStringLiteral("expected no stale cell; stale pixels in cells %1")
+                                .arg(names.join(QLatin1Char(' ')))));
+    }
+
     // DFR-0105, S10: a dashed outline goes round the cell last emptied
     // and its neighbours. Its line shows the marker's colour in dashes
     // and the marker's edge between them, so it reads apart from the

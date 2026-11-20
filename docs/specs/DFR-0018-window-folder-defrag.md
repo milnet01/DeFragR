@@ -320,8 +320,12 @@ the journey can be judged by eye.
   `grabWindow` returned the window's stored pixels: after
   `update(QRect(0, 0, 100, 10))` on a repainted-blue widget it read
   blue at the top and the old red below.
+  `tests/app/tst_drivemapview.cpp::pulseLeavesNothingWhereTheMarkerWas`
+  compares those pixels with a fresh paint after the marker moves
+  mid-pulse.
   *Breaks when:* a frame leaves out a row whose cell finished changing
-  since the last frame, or the small blocks' old places.
+  since the last frame, or the small blocks' old places; or a launch
+  moves the marker without repainting where its pulse stood.
 
 - **INV-10** — With motion off, `showMove` leaves the screen showing
   only settled patterns, at once, and no small block is painted.

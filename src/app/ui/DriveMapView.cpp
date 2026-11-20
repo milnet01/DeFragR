@@ -367,6 +367,14 @@ void DriveMapView::launch(qint64 now)
         update(outline(outlineRect(m_source)));
     }
     if (!m_toCells.isEmpty()) {
+        // A pulse under way goes with the marker. It has only closed in
+        // since the last frame, so what is on screen of it round the old
+        // marker lies inside where it stood then.
+        if (m_pulseStart) {
+            const QRect pulse = pulseRect(std::max(m_lastFrame, *m_pulseStart));
+            if (!pulse.isNull())
+                update(QRegion(pulse).subtracted(markerRect()));
+        }
         update(outline(markerRect()));
         m_marker = m_toCells.last();
         update(outline(markerRect()));
